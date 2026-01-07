@@ -14,3 +14,9 @@ gui.diskterminal.partition=Partition
 gui.diskterminal.contents=Contents
 gui.diskterminal.click_to_edit=Click to edit
 gui.diskterminal.double_click_add=Double-click to add to partition
+
+# Error messages
+diskterminal.error.fluid_cell_item=Cannot add items to a fluid cell partition
+diskterminal.error.item_cell_fluid=Cannot add fluids to an item cell partition
+diskterminal.error.no_empty_slot=No empty slot in storage
+diskterminal.error.different_dimension=Cannot highlight block in different dimension

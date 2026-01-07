@@ -17,6 +17,7 @@ public class DiskInfo {
     private long parentStorageId;
     private final int slot;
     private final int status;
+    private final boolean isFluid;
     private final ItemStack cellItem;
     private final long usedBytes;
     private final long totalBytes;
@@ -29,6 +30,7 @@ public class DiskInfo {
     public DiskInfo(NBTTagCompound nbt) {
         this.slot = nbt.getInteger("slot");
         this.status = nbt.getInteger("status");
+        this.isFluid = nbt.getBoolean("isFluid");
         this.cellItem = nbt.hasKey("cellItem") ? new ItemStack(nbt.getCompoundTag("cellItem")) : ItemStack.EMPTY;
         this.usedBytes = nbt.getLong("usedBytes");
         this.totalBytes = nbt.getLong("totalBytes");
@@ -76,6 +78,10 @@ public class DiskInfo {
 
     public int getStatus() {
         return status;
+    }
+
+    public boolean isFluid() {
+        return isFluid;
     }
 
     public ItemStack getCellItem() {

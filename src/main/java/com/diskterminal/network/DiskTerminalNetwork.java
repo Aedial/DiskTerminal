@@ -40,5 +40,29 @@ public class DiskTerminalNetwork {
             packetId++,
             Side.SERVER
         );
+
+        // Client -> Server: Insert held cell into storage
+        INSTANCE.registerMessage(
+            PacketInsertCell.Handler.class,
+            PacketInsertCell.class,
+            packetId++,
+            Side.SERVER
+        );
+
+        // Client -> Server: Request block highlight
+        INSTANCE.registerMessage(
+            PacketHighlightBlock.Handler.class,
+            PacketHighlightBlock.class,
+            packetId++,
+            Side.SERVER
+        );
+
+        // Server -> Client: Highlight a block
+        INSTANCE.registerMessage(
+            PacketHighlightBlockClient.Handler.class,
+            PacketHighlightBlockClient.class,
+            packetId++,
+            Side.CLIENT
+        );
     }
 }

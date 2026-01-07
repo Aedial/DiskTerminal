@@ -3,18 +3,24 @@ package com.diskterminal.gui;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.inventory.Container;
+import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraftforge.common.util.Constants;
+import net.minecraftforge.fluids.FluidStack;
 
 import appeng.client.gui.AEBaseGui;
 import appeng.client.gui.widgets.GuiScrollbar;
@@ -27,6 +33,8 @@ import com.diskterminal.client.DiskInfo;
 import com.diskterminal.client.StorageInfo;
 import com.diskterminal.network.DiskTerminalNetwork;
 import com.diskterminal.network.PacketEjectDisk;
+import com.diskterminal.network.PacketHighlightBlock;
+import com.diskterminal.network.PacketInsertCell;
 import com.diskterminal.network.PacketPartitionAction;
 
 
@@ -55,6 +63,17 @@ public abstract class GuiDiskTerminalBase extends AEBaseGui implements IJEIGhost
     protected PopupDiskPartition partitionPopup = null;
     protected DiskInfo hoveredDisk = null;
     protected int hoverType = 0; // 0=none, 1=inventory, 2=partition, 3=eject
+
+    // Hover tracking for background highlight
+    protected int hoveredLineIndex = -1;
+
+    // Double-click tracking
+    protected long lastClickTime = 0;
+    protected int lastClickedLineIndex = -1;
+
+    // Terminal position for sorting (set by container)
+    protected BlockPos terminalPos = BlockPos.ORIGIN;
+    protected int terminalDimension = 0;
 
     public GuiDiskTerminalBase(Container container) {
         super(container);
@@ -125,17 +144,34 @@ public abstract class GuiDiskTerminalBase extends AEBaseGui implements IJEIGhost
 
         hoveredDisk = null;
         hoverType = 0;
+        hoveredLineIndex = -1;
 
         int y = 18;
         final int currentScroll = this.getScrollBar().getCurrentScroll();
+        int relMouseX = mouseX - offsetX;
+        int relMouseY = mouseY - offsetY;
 
         for (int i = 0; i < ROWS_VISIBLE && currentScroll + i < lines.size(); i++) {
             Object line = lines.get(currentScroll + i);
+            int lineIndex = currentScroll + i;
+
+            // Check if mouse is hovering over this line
+            boolean isHovered = relMouseX >= 4 && relMouseX < 185
+                && relMouseY >= y && relMouseY < y + ROW_HEIGHT;
+
+            // Draw hover background for disk lines
+            if (isHovered && line instanceof DiskInfo) {
+                hoveredLineIndex = lineIndex;
+                drawRect(GUI_INDENT, y - 1, 180, y + ROW_HEIGHT - 1, 0x50CCCCCC);
+            }
+
+            // Draw separator line above storage entries (except first one)
+            if (line instanceof StorageInfo && i > 0) drawRect(GUI_INDENT, y - 1, 180, y, 0xFF606060);
 
             if (line instanceof StorageInfo) {
                 drawStorageLine((StorageInfo) line, y);
             } else if (line instanceof DiskInfo) {
-                drawDiskLine((DiskInfo) line, y, mouseX - offsetX, mouseY - offsetY);
+                drawDiskLine((DiskInfo) line, y, relMouseX, relMouseY);
             }
 
             y += ROW_HEIGHT;
@@ -160,7 +196,7 @@ public abstract class GuiDiskTerminalBase extends AEBaseGui implements IJEIGhost
         this.fontRenderer.drawString(name, GUI_INDENT + 20, y + 1, 0x404040);
 
         String location = storage.getLocationString();
-        this.fontRenderer.drawString(location, GUI_INDENT + 20, y + 10, 0x808080);
+        this.fontRenderer.drawString(location, GUI_INDENT + 20, y + 9, 0x808080);
     }
 
     /**
@@ -265,6 +301,7 @@ public abstract class GuiDiskTerminalBase extends AEBaseGui implements IJEIGhost
             this.drawTexturedModalRect(offsetX, offsetY + 18 + i * ROW_HEIGHT, 0, 52, this.xSize, ROW_HEIGHT);
         }
 
+        // TODO: we need a top groove, like the rest of the sides in the rect
         this.drawTexturedModalRect(offsetX, offsetY + 18 + ROWS_VISIBLE * ROW_HEIGHT, 0, 158, this.xSize, 99);
     }
 
@@ -303,10 +340,47 @@ public abstract class GuiDiskTerminalBase extends AEBaseGui implements IJEIGhost
 
         Object line = lines.get(lineIndex);
 
+        // Check for held cell - insert into storage
+        ItemStack heldStack = this.mc.player.inventory.getItemStack();
+        if (!heldStack.isEmpty()) {
+            long storageId = -1;
+
+            if (line instanceof StorageInfo) {
+                storageId = ((StorageInfo) line).getId();
+            } else if (line instanceof DiskInfo) {
+                storageId = ((DiskInfo) line).getParentStorageId();
+            }
+
+            if (storageId >= 0) {
+                DiskTerminalNetwork.INSTANCE.sendToServer(
+                    new PacketInsertCell(storageId, -1)
+                );
+
+                return;
+            }
+        }
+
+        // Check for double-click to highlight block
+        long now = System.currentTimeMillis();
+        if (lineIndex == lastClickedLineIndex && now - lastClickTime < 400) {
+            // Double-click detected
+            handleDoubleClick(line);
+            lastClickedLineIndex = -1;
+
+            return;
+        }
+
+        lastClickedLineIndex = lineIndex;
+        lastClickTime = now;
+
         if (line instanceof StorageInfo) {
             StorageInfo storage = (StorageInfo) line;
-            storage.toggleExpanded();
-            rebuildLines();
+
+            // Only toggle expand when clicking on the [+]/[-] button (around x=165)
+            if (relX >= 165 && relX < 180) {
+                storage.toggleExpanded();
+                rebuildLines();
+            }
 
             return;
         }
@@ -314,6 +388,33 @@ public abstract class GuiDiskTerminalBase extends AEBaseGui implements IJEIGhost
         if (line instanceof DiskInfo) {
             handleDiskClick((DiskInfo) line, relX, relY, row, mouseX, mouseY);
         }
+    }
+
+    protected void handleDoubleClick(Object line) {
+        StorageInfo storage = null;
+
+        if (line instanceof StorageInfo) {
+            storage = (StorageInfo) line;
+        } else if (line instanceof DiskInfo) {
+            DiskInfo disk = (DiskInfo) line;
+            storage = this.storageMap.get(disk.getParentStorageId());
+        }
+
+        if (storage == null) return;
+
+        // Check if in same dimension
+        if (storage.getDimension() != Minecraft.getMinecraft().player.dimension) {
+            Minecraft.getMinecraft().player.sendMessage(
+                new TextComponentTranslation("diskterminal.error.different_dimension")
+            );
+
+            return;
+        }
+
+        // Send highlight request to server
+        DiskTerminalNetwork.INSTANCE.sendToServer(
+            new PacketHighlightBlock(storage.getPos(), storage.getDimension())
+        );
     }
 
     protected void handleDiskClick(DiskInfo disk, int relX, int relY, int row, int mouseX, int mouseY) {
@@ -370,6 +471,12 @@ public abstract class GuiDiskTerminalBase extends AEBaseGui implements IJEIGhost
     }
 
     public void postUpdate(NBTTagCompound data) {
+        // Update terminal position if provided
+        if (data.hasKey("terminalPos")) {
+            this.terminalPos = BlockPos.fromLong(data.getLong("terminalPos"));
+            this.terminalDimension = data.getInteger("terminalDim");
+        }
+
         if (!data.hasKey("storages")) return;
 
         this.storageMap.clear();
@@ -387,7 +494,11 @@ public abstract class GuiDiskTerminalBase extends AEBaseGui implements IJEIGhost
     protected void rebuildLines() {
         this.lines.clear();
 
-        for (StorageInfo storage : this.storageMap.values()) {
+        // Sort storages by distance to terminal (dimension first, then distance)
+        List<StorageInfo> sortedStorages = new ArrayList<>(this.storageMap.values());
+        sortedStorages.sort(createStorageComparator());
+
+        for (StorageInfo storage : sortedStorages) {
             this.lines.add(storage);
 
             if (storage.isExpanded()) {
@@ -399,6 +510,25 @@ public abstract class GuiDiskTerminalBase extends AEBaseGui implements IJEIGhost
         }
 
         this.getScrollBar().setRange(0, Math.max(0, this.lines.size() - ROWS_VISIBLE), 1);
+    }
+
+    protected Comparator<StorageInfo> createStorageComparator() {
+        return (a, b) -> {
+            // Same dimension as terminal comes first
+            boolean aInDim = a.getDimension() == terminalDimension;
+            boolean bInDim = b.getDimension() == terminalDimension;
+
+            if (aInDim != bInDim) return aInDim ? -1 : 1;
+
+            // Sort by dimension
+            if (a.getDimension() != b.getDimension()) return Integer.compare(a.getDimension(), b.getDimension());
+
+            // Sort by distance to terminal
+            double distA = terminalPos.distanceSq(a.getPos());
+            double distB = terminalPos.distanceSq(b.getPos());
+
+            return Double.compare(distA, distB);
+        };
     }
 
     // Callbacks from popups
@@ -443,7 +573,7 @@ public abstract class GuiDiskTerminalBase extends AEBaseGui implements IJEIGhost
 
     @Override
     public List<IGhostIngredientHandler.Target<?>> getPhantomTargets(Object ingredient) {
-        if (partitionPopup != null && ingredient instanceof ItemStack) {
+        if (partitionPopup != null && (ingredient instanceof ItemStack || ingredient instanceof FluidStack)) {
             return partitionPopup.getGhostTargets();
         }
 

@@ -7,8 +7,26 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Keep a Changelog: https://keepachangelog.com/en/1.1.0/
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
-## [0.1.0] - 2026-01-07
 
+## [0.1.1] - 2026-01-08
+### Added
+- Add a separator line between different storage categories (drives and chests) in the disks list
+- Add semi-transparent overlay to disk entries for better readability
+- Add shift-click handling for cells in player inventory, to insert them into the first available drive slot
+- Add click handling on a storage category while holding a cell to insert it into this category's first available drive slot
+- Double-click on an entry/category to highlight the block it represents in-world, for 15 seconds
+- Sort cells list by distance to terminal (same dimension prioritized)
+- Add small symbol (P) for items in inventory view that are currently in the partition
+
+### Fixed
+- Fix the darkening of modal windows
+- Fix fluid cells not using the proper drag-and-drop (item cells's behavior was used instead)
+
+### Changed
+- Adjust the collapse/expand to be on the [+]/[-] button only, to allow other click interactions on the entry
+
+
+## [0.1.0] - 2026-01-07
 ### Added
 - Disk Terminal part that can be placed on ME cables to view and manage storage disks
 - Wireless Disk Terminal item for wireless access to disk management

@@ -12,6 +12,14 @@ import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.text.TextComponentTranslation;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.FluidUtil;
+
+import appeng.api.AEApi;
+import appeng.api.storage.IStorageChannel;
+import appeng.api.storage.channels.IFluidStorageChannel;
+import appeng.api.storage.data.IAEFluidStack;
 
 import mezz.jei.api.gui.IGhostIngredientHandler;
 
@@ -53,16 +61,17 @@ public class PopupDiskPartition extends Gui {
 
         // Copy partition for editing
         this.editablePartition = new ArrayList<>(disk.getPartition());
-        while (editablePartition.size() < MAX_PARTITION_SLOTS) {
-            editablePartition.add(ItemStack.EMPTY);
-        }
+        while (editablePartition.size() < MAX_PARTITION_SLOTS) editablePartition.add(ItemStack.EMPTY);
 
-        // Calculate width based on title or slots, whichever is wider
+        // Calculate width based on title, slots, or hint, whichever is wider
         Minecraft mc = Minecraft.getMinecraft();
+        // FIXME: localize
         String title = disk.getDisplayName() + " - Partition";
+        String hint = "Click to remove, drag from JEI to add";
         int titleWidth = mc.fontRenderer.getStringWidth(title) + PADDING * 2;
+        int hintWidth = mc.fontRenderer.getStringWidth(hint) + PADDING * 2;
         int slotsWidth = SLOTS_PER_ROW * SLOT_SIZE + PADDING * 2;
-        this.width = Math.max(titleWidth, slotsWidth);
+        this.width = Math.max(Math.max(titleWidth, slotsWidth), hintWidth);
         this.height = HEADER_HEIGHT + MAX_ROWS * SLOT_SIZE + FOOTER_HEIGHT;
 
         // Calculate slot area offset to center slots within modal
@@ -82,11 +91,10 @@ public class PopupDiskPartition extends Gui {
         // Reset hovered state
         hoveredStack = ItemStack.EMPTY;
 
-        // Set z-level high to render above other elements
-        GlStateManager.pushMatrix();
-        GlStateManager.translate(0, 0, 300);
-        GlStateManager.disableDepth();
-
+        // Reset GL state to known good state before drawing
+        GlStateManager.disableLighting();
+        GlStateManager.enableBlend();
+        GlStateManager.enableAlpha();
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 
         // Draw popup background (similar to vanilla container style)
@@ -105,8 +113,6 @@ public class PopupDiskPartition extends Gui {
 
         // Draw partition slots
         int slotStartY = y + HEADER_HEIGHT;
-
-        GlStateManager.enableDepth();
 
         for (int i = 0; i < MAX_PARTITION_SLOTS; i++) {
             int slotX = x + slotOffsetX + (i % SLOTS_PER_ROW) * SLOT_SIZE;
@@ -130,11 +136,12 @@ public class PopupDiskPartition extends Gui {
 
             // Draw item
             if (!stack.isEmpty()) {
-                GlStateManager.pushMatrix();
+                GlStateManager.enableDepth();
                 RenderHelper.enableGUIStandardItemLighting();
-                mc.getRenderItem().renderItemAndEffectIntoGUI(stack, slotX + 1, slotY + 1);
+                mc.getRenderItem().renderItemAndEffectIntoGUI(stack, slotX, slotY);
                 RenderHelper.disableStandardItemLighting();
-                GlStateManager.popMatrix();
+                GlStateManager.disableDepth();
+                GlStateManager.disableLighting();
 
                 // Track hovered item for tooltip
                 if (hovered) {
@@ -146,12 +153,14 @@ public class PopupDiskPartition extends Gui {
         }
 
         // Draw hint at bottom
-        GlStateManager.disableDepth();
         String hint = "Click to remove, drag from JEI to add";
         int hintWidth = fr.getStringWidth(hint);
         fr.drawString(hint, x + (width - hintWidth) / 2, y + height - FOOTER_HEIGHT + 2, 0x606060);
 
-        GlStateManager.popMatrix();
+        // Reset state for subsequent rendering
+        GlStateManager.enableDepth();
+        GlStateManager.disableLighting();
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
     /**
@@ -159,14 +168,11 @@ public class PopupDiskPartition extends Gui {
      */
     public void drawTooltip(int mouseX, int mouseY) {
         if (!hoveredStack.isEmpty() && parent instanceof GuiScreen) {
-            GlStateManager.pushMatrix();
-            GlStateManager.translate(0, 0, 400);
             ((GuiScreen) parent).drawHoveringText(
                 parent.getItemToolTip(hoveredStack),
                 hoveredX,
                 hoveredY
             );
-            GlStateManager.popMatrix();
         }
     }
 
@@ -188,8 +194,8 @@ public class PopupDiskPartition extends Gui {
                 if (!removed.isEmpty()) {
                     editablePartition.set(slotIndex, ItemStack.EMPTY);
 
-                    if (parent instanceof GuiDiskTerminal) {
-                        ((GuiDiskTerminal) parent).onRemovePartitionItem(disk, slotIndex);
+                    if (parent instanceof GuiDiskTerminalBase) {
+                        ((GuiDiskTerminalBase) parent).onRemovePartitionItem(disk, slotIndex);
                     }
                 }
 
@@ -203,8 +209,59 @@ public class PopupDiskPartition extends Gui {
     /**
      * Handle JEI ghost ingredient drop.
      */
-    public boolean handleGhostDrop(int slotIndex, ItemStack stack) {
+    public boolean handleGhostDrop(int slotIndex, Object ingredient) {
         if (slotIndex < 0 || slotIndex >= MAX_PARTITION_SLOTS) return false;
+
+        ItemStack stack;
+
+        if (ingredient instanceof ItemStack) {
+            ItemStack itemStack = (ItemStack) ingredient;
+
+            if (disk.isFluid()) {
+                // For fluid cells, try to extract fluid from the item
+                FluidStack contained = FluidUtil.getFluidContained(itemStack);
+
+                if (contained == null) {
+                    Minecraft.getMinecraft().player.sendMessage(
+                        new TextComponentTranslation("diskterminal.error.fluid_cell_item")
+                    );
+
+                    return false;
+                }
+
+                // Convert extracted FluidStack to ItemStack representation
+                IStorageChannel<IAEFluidStack> fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
+                IAEFluidStack aeFluidStack = fluidChannel.createStack(contained);
+
+                if (aeFluidStack == null) return false;
+
+                stack = aeFluidStack.asItemStackRepresentation();
+            } else {
+                stack = itemStack;
+            }
+        } else if (ingredient instanceof FluidStack) {
+            // For item cells, reject fluids and show error
+            if (!disk.isFluid()) {
+                Minecraft.getMinecraft().player.sendMessage(
+                    new TextComponentTranslation("diskterminal.error.item_cell_fluid")
+                );
+
+                return false;
+            }
+
+            // Convert FluidStack to ItemStack representation
+            FluidStack fluidStack = (FluidStack) ingredient;
+            IStorageChannel<IAEFluidStack> fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
+            IAEFluidStack aeFluidStack = fluidChannel.createStack(fluidStack);
+
+            if (aeFluidStack == null) return false;
+
+            stack = aeFluidStack.asItemStackRepresentation();
+        } else {
+            return false;
+        }
+
+        if (stack.isEmpty()) return false;
 
         // Find first empty slot if dropping on occupied slot
         int targetSlot = slotIndex;
@@ -215,8 +272,8 @@ public class PopupDiskPartition extends Gui {
 
         editablePartition.set(targetSlot, stack.copy());
 
-        if (parent instanceof GuiDiskTerminal) {
-            ((GuiDiskTerminal) parent).onAddPartitionItem(disk, targetSlot, stack);
+        if (parent instanceof GuiDiskTerminalBase) {
+            ((GuiDiskTerminalBase) parent).onAddPartitionItem(disk, targetSlot, stack);
         }
 
         return true;
@@ -256,7 +313,8 @@ public class PopupDiskPartition extends Gui {
 
                 @Override
                 public void accept(Object ingredient) {
-                    if (ingredient instanceof ItemStack) handleGhostDrop(slotIndex, (ItemStack) ingredient);
+                    // Handle both ItemStack and FluidStack
+                    handleGhostDrop(slotIndex, ingredient);
                 }
             });
         }

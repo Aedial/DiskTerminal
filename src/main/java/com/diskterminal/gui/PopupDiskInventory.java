@@ -1,5 +1,6 @@
 package com.diskterminal.gui;
 
+import java.util.Collections;
 import java.util.List;
 
 import net.minecraft.client.Minecraft;
@@ -15,6 +16,7 @@ import appeng.core.AEConfig;
 import appeng.util.ReadableNumberConverter;
 
 import com.diskterminal.client.DiskInfo;
+import com.diskterminal.client.StorageInfo;
 
 
 /**
@@ -33,14 +35,13 @@ public class PopupDiskInventory extends Gui {
 
     private final GuiScreen parent;
     private final DiskInfo disk;
+    private final long storageId;
+    private final int diskSlot;
     private final int x;
     private final int y;
     private final int width;
     private final int height;
     private final int slotOffsetX;
-
-    private long lastClickTime = 0;
-    private int lastClickedSlot = -1;
 
     // Button for set/unset all partition
     private int partitionButtonX;
@@ -56,6 +57,8 @@ public class PopupDiskInventory extends Gui {
     public PopupDiskInventory(GuiScreen parent, DiskInfo disk, int mouseX, int mouseY) {
         this.parent = parent;
         this.disk = disk;
+        this.storageId = disk.getParentStorageId();
+        this.diskSlot = disk.getSlot();
 
         int contentRows = Math.min(MAX_ROWS, (disk.getContents().size() + SLOTS_PER_ROW - 1) / SLOTS_PER_ROW);
         if (contentRows == 0) contentRows = 1;
@@ -89,11 +92,10 @@ public class PopupDiskInventory extends Gui {
         // Reset hovered state
         hoveredStack = ItemStack.EMPTY;
 
-        // Set z-level high to render above other elements
-        GlStateManager.pushMatrix();
-        GlStateManager.translate(0, 0, 300);
-        GlStateManager.disableDepth();
-
+        // Reset GL state to known good state before drawing
+        GlStateManager.disableLighting();
+        GlStateManager.enableBlend();
+        GlStateManager.enableAlpha();
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 
         // Draw popup background (similar to vanilla container style)
@@ -121,6 +123,7 @@ public class PopupDiskInventory extends Gui {
         drawRect(partitionButtonX, partitionButtonY + BUTTON_HEIGHT - 1, partitionButtonX + partitionButtonWidth, partitionButtonY + BUTTON_HEIGHT, 0xFF555555);
         drawRect(partitionButtonX + partitionButtonWidth - 1, partitionButtonY, partitionButtonX + partitionButtonWidth, partitionButtonY + BUTTON_HEIGHT, 0xFF555555);
 
+        // FIXME: localize
         String buttonText = "Set All to Partition";
         int textWidth = fr.getStringWidth(buttonText);
         fr.drawString(buttonText, partitionButtonX + (partitionButtonWidth - textWidth) / 2, partitionButtonY + 3, 0x404040);
@@ -128,9 +131,7 @@ public class PopupDiskInventory extends Gui {
         // Draw item slots
         int slotStartY = y + HEADER_HEIGHT + BUTTON_HEIGHT + 4;
         List<ItemStack> contents = disk.getContents();
-        List<ItemStack> partition = disk.getPartition();
-
-        GlStateManager.enableDepth();
+        List<ItemStack> partition = getCurrentPartition();
 
         for (int i = 0; i < contents.size() && i < MAX_ROWS * SLOTS_PER_ROW; i++) {
             int slotX = x + slotOffsetX + (i % SLOTS_PER_ROW) * SLOT_SIZE;
@@ -142,7 +143,7 @@ public class PopupDiskInventory extends Gui {
             boolean inPartition = isInPartition(stack, partition);
 
             // Draw slot background
-            int slotBgColor = inPartition ? 0xFF225522 : 0xFF8B8B8B;
+            int slotBgColor = 0xFF8B8B8B;
             boolean slotHovered = mouseX >= slotX && mouseX < slotX + SLOT_SIZE - 1
                 && mouseY >= slotY && mouseY < slotY + SLOT_SIZE - 1;
 
@@ -156,21 +157,30 @@ public class PopupDiskInventory extends Gui {
 
             // Draw item
             if (!stack.isEmpty()) {
-                GlStateManager.pushMatrix();
+                GlStateManager.enableDepth();
                 RenderHelper.enableGUIStandardItemLighting();
-                mc.getRenderItem().renderItemAndEffectIntoGUI(stack, slotX + 1, slotY + 1);
+                mc.getRenderItem().renderItemAndEffectIntoGUI(stack, slotX, slotY);
+                RenderHelper.disableStandardItemLighting();
 
                 // Draw count like AE2 terminal
                 String countStr = formatItemCount(stack.getCount());
                 GlStateManager.disableLighting();
                 GlStateManager.disableDepth();
-                GlStateManager.translate(0, 0, 200);
                 int countWidth = fr.getStringWidth(countStr);
-                fr.drawStringWithShadow(countStr, slotX + 17 - countWidth, slotY + 9, 0xFFFFFF);
-                GlStateManager.enableDepth();
 
-                RenderHelper.disableStandardItemLighting();
+                GlStateManager.pushMatrix();
+                GlStateManager.scale(0.5f, 0.5f, 0.5f);
+                fr.drawStringWithShadow(countStr, (slotX + 17 - countWidth) * 2, (slotY + 14) * 2, 0xFFFFFF);
                 GlStateManager.popMatrix();
+
+                // Draw partition indicator in top-left corner if in partition
+                if (inPartition) {
+                    // TODO: localize
+                    GlStateManager.pushMatrix();
+                    GlStateManager.scale(0.5f, 0.5f, 0.5f);
+                    fr.drawStringWithShadow("P", (slotX + 1) * 2, (slotY + 1) * 2, 0xFF55FF55);
+                    GlStateManager.popMatrix();
+                }
 
                 // Track hovered item for tooltip
                 if (slotHovered) {
@@ -183,14 +193,15 @@ public class PopupDiskInventory extends Gui {
 
         // Draw empty message if no contents
         if (contents.isEmpty()) {
-            GlStateManager.disableDepth();
             String empty = "Empty";
             int emptyWidth = fr.getStringWidth(empty);
             fr.drawString(empty, x + (width - emptyWidth) / 2, slotStartY + 4, 0x606060);
-            GlStateManager.enableDepth();
         }
 
-        GlStateManager.popMatrix();
+        // Reset state for subsequent rendering
+        GlStateManager.enableDepth();
+        GlStateManager.disableLighting();
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
     /**
@@ -198,14 +209,11 @@ public class PopupDiskInventory extends Gui {
      */
     public void drawTooltip(int mouseX, int mouseY) {
         if (!hoveredStack.isEmpty() && parent instanceof GuiScreen) {
-            GlStateManager.pushMatrix();
-            GlStateManager.translate(0, 0, 400);
             ((GuiScreen) parent).drawHoveringText(
                 parent.getItemToolTip(hoveredStack),
                 hoveredX,
                 hoveredY
             );
-            GlStateManager.popMatrix();
         }
     }
 
@@ -235,12 +243,12 @@ public class PopupDiskInventory extends Gui {
         // Check partition all button click
         if (mouseX >= partitionButtonX && mouseX < partitionButtonX + partitionButtonWidth
                 && mouseY >= partitionButtonY && mouseY < partitionButtonY + BUTTON_HEIGHT) {
-            if (parent instanceof GuiDiskTerminal) ((GuiDiskTerminal) parent).onPartitionAllClicked(disk);
+            if (parent instanceof GuiDiskTerminalBase) ((GuiDiskTerminalBase) parent).onPartitionAllClicked(disk);
 
             return true;
         }
 
-        // Check slot double-click for partition toggle
+        // Check slot click for partition add
         int slotStartY = y + HEADER_HEIGHT + BUTTON_HEIGHT + 4;
         int relX = mouseX - x - slotOffsetX;
         int relY = mouseY - slotStartY;
@@ -251,18 +259,14 @@ public class PopupDiskInventory extends Gui {
             int slotIndex = slotRow * SLOTS_PER_ROW + slotCol;
 
             if (slotIndex < disk.getContents().size()) {
-                long now = System.currentTimeMillis();
+                ItemStack clickedStack = disk.getContents().get(slotIndex);
 
-                if (slotIndex == lastClickedSlot && now - lastClickTime < 500) {
-                    // Double click - toggle partition
-                    ItemStack clickedStack = disk.getContents().get(slotIndex);
-                    if (!clickedStack.isEmpty() && parent instanceof GuiDiskTerminal) {
-                        ((GuiDiskTerminal) parent).onTogglePartitionItem(disk, clickedStack);
+                // FIXME: partition cannot be toggled on/off if it is in partition already
+                if (!clickedStack.isEmpty() && parent instanceof GuiDiskTerminalBase) {
+                    // Only add to partition if not already in partition
+                    if (!isInPartition(clickedStack, disk.getPartition())) {
+                        ((GuiDiskTerminalBase) parent).onTogglePartitionItem(disk, clickedStack);
                     }
-                    lastClickedSlot = -1;
-                } else {
-                    lastClickedSlot = slotIndex;
-                    lastClickTime = now;
                 }
 
                 return true;
@@ -274,6 +278,25 @@ public class PopupDiskInventory extends Gui {
 
     public boolean isInsidePopup(int mouseX, int mouseY) {
         return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
+    }
+
+    /**
+     * Get current partition list from parent's storageMap.
+     * This ensures we show up-to-date partition status after server updates.
+     */
+    private List<ItemStack> getCurrentPartition() {
+        if (!(parent instanceof GuiDiskTerminalBase)) return disk.getPartition();
+
+        GuiDiskTerminalBase gui = (GuiDiskTerminalBase) parent;
+        StorageInfo storage = gui.storageMap.get(storageId);
+
+        if (storage == null) return disk.getPartition();
+
+        for (DiskInfo d : storage.getDisks()) {
+            if (d.getSlot() == diskSlot) return d.getPartition();
+        }
+
+        return disk.getPartition();
     }
 
     public int getWidth() {

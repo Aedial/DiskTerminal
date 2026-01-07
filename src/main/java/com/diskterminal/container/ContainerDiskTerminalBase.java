@@ -1,9 +1,14 @@
 package com.diskterminal.container;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
@@ -13,6 +18,7 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.AEApi;
+import appeng.api.implementations.IUpgradeableHost;
 import appeng.api.implementations.tiles.IChestOrDrive;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
@@ -43,10 +49,8 @@ import com.diskterminal.network.PacketPartitionAction;
  */
 public abstract class ContainerDiskTerminalBase extends AEBaseContainer {
 
-    protected static long autoBase = Long.MIN_VALUE;
-
     protected final Map<TileEntity, StorageTracker> trackers = new HashMap<>();
-    protected final Map<Long, StorageTracker> byId = new HashMap<>();
+    protected final Map<Long, StorageTracker> byId = new LinkedHashMap<>();
     protected IGrid grid;
     protected NBTTagCompound pendingData = new NBTTagCompound();
     protected boolean needsFullRefresh = true;
@@ -99,6 +103,10 @@ public abstract class ContainerDiskTerminalBase extends AEBaseContainer {
         NBTTagCompound data = new NBTTagCompound();
         NBTTagList storageList = new NBTTagList();
 
+        // Add terminal position for sorting
+        // TODO: sort by distance to (0, 0, 0) to ensure consistent order with wireless terminal
+        addTerminalPosition(data);
+
         if (this.grid == null) {
             data.setTag("storages", storageList);
             this.pendingData = data;
@@ -128,9 +136,27 @@ public abstract class ContainerDiskTerminalBase extends AEBaseContainer {
         this.pendingData = data;
     }
 
+    /**
+     * Add terminal position to the update data for client-side sorting.
+     * Override in subclasses to provide actual terminal position.
+     */
+    protected void addTerminalPosition(NBTTagCompound data) {
+        IActionHost host = this.getActionHost();
+        if (host instanceof IUpgradeableHost) {
+            TileEntity te = ((IUpgradeableHost) host).getTile();
+            if (te != null) {
+                data.setLong("terminalPos", te.getPos().toLong());
+                data.setInteger("terminalDim", te.getWorld().provider.getDimension());
+            }
+        }
+    }
+
     protected NBTTagCompound createStorageData(IChestOrDrive storage, String defaultName) {
         TileEntity te = (TileEntity) storage;
-        long id = autoBase++;
+
+        // Use position-based stable ID: combine pos hash with dimension
+        // This ensures IDs remain consistent across regenerations
+        long id = te.getPos().toLong() ^ ((long) te.getWorld().provider.getDimension() << 48);
 
         StorageTracker tracker = new StorageTracker(id, te, storage);
         this.trackers.put(te, tracker);
@@ -454,6 +480,48 @@ public abstract class ContainerDiskTerminalBase extends AEBaseContainer {
         this.needsFullRefresh = true;
     }
 
+    /**
+     * Handle cell insertion requests from client.
+     * Inserts the held cell into the specified storage.
+     */
+    public void handleInsertCell(long storageId, int targetSlot, EntityPlayer player) {
+        ItemStack heldStack = player.inventory.getItemStack();
+        if (heldStack.isEmpty()) return;
+
+        // Check if it's a valid cell
+        if (AEApi.instance().registries().cell().getHandler(heldStack) == null) return;
+
+        StorageTracker tracker = this.byId.get(storageId);
+        if (tracker == null) return;
+
+        IItemHandler cellInventory = getCellInventory(tracker.storage);
+        if (cellInventory == null) return;
+
+        // Find target slot
+        int slot = targetSlot;
+        if (slot < 0) {
+            slot = findEmptySlot(cellInventory);
+            if (slot < 0) {
+                // No empty slot available
+                return;
+            }
+        }
+
+        // Try to insert the cell
+        ItemStack remainder = cellInventory.insertItem(slot, heldStack.copy(), false);
+        if (remainder.getCount() < heldStack.getCount()) {
+            // Something was inserted
+            if (remainder.isEmpty()) {
+                player.inventory.setItemStack(ItemStack.EMPTY);
+            } else {
+                player.inventory.setItemStack(remainder);
+            }
+
+            ((EntityPlayerMP) player).updateHeldItem();
+            this.needsFullRefresh = true;
+        }
+    }
+
     protected int findEmptySlot(IItemHandler inv) {
         for (int i = 0; i < inv.getSlots(); i++) {
             if (inv.getStackInSlot(i).isEmpty()) return i;
@@ -477,6 +545,90 @@ public abstract class ContainerDiskTerminalBase extends AEBaseContainer {
 
     protected void clearConfig(IItemHandler inv) {
         appeng.util.helpers.ItemHandlerUtil.clear(inv);
+    }
+
+    @Override
+    public ItemStack transferStackInSlot(EntityPlayer player, int slotIndex) {
+        net.minecraft.inventory.Slot slot = this.inventorySlots.get(slotIndex);
+        if (slot == null || !slot.getHasStack()) return super.transferStackInSlot(player, slotIndex);
+
+        ItemStack stack = slot.getStack();
+
+        // Check if it's a valid cell
+        if (AEApi.instance().registries().cell().getHandler(stack) == null) {
+            return super.transferStackInSlot(player, slotIndex);
+        }
+
+        // Get terminal position for sorting
+        BlockPos terminalPos = getTerminalPosition();
+        int terminalDim = getTerminalDimension();
+
+        // Sort trackers by distance to terminal (same dimension first, then by distance)
+        List<StorageTracker> sortedTrackers = new ArrayList<>(this.byId.values());
+        sortedTrackers.sort(createTrackerComparator(terminalPos, terminalDim));
+
+        // Try to insert into first available drive/chest (sorted by distance)
+        for (StorageTracker tracker : sortedTrackers) {
+            IItemHandler cellInventory = getCellInventory(tracker.storage);
+            if (cellInventory == null) continue;
+
+            int emptySlot = findEmptySlot(cellInventory);
+            if (emptySlot < 0) continue;
+
+            ItemStack remainder = cellInventory.insertItem(emptySlot, stack.copy(), false);
+            if (remainder.getCount() < stack.getCount()) {
+                // Something was inserted
+                slot.putStack(remainder);
+                slot.onSlotChanged();
+                this.needsFullRefresh = true;
+                this.detectAndSendChanges();
+
+                return ItemStack.EMPTY;
+            }
+        }
+
+        return super.transferStackInSlot(player, slotIndex);
+    }
+
+    protected BlockPos getTerminalPosition() {
+        IActionHost host = this.getActionHost();
+        if (host instanceof IUpgradeableHost) {
+            TileEntity te = ((IUpgradeableHost) host).getTile();
+            if (te != null) return te.getPos();
+        }
+
+        return BlockPos.ORIGIN;
+    }
+
+    protected int getTerminalDimension() {
+        IActionHost host = this.getActionHost();
+        if (host instanceof IUpgradeableHost) {
+            TileEntity te = ((IUpgradeableHost) host).getTile();
+            if (te != null) return te.getWorld().provider.getDimension();
+        }
+
+        return 0;
+    }
+
+    protected Comparator<StorageTracker> createTrackerComparator(BlockPos terminalPos, int terminalDim) {
+        return (a, b) -> {
+            int dimA = a.tile.getWorld().provider.getDimension();
+            int dimB = b.tile.getWorld().provider.getDimension();
+
+            // Same dimension as terminal comes first
+            boolean aInDim = dimA == terminalDim;
+            boolean bInDim = dimB == terminalDim;
+            if (aInDim != bInDim) return aInDim ? -1 : 1;
+
+            // Sort by dimension
+            if (dimA != dimB) return Integer.compare(dimA, dimB);
+
+            // Sort by distance to terminal
+            double distA = terminalPos.distanceSq(a.tile.getPos());
+            double distB = terminalPos.distanceSq(b.tile.getPos());
+
+            return Double.compare(distA, distB);
+        };
     }
 
     protected static class StorageTracker {
