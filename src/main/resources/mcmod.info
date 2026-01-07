@@ -1,0 +1,16 @@
+[
+  {
+    "modid": "diskterminal",
+    "name": "Disk Terminal",
+    "description": "An AE2-UEL addon providing a terminal to access and manage storage disks directly, in a centralized manner.",
+    "version": "${version}",
+    "mcversion": "${mcversion}",
+    "url": "",
+    "updateUrl": "",
+    "authorList": ["Aedial"],
+    "credits": "",
+    "logoFile": "",
+    "screenshots": [],
+    "dependencies": ["ae2-extended-life"]
+  }
+]

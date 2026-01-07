@@ -1,0 +1,16 @@
+# Items
+item.diskterminal.disk_terminal.name=Disk Terminal
+item.diskterminal.portable_disk_terminal.name=Wireless Disk Terminal
+
+# GUI
+gui.diskterminal.disk_terminal.title=Disk Terminal
+gui.diskterminal.portable_disk_terminal.title=Wireless Disk Terminal
+gui.diskterminal.search=Search...
+gui.diskterminal.no_drives=No drives found in network
+gui.diskterminal.disk_empty=Empty
+gui.diskterminal.disk_capacity=%s / %s
+gui.diskterminal.types_used=%d / %d types
+gui.diskterminal.partition=Partition
+gui.diskterminal.contents=Contents
+gui.diskterminal.click_to_edit=Click to edit
+gui.diskterminal.double_click_add=Double-click to add to partition
