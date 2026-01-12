@@ -9,6 +9,9 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 
 ## [0.3.0] - 2026-01-13
+### Added
+- Add button to toggle between tall and compact GUI styles, with persistent setting
+
 ### Fixed
 - Fix JEI drag-and-drop not working for enchanted books
 - Fix cells not being extractable if they contained any item in inventory view (as it would toggle partition status instead of ejecting)

@@ -286,7 +286,7 @@ public class PopupCellInventory extends Gui {
         if (!(parent instanceof GuiCellTerminalBase)) return cell.getPartition();
 
         GuiCellTerminalBase gui = (GuiCellTerminalBase) parent;
-        StorageInfo storage = gui.storageMap.get(storageId);
+        StorageInfo storage = gui.getStorageMap().get(storageId);
 
         if (storage == null) return cell.getPartition();
 
