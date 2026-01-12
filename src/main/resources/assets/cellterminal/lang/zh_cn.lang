@@ -7,13 +7,37 @@ gui.cellterminal.cell_terminal.title=元件终端
 gui.cellterminal.wireless_cell_terminal.title=无线元件终端
 gui.cellterminal.search=搜索……
 gui.cellterminal.no_drives=网络中未找到驱动器
-gui.cellterminal.cell_empty=空
+gui.cellterminal.cell_empty=空元件
 gui.cellterminal.cell_capacity=%s / %s
 gui.cellterminal.types_used=%d / %d 类型
 gui.cellterminal.partition=分区
 gui.cellterminal.contents=内容
 gui.cellterminal.click_to_edit=点击以编辑
 gui.cellterminal.double_click_add=双击以添加到分区
+
+# Panel tabs
+gui.cellterminal.tab.terminal=终端
+gui.cellterminal.tab.inventory=物品栏
+gui.cellterminal.tab.partition=分区
+gui.cellterminal.tab.terminal.tooltip=元件总览
+gui.cellterminal.tab.inventory.tooltip=查看元件内容
+gui.cellterminal.tab.partition.tooltip=编辑元件分区
+
+# Panel hints
+gui.cellterminal.hint.terminal=点击以移除，从JEI中拖拽以添加
+gui.cellterminal.hint.inventory=点击物品栏物品以分区
+gui.cellterminal.hint.partition=点击以移除，从JEI中拖拽以添加
+gui.cellterminal.no_cell_selected=未选中元件
+gui.cellterminal.no_storage=未发现存储设备
+gui.cellterminal.no_partition=无分区
+gui.cellterminal.slot_empty=空
+
+# Popup titles and buttons
+gui.cellterminal.popup.partition_suffix= - 分区
+gui.cellterminal.popup.contents_suffix= - 内容
+gui.cellterminal.set_all_partition=添加全部到分区
+gui.cellterminal.partition_indicator=P
+gui.cellterminal.eject_cell=弹出元件
 
 # Error messages
 cellterminal.error.fluid_cell_item=无法将物品添加到流体元件分区
