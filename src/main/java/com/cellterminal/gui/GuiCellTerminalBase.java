@@ -16,7 +16,9 @@ import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.resources.I18n;
+import net.minecraft.enchantment.EnchantmentData;
 import net.minecraft.inventory.Container;
+import net.minecraft.item.ItemEnchantedBook;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -39,6 +41,7 @@ import appeng.util.ReadableNumberConverter;
 
 import mezz.jei.api.gui.IGhostIngredientHandler;
 
+import com.cellterminal.CellTerminal;
 import com.cellterminal.client.CellContentRow;
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.CellTerminalClientConfig;
@@ -251,6 +254,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         hoveredCellCell = null;
         hoveredCellStorage = null;
         hoveredCellSlotIndex = -1;
+        hoveredContentSlotIndex = -1;
         hoveredPartitionSlotIndex = -1;
         hoveredPartitionCell = null;
 
@@ -1456,9 +1460,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         int highest = -1;
 
         for (int i = 0; i < partition.size(); i++) {
-            if (!partition.get(i).isEmpty()) {
-                highest = i;
-            }
+            if (!partition.get(i).isEmpty()) highest = i;
         }
 
         // If the last slot of the last visible row is filled, add an extra row
@@ -1554,17 +1556,136 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
     // JEI Ghost Ingredient support
 
+    /**
+     * Convert any JEI ingredient to an ItemStack for use with AE2 cells.
+     * Handles ItemStack, FluidStack, EnchantmentData (JEI's hack for enchanted books),
+     * and any future/unknown ingredient types.
+     *
+     * @param ingredient The JEI ingredient to convert
+     * @param isFluidCell Whether the target cell is a fluid cell
+     * @return The converted ItemStack, or ItemStack.EMPTY if conversion failed or was rejected
+     */
+    protected ItemStack convertJeiIngredientToItemStack(Object ingredient, boolean isFluidCell) {
+        // Direct ItemStack - most common case
+        if (ingredient instanceof ItemStack) {
+            ItemStack itemStack = (ItemStack) ingredient;
+
+            if (isFluidCell) {
+                // For fluid cells, try to extract fluid from the item (e.g., bucket)
+                FluidStack contained = net.minecraftforge.fluids.FluidUtil.getFluidContained(itemStack);
+
+                if (contained == null) {
+                    Minecraft.getMinecraft().player.sendMessage(
+                        new TextComponentTranslation("cellterminal.error.fluid_cell_item")
+                    );
+
+                    return ItemStack.EMPTY;
+                }
+
+                IStorageChannel<IAEFluidStack> fluidChannel =
+                    AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
+                IAEFluidStack aeFluidStack = fluidChannel.createStack(contained);
+
+                if (aeFluidStack == null) return ItemStack.EMPTY;
+
+                return aeFluidStack.asItemStackRepresentation();
+            }
+
+            return itemStack;
+        }
+
+        // FluidStack - from JEI fluid entries
+        if (ingredient instanceof FluidStack) {
+            if (!isFluidCell) {
+                Minecraft.getMinecraft().player.sendMessage(
+                    new TextComponentTranslation("cellterminal.error.item_cell_fluid")
+                );
+
+                return ItemStack.EMPTY;
+            }
+
+            FluidStack fluidStack = (FluidStack) ingredient;
+            IStorageChannel<IAEFluidStack> fluidChannel =
+                AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
+            IAEFluidStack aeFluidStack = fluidChannel.createStack(fluidStack);
+
+            if (aeFluidStack == null) return ItemStack.EMPTY;
+
+            return aeFluidStack.asItemStackRepresentation();
+        }
+
+        // EnchantmentData - JEI's deprecated hack for enchanted books (removed in 1.13+)
+        if (ingredient instanceof EnchantmentData) {
+            if (isFluidCell) {
+                Minecraft.getMinecraft().player.sendMessage(
+                    new TextComponentTranslation("cellterminal.error.fluid_cell_item")
+                );
+
+                return ItemStack.EMPTY;
+            }
+
+            EnchantmentData enchantData = (EnchantmentData) ingredient;
+
+            return ItemEnchantedBook.getEnchantedItemStack(enchantData);
+        }
+
+        // Unknown ingredient type - log and reject
+        // NOTE: If you receive error reports about unsupported ingredient types, you can revert to
+        // the explicit type checking by uncommenting the old code below and removing this fallback.
+        CellTerminal.LOGGER.warn("Unsupported JEI ingredient type for partition: {}", ingredient.getClass().getName());
+
+        return ItemStack.EMPTY;
+    }
+
     @Override
     public List<IGhostIngredientHandler.Target<?>> getPhantomTargets(Object ingredient) {
 
         // Popup takes priority - return targets for JEI drag-and-drop functionality
         // Note: We draw these targets ourselves in drawPopupJeiGhostTargets() so they appear on top of the popup
-        if (partitionPopup != null && (ingredient instanceof ItemStack || ingredient instanceof FluidStack)) {
+        // Accept any ingredient type - convertJeiIngredientToItemStack handles validation
+        if (partitionPopup != null) return partitionPopup.getGhostTargets();
+
+        // Tab 3 (Partition) - expose partition slots for JEI ghost ingredients
+        // Accept any ingredient type - convertJeiIngredientToItemStack handles validation
+        if (currentTab == TAB_PARTITION) {
+            List<IGhostIngredientHandler.Target<?>> targets = new ArrayList<>();
+
+            for (PartitionSlotTarget slot : partitionSlotTargets) {
+                targets.add(new IGhostIngredientHandler.Target<Object>() {
+                    @Override
+                    public Rectangle getArea() {
+                        return new Rectangle(slot.x, slot.y, slot.width, slot.height);
+                    }
+
+                    @Override
+                    public void accept(Object ing) {
+                        ItemStack stack = convertJeiIngredientToItemStack(ing, slot.cell.isFluid());
+
+                        if (stack.isEmpty()) return;
+
+                        onAddPartitionItem(slot.cell, slot.slotIndex, stack);
+                    }
+                });
+            }
+
+            return targets;
+        }
+
+        return new ArrayList<>();
+    }
+
+    // OLD EXPLICIT TYPE HANDLING - Uncomment this and remove convertJeiIngredientToItemStack
+    // if you need to revert to the previous behavior due to issues with unknown ingredient types.
+    /*
+    @Override
+    public List<IGhostIngredientHandler.Target<?>> getPhantomTargets(Object ingredient) {
+        // Popup takes priority
+        if (partitionPopup != null && (ingredient instanceof ItemStack || ingredient instanceof FluidStack || ingredient instanceof EnchantmentData)) {
             return partitionPopup.getGhostTargets();
         }
 
-        // Tab 3 (Partition) - expose partition slots for JEI ghost ingredients
-        if (currentTab == TAB_PARTITION && (ingredient instanceof ItemStack || ingredient instanceof FluidStack)) {
+        // Tab 3 (Partition) - only accept known ingredient types
+        if (currentTab == TAB_PARTITION && (ingredient instanceof ItemStack || ingredient instanceof FluidStack || ingredient instanceof EnchantmentData)) {
             List<IGhostIngredientHandler.Target<?>> targets = new ArrayList<>();
 
             for (PartitionSlotTarget slot : partitionSlotTargets) {
@@ -1580,24 +1701,14 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
                         if (ing instanceof ItemStack) {
                             ItemStack itemStack = (ItemStack) ing;
-
                             if (slot.cell.isFluid()) {
-                                // For fluid cells, try to extract fluid from the item
                                 FluidStack contained = net.minecraftforge.fluids.FluidUtil.getFluidContained(itemStack);
-
                                 if (contained == null) {
-                                    Minecraft.getMinecraft().player.sendMessage(
-                                        new TextComponentTranslation("cellterminal.error.fluid_cell_item")
-                                    );
-
+                                    Minecraft.getMinecraft().player.sendMessage(new TextComponentTranslation("cellterminal.error.fluid_cell_item"));
                                     return;
                                 }
-
-                                // Convert extracted FluidStack to ItemStack representation
-                                IStorageChannel<IAEFluidStack> fluidChannel =
-                                    AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
+                                IStorageChannel<IAEFluidStack> fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
                                 IAEFluidStack aeFluidStack = fluidChannel.createStack(contained);
-
                                 if (aeFluidStack == null) return;
 
                                 stack = aeFluidStack.asItemStackRepresentation();
@@ -1605,39 +1716,35 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
                                 stack = itemStack;
                             }
                         } else if (ing instanceof FluidStack) {
-                            // For item cells, reject fluids and show error
                             if (!slot.cell.isFluid()) {
-                                Minecraft.getMinecraft().player.sendMessage(
-                                    new TextComponentTranslation("cellterminal.error.item_cell_fluid")
-                                );
-
+                                Minecraft.getMinecraft().player.sendMessage(new TextComponentTranslation("cellterminal.error.item_cell_fluid"));
                                 return;
                             }
-
-                            // Convert FluidStack to ItemStack representation
                             FluidStack fluidStack = (FluidStack) ing;
-                            appeng.api.storage.IStorageChannel<appeng.api.storage.data.IAEFluidStack> fluidChannel =
-                                appeng.api.AEApi.instance().storage().getStorageChannel(appeng.api.storage.channels.IFluidStorageChannel.class);
-                            appeng.api.storage.data.IAEFluidStack aeFluidStack = fluidChannel.createStack(fluidStack);
-
+                            IStorageChannel<IAEFluidStack> fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
+                            IAEFluidStack aeFluidStack = fluidChannel.createStack(fluidStack);
                             if (aeFluidStack == null) return;
-
                             stack = aeFluidStack.asItemStackRepresentation();
+                        } else if (ing instanceof EnchantmentData) {
+                            if (slot.cell.isFluid()) {
+                                Minecraft.getMinecraft().player.sendMessage(new TextComponentTranslation("cellterminal.error.fluid_cell_item"));
+                                return;
+                            }
+                            EnchantmentData enchantData = (EnchantmentData) ing;
+                            stack = ItemEnchantedBook.getEnchantedItemStack(enchantData);
                         }
 
                         if (stack.isEmpty()) return;
-
-                        // Replace the partition at the target slot directly
                         onAddPartitionItem(slot.cell, slot.slotIndex, stack);
                     }
                 });
             }
-
             return targets;
         }
 
         return new ArrayList<>();
     }
+    */
 
     /**
      * Helper class to track partition slot positions for JEI ghost ingredients.

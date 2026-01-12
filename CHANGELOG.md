@@ -8,7 +8,13 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
-## [0.2.0] - 2026-01-09
+## [0.3.0] - 2026-01-13
+### Fixed
+- Fix JEI drag-and-drop not working for enchanted books
+- Fix cells not being extractable if they contained any item in inventory view (as it would toggle partition status instead of ejecting)
+
+
+## [0.2.0] - 2026-01-12
 ### Added
 - Add tabbed main GUI with three views using item icons:
   - Terminal tab (Interface Terminal icon): Original list view with the cells
