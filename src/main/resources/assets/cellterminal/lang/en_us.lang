@@ -1,0 +1,46 @@
+# Items
+item.cellterminal.cell_terminal.name=Cell Terminal
+item.cellterminal.wireless_cell_terminal.name=Wireless Cell Terminal
+
+# GUI
+gui.cellterminal.cell_terminal.title=Cell Terminal
+gui.cellterminal.wireless_cell_terminal.title=Wireless Cell Terminal
+gui.cellterminal.search=Search...
+gui.cellterminal.no_drives=No drives found in network
+gui.cellterminal.cell_empty=Empty cell
+gui.cellterminal.cell_capacity=%s / %s
+gui.cellterminal.types_used=%d / %d types
+gui.cellterminal.partition=Partition
+gui.cellterminal.contents=Contents
+gui.cellterminal.click_to_edit=Click to edit
+gui.cellterminal.double_click_add=Double-click to add to partition
+
+# Panel tabs
+gui.cellterminal.tab.terminal=Terminal
+gui.cellterminal.tab.inventory=Inventory
+gui.cellterminal.tab.partition=Partition
+gui.cellterminal.tab.terminal.tooltip=Cell Overview
+gui.cellterminal.tab.inventory.tooltip=View Cell Contents
+gui.cellterminal.tab.partition.tooltip=Edit Cell Partitions
+
+# Panel hints
+gui.cellterminal.hint.terminal=Click to remove, drag from JEI to add
+gui.cellterminal.hint.inventory=Click inventory item to partition
+gui.cellterminal.hint.partition=Click to remove, drag from JEI to add
+gui.cellterminal.no_cell_selected=No cell selected
+gui.cellterminal.no_storage=No storage devices found
+gui.cellterminal.no_partition=No partition
+gui.cellterminal.slot_empty=Empty
+
+# Popup titles and buttons
+gui.cellterminal.popup.partition_suffix= - Partition
+gui.cellterminal.popup.contents_suffix= - Contents
+gui.cellterminal.set_all_partition=Set All to Partition
+gui.cellterminal.partition_indicator=P
+gui.cellterminal.eject_cell=Eject cell
+
+# Error messages
+cellterminal.error.fluid_cell_item=Cannot add items to a fluid cell partition
+cellterminal.error.item_cell_fluid=Cannot add fluids to an item cell partition
+cellterminal.error.no_empty_slot=No empty slot in storage
+cellterminal.error.different_dimension=Cannot highlight block in different dimension

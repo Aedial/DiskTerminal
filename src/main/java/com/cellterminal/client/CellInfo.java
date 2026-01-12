@@ -1,0 +1,171 @@
+package com.cellterminal.client;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import net.minecraft.client.resources.I18n;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
+import net.minecraftforge.common.util.Constants;
+
+
+/**
+ * Client-side data holder for cell information received from server.
+ */
+public class CellInfo {
+
+    private long parentStorageId;
+    private final int slot;
+    private final int status;
+    private final boolean isFluid;
+    private final ItemStack cellItem;
+    private final long usedBytes;
+    private final long totalBytes;
+    private final long usedTypes;
+    private final long totalTypes;
+    private final long storedItemCount;
+    private final List<ItemStack> partition = new ArrayList<>();
+    private final List<ItemStack> contents = new ArrayList<>();
+    private final List<Long> contentCounts = new ArrayList<>();
+
+    public CellInfo(NBTTagCompound nbt) {
+        this.slot = nbt.getInteger("slot");
+        this.status = nbt.getInteger("status");
+        this.isFluid = nbt.getBoolean("isFluid");
+        this.cellItem = nbt.hasKey("cellItem") ? new ItemStack(nbt.getCompoundTag("cellItem")) : ItemStack.EMPTY;
+        this.usedBytes = nbt.getLong("usedBytes");
+        this.totalBytes = nbt.getLong("totalBytes");
+        this.usedTypes = nbt.getLong("usedTypes");
+        this.totalTypes = nbt.getLong("totalTypes");
+        this.storedItemCount = nbt.getLong("storedItemCount");
+
+        if (nbt.hasKey("partition")) {
+            NBTTagList partList = nbt.getTagList("partition", Constants.NBT.TAG_COMPOUND);
+
+            // Determine max slot to size the list properly
+            int maxSlot = 0;
+            for (int i = 0; i < partList.tagCount(); i++) {
+                NBTTagCompound partNbt = partList.getCompoundTagAt(i);
+                int slot = partNbt.hasKey("slot") ? partNbt.getInteger("slot") : i;
+                if (slot >= maxSlot) maxSlot = slot + 1;
+            }
+
+            // Pre-fill partition list with empty stacks
+            for (int i = 0; i < maxSlot; i++) {
+                this.partition.add(ItemStack.EMPTY);
+            }
+
+            // Place items at their correct slot positions
+            for (int i = 0; i < partList.tagCount(); i++) {
+                NBTTagCompound partNbt = partList.getCompoundTagAt(i);
+                int slot = partNbt.hasKey("slot") ? partNbt.getInteger("slot") : i;
+
+                // Check if item data is present (id key indicates an item)
+                if (partNbt.hasKey("id")) {
+                    this.partition.set(slot, new ItemStack(partNbt));
+                }
+            }
+        }
+
+        if (nbt.hasKey("contents")) {
+            NBTTagList contentList = nbt.getTagList("contents", Constants.NBT.TAG_COMPOUND);
+            for (int i = 0; i < contentList.tagCount(); i++) {
+                NBTTagCompound stackNbt = contentList.getCompoundTagAt(i);
+                ItemStack stack = new ItemStack(stackNbt);
+
+                // Read the actual count from AE2's "Cnt" key, or fluidAmount for fluids
+                long count;
+                if (stackNbt.hasKey("fluidAmount")) {
+                    // For fluid stacks, count is stored in mB
+                    count = stackNbt.getLong("fluidAmount");
+                } else if (stackNbt.hasKey("Cnt")) {
+                    // For item stacks, AE2 stores count as "Cnt"
+                    count = stackNbt.getLong("Cnt");
+                } else {
+                    // Fallback to ItemStack count
+                    count = stack.getCount();
+                }
+
+                this.contents.add(stack);
+                this.contentCounts.add(count);
+            }
+        }
+    }
+
+    public void setParentStorageId(long parentStorageId) {
+        this.parentStorageId = parentStorageId;
+    }
+
+    public long getParentStorageId() {
+        return parentStorageId;
+    }
+
+    public int getSlot() {
+        return slot;
+    }
+
+    public int getStatus() {
+        return status;
+    }
+
+    public boolean isFluid() {
+        return isFluid;
+    }
+
+    public ItemStack getCellItem() {
+        return cellItem;
+    }
+
+    public long getUsedBytes() {
+        return usedBytes;
+    }
+
+    public long getTotalBytes() {
+        return totalBytes;
+    }
+
+    public long getUsedTypes() {
+        return usedTypes;
+    }
+
+    public long getTotalTypes() {
+        return totalTypes;
+    }
+
+    public long getStoredItemCount() {
+        return storedItemCount;
+    }
+
+    public List<ItemStack> getPartition() {
+        return partition;
+    }
+
+    public List<ItemStack> getContents() {
+        return contents;
+    }
+
+    public long getContentCount(int index) {
+        if (index < 0 || index >= contentCounts.size()) return 0;
+
+        return contentCounts.get(index);
+    }
+
+    public float getByteUsagePercent() {
+        if (totalBytes == 0) return 0;
+
+        return (float) usedBytes / totalBytes;
+    }
+
+    public float getTypeUsagePercent() {
+        if (totalTypes == 0) return 0;
+
+        return (float) usedTypes / totalTypes;
+    }
+
+    public String getDisplayName() {
+        if (!cellItem.isEmpty()) return cellItem.getDisplayName();
+
+        return I18n.format("gui.cellterminal.cell_empty");
+    }
+}

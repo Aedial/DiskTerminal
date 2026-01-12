@@ -49,7 +49,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: disk-terminal-jar
+          name: cell-terminal-jar
           path: build/libs/*.jar
 
       - name: Publish GitHub Release (tags only)
@@ -64,7 +64,7 @@ jobs:
           echo "Generated release notes:" >&2
           sed 's/^/  /' "$NOTES_FILE" >&2
           gh release create "$TAG" build/libs/*.jar \
-            --title "Disk Terminal $TAG" \
+            --title "Cell Terminal $TAG" \
             --notes-file "$NOTES_FILE" \
             $(if [[ "$TAG" =~ [ab]|rc|pre ]]; then echo "--prerelease"; fi)
 

@@ -1,4 +1,4 @@
-# Disk Terminal
+# Cell Terminal
 
 An AE2-UEL addon providing a terminal block to access and manage storage cells directly, in a centralized manner.
 

@@ -1,8 +1,8 @@
 [
   {
-    "modid": "diskterminal",
-    "name": "Disk Terminal",
-    "description": "An AE2-UEL addon providing a terminal to access and manage storage disks directly, in a centralized manner.",
+    "modid": "cellterminal",
+    "name": "Cell Terminal",
+    "description": "An AE2-UEL addon providing a terminal to access and manage storage cells directly, in a centralized manner.",
     "version": "${version}",
     "mcversion": "${mcversion}",
     "url": "",
