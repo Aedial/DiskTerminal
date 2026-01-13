@@ -8,6 +8,14 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.3.1] - 2026-01-13
+### Fixed
+- Fix shift-clicking cells in tab 2/3 views putting them into hand instead of directly in inventory
+
+### Changed
+- Slightly move the components for the item filter
+
+
 ## [0.3.0] - 2026-01-13
 ### Added
 - Add button to toggle between tall and compact GUI styles, with persistent setting

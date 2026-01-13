@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.TextComponentTranslation;
 
@@ -170,10 +171,12 @@ public class TerminalClickHandler {
         }
 
         // Handle cell slot clicks (pickup/swap cells)
+        // Shift-click: eject to inventory, regular click: pick up to hand
         if (hoveredCellStorage == null || hoveredCellSlotIndex < 0) return;
 
+        boolean toInventory = GuiScreen.isShiftKeyDown();
         CellTerminalNetwork.INSTANCE.sendToServer(
-            new PacketPickupCell(hoveredCellStorage.getId(), hoveredCellSlotIndex)
+            new PacketPickupCell(hoveredCellStorage.getId(), hoveredCellSlotIndex, toInventory)
         );
     }
 
@@ -205,6 +208,7 @@ public class TerminalClickHandler {
     private void handleCellClick(CellInfo cell, int relX, int relY, int row, int mouseX, int mouseY, Callback callback) {
         int rowY = 18 + row * ROW_HEIGHT;
 
+        // Eject button: always ejects to player's inventory
         if (relX >= BUTTON_EJECT_X && relX < BUTTON_EJECT_X + BUTTON_SIZE
                 && relY >= rowY + 1 && relY < rowY + 1 + BUTTON_SIZE) {
             CellTerminalNetwork.INSTANCE.sendToServer(

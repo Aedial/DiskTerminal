@@ -516,7 +516,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
     /**
      * Handle cell eject requests from client.
-     * Ejects the cell from the drive to the player's inventory.
+     * Always ejects to player's inventory (or drops if inventory is full).
      */
     public void handleEjectCell(long storageId, int cellSlot, EntityPlayer player) {
         StorageTracker tracker = this.byId.get(storageId);
@@ -532,9 +532,8 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         ItemStack extracted = cellInventory.extractItem(cellSlot, 1, false);
         if (extracted.isEmpty()) return;
 
-        // Try to add to player inventory
+        // Add to player inventory, or drop if full
         if (!player.inventory.addItemStackToInventory(extracted)) {
-            // If inventory is full, drop on ground
             player.dropItem(extracted, false);
         }
 
@@ -544,10 +543,11 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
     /**
      * Handle cell pickup requests from client (for tab 2/3 slot clicking).
-     * Puts the cell in the player's hand (cursor) for quick reorganization.
-     * Supports swapping if player is already holding a cell.
+     * If toInventory is true (shift-click), puts the cell in player's inventory.
+     * If toInventory is false (regular click), puts the cell in player's hand for reorganization.
+     * Supports swapping if player is already holding a cell (only when not toInventory).
      */
-    public void handlePickupCell(long storageId, int cellSlot, EntityPlayer player) {
+    public void handlePickupCell(long storageId, int cellSlot, EntityPlayer player, boolean toInventory) {
         StorageTracker tracker = this.byId.get(storageId);
         if (tracker == null) return;
 
@@ -557,9 +557,9 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         ItemStack cellStack = cellInventory.getStackInSlot(cellSlot);
         ItemStack heldStack = player.inventory.getItemStack();
 
-        // If slot is empty and player is holding a cell, insert it
+        // If slot is empty and player is holding a cell, insert it (only for hand mode)
         if (cellStack.isEmpty()) {
-            if (!heldStack.isEmpty() && AEApi.instance().registries().cell().getHandler(heldStack) != null) {
+            if (!toInventory && !heldStack.isEmpty() && AEApi.instance().registries().cell().getHandler(heldStack) != null) {
                 ItemStack remainder = cellInventory.insertItem(cellSlot, heldStack.copy(), false);
                 if (remainder.isEmpty()) {
                     player.inventory.setItemStack(ItemStack.EMPTY);
@@ -574,7 +574,21 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
             return;
         }
 
-        // Slot has a cell - check if we can pick it up or swap
+        // Shift-click: extract to inventory
+        if (toInventory) {
+            ItemStack extracted = cellInventory.extractItem(cellSlot, 1, false);
+            if (extracted.isEmpty()) return;
+
+            if (!player.inventory.addItemStackToInventory(extracted)) {
+                player.dropItem(extracted, false);
+            }
+
+            this.needsFullRefresh = true;
+
+            return;
+        }
+
+        // Regular click: pick up to hand or swap
         if (!heldStack.isEmpty()) {
             // Try to swap: held item must be a valid cell
             if (AEApi.instance().registries().cell().getHandler(heldStack) == null) return;

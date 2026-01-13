@@ -199,9 +199,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         TerminalStyle currentStyle = CellTerminalClientConfig.getInstance().getTerminalStyle();
 
         // Remove any existing terminal style button before adding a new one
-        if (this.terminalStyleButton != null) {
-            this.buttonList.remove(this.terminalStyleButton);
-        }
+        if (this.terminalStyleButton != null) this.buttonList.remove(this.terminalStyleButton);
 
         // Calculate button Y as if in SMALL mode (for consistent positioning across style changes)
         int smallModeYSize = MAGIC_HEIGHT_NUMBER + DEFAULT_ROWS * ROW_HEIGHT;
@@ -213,14 +211,12 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     }
 
     protected void initSearchField() {
-        // Search field: positioned after title, before the scrollbar area
-        // Title is at x=22, we need some space for it
-        // Note: Use absolute coordinates for click detection (mouseClicked receives absolute coords)
+        // Search field: positioned after title, extending close to the scrollbar/button area
         int titleWidth = this.fontRenderer.getStringWidth(getGuiTitle());
         int searchX = 22 + titleWidth + 4;
         int searchY = 4;
-        int buttonWidth = 14;  // Width of the mode button
-        int availableWidth = 185 - searchX - buttonWidth - 2;
+        // Search field extends to x=189
+        int availableWidth = 189 - searchX;
 
         // Preserve existing search text if reinitializing, otherwise load from config
         String existingSearch;
@@ -244,13 +240,11 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         this.searchField.setText(existingSearch, true);
 
         // Remove any existing search mode button before adding a new one
-        if (this.searchModeButton != null) {
-            this.buttonList.remove(this.searchModeButton);
-        }
+        if (this.searchModeButton != null) this.buttonList.remove(this.searchModeButton);
 
-        // Search mode button: positioned after the search field
-        int buttonX = this.guiLeft + searchX + availableWidth + 2;
-        int buttonY = this.guiTop + searchY;
+        // Search mode button: positioned above the scrollbar (top-right corner)
+        int buttonX = this.guiLeft + 189;
+        int buttonY = this.guiTop + 4;
         this.searchModeButton = new GuiSearchModeButton(1, buttonX, buttonY, currentSearchMode);
         this.buttonList.add(this.searchModeButton);
 
