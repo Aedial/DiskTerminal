@@ -12,10 +12,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ### Added
 - Add button to toggle between tall and compact GUI styles, with persistent setting
 - Add item filter for inventory/partition, with button to toggle filter input
+- Add support for Thaumic Energistics Essentia Cells
 
 ### Fixed
 - Fix JEI drag-and-drop not working for enchanted books
 - Fix cells not being extractable if they contained any item in inventory view (as it would toggle partition status instead of ejecting)
+- Fix the network not refreshing after partition changes, requiring inserting/ejecting any cell in the drive to update
 
 
 ## [0.2.0] - 2026-01-12

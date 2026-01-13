@@ -26,6 +26,7 @@ import appeng.api.storage.data.IAEFluidStack;
 import mezz.jei.api.gui.IGhostIngredientHandler;
 
 import com.cellterminal.client.CellInfo;
+import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 
 
 /**
@@ -222,6 +223,20 @@ public class PopupCellPartition extends Gui {
         if (ingredient instanceof ItemStack) {
             ItemStack itemStack = (ItemStack) ingredient;
 
+            // For essentia cells, try to extract essentia from containers (phials, jars, etc.)
+            if (cell.isEssentia()) {
+                ItemStack essentiaRep = ThaumicEnergisticsIntegration.tryConvertEssentiaContainerToAspect(itemStack);
+
+                if (!essentiaRep.isEmpty()) return essentiaRep;
+
+                // If it's not an essentia container, reject it
+                Minecraft.getMinecraft().player.sendMessage(
+                    new TextComponentTranslation("cellterminal.error.essentia_cell_item")
+                );
+
+                return ItemStack.EMPTY;
+            }
+
             if (cell.isFluid()) {
                 // For fluid cells, try to extract fluid from the item (e.g., bucket)
                 FluidStack contained = FluidUtil.getFluidContained(itemStack);
@@ -247,6 +262,14 @@ public class PopupCellPartition extends Gui {
 
         // FluidStack - from JEI fluid entries
         if (ingredient instanceof FluidStack) {
+            if (cell.isEssentia()) {
+                Minecraft.getMinecraft().player.sendMessage(
+                    new TextComponentTranslation("cellterminal.error.essentia_cell_fluid")
+                );
+
+                return ItemStack.EMPTY;
+            }
+
             if (!cell.isFluid()) {
                 Minecraft.getMinecraft().player.sendMessage(
                     new TextComponentTranslation("cellterminal.error.item_cell_fluid")
@@ -266,9 +289,9 @@ public class PopupCellPartition extends Gui {
 
         // EnchantmentData - JEI's deprecated hack for enchanted books (removed in 1.13+)
         if (ingredient instanceof EnchantmentData) {
-            if (cell.isFluid()) {
+            if (cell.isFluid() || cell.isEssentia()) {
                 Minecraft.getMinecraft().player.sendMessage(
-                    new TextComponentTranslation("cellterminal.error.fluid_cell_item")
+                    new TextComponentTranslation(cell.isFluid() ? "cellterminal.error.fluid_cell_item" : "cellterminal.error.essentia_cell_item")
                 );
 
                 return ItemStack.EMPTY;

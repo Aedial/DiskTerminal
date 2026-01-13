@@ -65,5 +65,7 @@ gui.cellterminal.eject_cell=Eject cell
 # Error messages
 cellterminal.error.fluid_cell_item=Cannot add items to a fluid cell partition
 cellterminal.error.item_cell_fluid=Cannot add fluids to an item cell partition
+cellterminal.error.essentia_cell_item=Cannot add items to an essentia cell partition. Use filled phials or jars.
+cellterminal.error.essentia_cell_fluid=Cannot add fluids to an essentia cell partition
 cellterminal.error.no_empty_slot=No empty slot in storage
 cellterminal.error.different_dimension=Cannot highlight block in different dimension

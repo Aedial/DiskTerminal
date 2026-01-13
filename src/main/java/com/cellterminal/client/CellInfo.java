@@ -19,6 +19,7 @@ public class CellInfo {
     private final int slot;
     private final int status;
     private final boolean isFluid;
+    private final boolean isEssentia;
     private final ItemStack cellItem;
     private final long usedBytes;
     private final long totalBytes;
@@ -33,6 +34,7 @@ public class CellInfo {
         this.slot = nbt.getInteger("slot");
         this.status = nbt.getInteger("status");
         this.isFluid = nbt.getBoolean("isFluid");
+        this.isEssentia = nbt.getBoolean("isEssentia");
         this.cellItem = nbt.hasKey("cellItem") ? new ItemStack(nbt.getCompoundTag("cellItem")) : ItemStack.EMPTY;
         this.usedBytes = nbt.getLong("usedBytes");
         this.totalBytes = nbt.getLong("totalBytes");
@@ -74,11 +76,14 @@ public class CellInfo {
                 NBTTagCompound stackNbt = contentList.getCompoundTagAt(i);
                 ItemStack stack = new ItemStack(stackNbt);
 
-                // Read the actual count from AE2's "Cnt" key, or fluidAmount for fluids
+                // Read the actual count from AE2's "Cnt" key, or fluidAmount/essentiaAmount for special cells
                 long count;
                 if (stackNbt.hasKey("fluidAmount")) {
                     // For fluid stacks, count is stored in mB
                     count = stackNbt.getLong("fluidAmount");
+                } else if (stackNbt.hasKey("essentiaAmount")) {
+                    // For essentia stacks, count is stored by our integration
+                    count = stackNbt.getLong("essentiaAmount");
                 } else if (stackNbt.hasKey("Cnt")) {
                     // For item stacks, AE2 stores count as "Cnt"
                     count = stackNbt.getLong("Cnt");
@@ -111,6 +116,10 @@ public class CellInfo {
 
     public boolean isFluid() {
         return isFluid;
+    }
+
+    public boolean isEssentia() {
+        return isEssentia;
     }
 
     public ItemStack getCellItem() {

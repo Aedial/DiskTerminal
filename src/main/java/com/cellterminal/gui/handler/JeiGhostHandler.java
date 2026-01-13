@@ -10,6 +10,7 @@ import net.minecraft.item.ItemEnchantedBook;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.FluidUtil;
 
 import appeng.api.AEApi;
 import appeng.api.storage.IStorageChannel;
@@ -21,6 +22,7 @@ import mezz.jei.api.gui.IGhostIngredientHandler;
 import com.cellterminal.CellTerminal;
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.gui.PopupCellPartition;
+import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 
 
 /**
@@ -56,12 +58,26 @@ public class JeiGhostHandler {
     /**
      * Convert any JEI ingredient to an ItemStack for use with AE2 cells.
      */
-    public static ItemStack convertJeiIngredientToItemStack(Object ingredient, boolean isFluidCell) {
+    public static ItemStack convertJeiIngredientToItemStack(Object ingredient, boolean isFluidCell, boolean isEssentiaCell) {
         if (ingredient instanceof ItemStack) {
             ItemStack itemStack = (ItemStack) ingredient;
 
+            // For essentia cells, try to extract essentia from containers (phials, jars, etc.)
+            if (isEssentiaCell) {
+                ItemStack essentiaRep = ThaumicEnergisticsIntegration.tryConvertEssentiaContainerToAspect(itemStack);
+
+                if (!essentiaRep.isEmpty()) return essentiaRep;
+
+                // If it's not an essentia container, reject it
+                Minecraft.getMinecraft().player.sendMessage(
+                    new TextComponentTranslation("cellterminal.error.essentia_cell_item")
+                );
+
+                return ItemStack.EMPTY;
+            }
+
             if (isFluidCell) {
-                FluidStack contained = net.minecraftforge.fluids.FluidUtil.getFluidContained(itemStack);
+                FluidStack contained = FluidUtil.getFluidContained(itemStack);
 
                 if (contained == null) {
                     Minecraft.getMinecraft().player.sendMessage(
@@ -84,6 +100,14 @@ public class JeiGhostHandler {
         }
 
         if (ingredient instanceof FluidStack) {
+            if (isEssentiaCell) {
+                Minecraft.getMinecraft().player.sendMessage(
+                    new TextComponentTranslation("cellterminal.error.essentia_cell_fluid")
+                );
+
+                return ItemStack.EMPTY;
+            }
+
             if (!isFluidCell) {
                 Minecraft.getMinecraft().player.sendMessage(
                     new TextComponentTranslation("cellterminal.error.item_cell_fluid")
@@ -103,9 +127,9 @@ public class JeiGhostHandler {
         }
 
         if (ingredient instanceof EnchantmentData) {
-            if (isFluidCell) {
+            if (isFluidCell || isEssentiaCell) {
                 Minecraft.getMinecraft().player.sendMessage(
-                    new TextComponentTranslation("cellterminal.error.fluid_cell_item")
+                    new TextComponentTranslation(isFluidCell ? "cellterminal.error.fluid_cell_item" : "cellterminal.error.essentia_cell_item")
                 );
 
                 return ItemStack.EMPTY;
@@ -140,7 +164,7 @@ public class JeiGhostHandler {
 
                 @Override
                 public void accept(Object ing) {
-                    ItemStack stack = convertJeiIngredientToItemStack(ing, slot.cell.isFluid());
+                    ItemStack stack = convertJeiIngredientToItemStack(ing, slot.cell.isFluid(), slot.cell.isEssentia());
 
                     if (stack.isEmpty()) return;
 
