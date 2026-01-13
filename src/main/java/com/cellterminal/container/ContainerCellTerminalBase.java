@@ -16,6 +16,7 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.items.IItemHandlerModifiable;
 
 import appeng.api.AEApi;
 import appeng.api.implementations.IUpgradeableHost;
@@ -38,6 +39,7 @@ import appeng.tile.storage.TileChest;
 import appeng.tile.storage.TileDrive;
 import appeng.util.Platform;
 
+import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketCellTerminalUpdate;
 import com.cellterminal.network.PacketPartitionAction;
@@ -217,7 +219,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         cellStack.writeToNBT(cellNbt);
         cellData.setTag("cellItem", cellNbt);
 
-        // Get cell inventory info - try item channel first, then fluid channel
+        // Get cell inventory info - try item channel first, then fluid channel, then essentia
         ICellHandler cellHandler = AEApi.instance().registries().cell().getHandler(cellStack);
         if (cellHandler == null) return cellData;
 
@@ -238,6 +240,15 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         if (fluidCellHandler != null) {
             populateCellDataFromFluidCell(cellData, fluidCellHandler, fluidChannel);
             cellData.setBoolean("isFluid", true);
+
+            return cellData;
+        }
+
+        // Try Essentia channel (Thaumic Energistics)
+        NBTTagCompound essentiaData = ThaumicEnergisticsIntegration.tryPopulateEssentiaCell(cellHandler, cellStack);
+        if (essentiaData != null) {
+            // Merge essentia data into cellData
+            for (String key : essentiaData.getKeySet()) cellData.setTag(key, essentiaData.getTag(key));
         }
 
         return cellData;
@@ -384,6 +395,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
         IItemHandler configInv = null;
         boolean isFluidCell = false;
+        Object[] essentiaData = null;
 
         if (itemCellHandler != null && itemCellHandler.getCellInv() != null) {
             configInv = itemCellHandler.getCellInv().getConfigInventory();
@@ -395,6 +407,10 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
             if (fluidCellHandler != null && fluidCellHandler.getCellInv() != null) {
                 configInv = fluidCellHandler.getCellInv().getConfigInventory();
                 isFluidCell = true;
+            } else {
+                // Try Essentia channel (Thaumic Energistics)
+                essentiaData = ThaumicEnergisticsIntegration.tryGetEssentiaConfigInventory(cellHandler, cellStack);
+                if (essentiaData != null) configInv = (IItemHandler) essentiaData[0];
             }
         }
 
@@ -428,7 +444,10 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
             case SET_ALL_FROM_CONTENTS:
                 clearConfig(configInv);
-                if (!isFluidCell) {
+                if (essentiaData != null) {
+                    // Handle Essentia cells
+                    ThaumicEnergisticsIntegration.setAllFromEssentiaContents(configInv, essentiaData);
+                } else if (!isFluidCell) {
                     ICellInventoryHandler<IAEItemStack> cellInvHandler = cellHandler.getCellInventory(cellStack, null, itemChannel);
                     if (cellInvHandler != null && cellInvHandler.getCellInv() != null) {
                         IItemList<IAEItemStack> contents = cellInvHandler.getCellInv().getAvailableItems(itemChannel.createList());
@@ -458,13 +477,46 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
                 break;
         }
 
+        // Mark the TileEntity as dirty to save changes
+        tracker.tile.markDirty();
+
+        // Force the drive/chest to rebuild its cell inventory handler cache.
+        // This is necessary because BasicCellInventoryHandler caches the partition list
+        // in its constructor, so changes to the config inventory aren't reflected until
+        // the handler is recreated.
+        forceCellHandlerRefresh(tracker, cellSlot);
+
         // Trigger refresh to send updated data to client
         this.needsFullRefresh = true;
     }
 
     /**
+     * Force the drive/chest to rebuild its cell inventory handler cache.
+     * This is done by triggering onChangeInventory through a simulated cell change.
+     * The cell's partition list is cached in BasicCellInventoryHandler's constructor,
+     * so we must force the drive to recreate the handler for changes to take effect.
+     */
+    private void forceCellHandlerRefresh(StorageTracker tracker, int cellSlot) {
+        IItemHandler cellInventory = getCellInventory(tracker.storage);
+        if (cellInventory == null) return;
+
+        ItemStack cellStack = cellInventory.getStackInSlot(cellSlot);
+        if (cellStack.isEmpty()) return;
+
+        // Extract and re-insert the cell to trigger onChangeInventory
+        // This forces the drive to clear its cache and rebuild the cell handler
+        if (cellInventory instanceof IItemHandlerModifiable) {
+            IItemHandlerModifiable modifiable = (IItemHandlerModifiable) cellInventory;
+
+            // Setting the same stack triggers the inventory change listener
+            // which clears the drive's isCached flag and rebuilds handlers
+            modifiable.setStackInSlot(cellSlot, cellStack);
+        }
+    }
+
+    /**
      * Handle cell eject requests from client.
-     * Ejects the cell from the drive to the player's inventory.
+     * Always ejects to player's inventory (or drops if inventory is full).
      */
     public void handleEjectCell(long storageId, int cellSlot, EntityPlayer player) {
         StorageTracker tracker = this.byId.get(storageId);
@@ -480,9 +532,8 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         ItemStack extracted = cellInventory.extractItem(cellSlot, 1, false);
         if (extracted.isEmpty()) return;
 
-        // Try to add to player inventory
+        // Add to player inventory, or drop if full
         if (!player.inventory.addItemStackToInventory(extracted)) {
-            // If inventory is full, drop on ground
             player.dropItem(extracted, false);
         }
 
@@ -492,10 +543,11 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
     /**
      * Handle cell pickup requests from client (for tab 2/3 slot clicking).
-     * Puts the cell in the player's hand (cursor) for quick reorganization.
-     * Supports swapping if player is already holding a cell.
+     * If toInventory is true (shift-click), puts the cell in player's inventory.
+     * If toInventory is false (regular click), puts the cell in player's hand for reorganization.
+     * Supports swapping if player is already holding a cell (only when not toInventory).
      */
-    public void handlePickupCell(long storageId, int cellSlot, EntityPlayer player) {
+    public void handlePickupCell(long storageId, int cellSlot, EntityPlayer player, boolean toInventory) {
         StorageTracker tracker = this.byId.get(storageId);
         if (tracker == null) return;
 
@@ -505,9 +557,9 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         ItemStack cellStack = cellInventory.getStackInSlot(cellSlot);
         ItemStack heldStack = player.inventory.getItemStack();
 
-        // If slot is empty and player is holding a cell, insert it
+        // If slot is empty and player is holding a cell, insert it (only for hand mode)
         if (cellStack.isEmpty()) {
-            if (!heldStack.isEmpty() && AEApi.instance().registries().cell().getHandler(heldStack) != null) {
+            if (!toInventory && !heldStack.isEmpty() && AEApi.instance().registries().cell().getHandler(heldStack) != null) {
                 ItemStack remainder = cellInventory.insertItem(cellSlot, heldStack.copy(), false);
                 if (remainder.isEmpty()) {
                     player.inventory.setItemStack(ItemStack.EMPTY);
@@ -522,7 +574,21 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
             return;
         }
 
-        // Slot has a cell - check if we can pick it up or swap
+        // Shift-click: extract to inventory
+        if (toInventory) {
+            ItemStack extracted = cellInventory.extractItem(cellSlot, 1, false);
+            if (extracted.isEmpty()) return;
+
+            if (!player.inventory.addItemStackToInventory(extracted)) {
+                player.dropItem(extracted, false);
+            }
+
+            this.needsFullRefresh = true;
+
+            return;
+        }
+
+        // Regular click: pick up to hand or swap
         if (!heldStack.isEmpty()) {
             // Try to swap: held item must be a valid cell
             if (AEApi.instance().registries().cell().getHandler(heldStack) == null) return;

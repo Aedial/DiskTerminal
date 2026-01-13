@@ -8,7 +8,27 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
-## [0.2.0] - 2026-01-09
+## [0.3.1] - 2026-01-13
+### Fixed
+- Fix shift-clicking cells in tab 2/3 views putting them into hand instead of directly in inventory
+
+### Changed
+- Slightly move the components for the item filter
+
+
+## [0.3.0] - 2026-01-13
+### Added
+- Add button to toggle between tall and compact GUI styles, with persistent setting
+- Add item filter for inventory/partition, with button to toggle filter input
+- Add support for Thaumic Energistics Essentia Cells
+
+### Fixed
+- Fix JEI drag-and-drop not working for enchanted books
+- Fix cells not being extractable if they contained any item in inventory view (as it would toggle partition status instead of ejecting)
+- Fix the network not refreshing after partition changes, requiring inserting/ejecting any cell in the drive to update
+
+
+## [0.2.0] - 2026-01-12
 ### Added
 - Add tabbed main GUI with three views using item icons:
   - Terminal tab (Interface Terminal icon): Original list view with the cells

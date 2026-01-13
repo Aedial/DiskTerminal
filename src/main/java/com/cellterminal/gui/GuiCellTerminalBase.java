@@ -1,15 +1,12 @@
 package com.cellterminal.gui;
 
-import java.awt.Rectangle;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.lwjgl.opengl.GL11;
+import org.lwjgl.input.Keyboard;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
@@ -19,47 +16,37 @@ import net.minecraft.client.resources.I18n;
 import net.minecraft.inventory.Container;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.text.TextComponentTranslation;
-import net.minecraftforge.common.util.Constants;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fml.common.Optional;
 
 import appeng.api.AEApi;
-import appeng.api.storage.IStorageChannel;
-import appeng.api.storage.channels.IFluidStorageChannel;
-import appeng.api.storage.data.IAEFluidStack;
-import appeng.api.storage.data.IAEItemStack;
 import appeng.client.gui.AEBaseGui;
 import appeng.client.gui.widgets.GuiScrollbar;
+import appeng.client.gui.widgets.MEGuiTextField;
 import appeng.container.interfaces.IJEIGhostIngredients;
 import appeng.container.slot.AppEngSlot;
-import appeng.util.ReadableNumberConverter;
 
 import mezz.jei.api.gui.IGhostIngredientHandler;
 
-import com.cellterminal.client.CellContentRow;
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.CellTerminalClientConfig;
-import com.cellterminal.client.EmptySlotInfo;
+import com.cellterminal.client.CellTerminalClientConfig.TerminalStyle;
+import com.cellterminal.client.SearchFilterMode;
 import com.cellterminal.client.StorageInfo;
+import com.cellterminal.gui.handler.JeiGhostHandler;
+import com.cellterminal.gui.handler.JeiGhostHandler.PartitionSlotTarget;
+import com.cellterminal.gui.handler.TerminalClickHandler;
+import com.cellterminal.gui.handler.TerminalDataManager;
+import com.cellterminal.gui.render.InventoryTabRenderer;
+import com.cellterminal.gui.render.PartitionTabRenderer;
+import com.cellterminal.gui.render.RenderContext;
+import com.cellterminal.gui.render.TerminalTabRenderer;
 import com.cellterminal.network.CellTerminalNetwork;
-import com.cellterminal.network.PacketEjectCell;
-import com.cellterminal.network.PacketHighlightBlock;
-import com.cellterminal.network.PacketInsertCell;
 import com.cellterminal.network.PacketPartitionAction;
-import com.cellterminal.network.PacketPickupCell;
 
 
 /**
  * Base GUI for Cell Terminal variants.
  * Contains shared functionality for displaying storage drives/chests with their cells.
  * Supports three tabs: Terminal (list view), Inventory (cell slots with contents), Partition (cell slots with partition).
- *
- * NOTE: Tab 2 (Inventory) and Tab 3 (Partition) should mirror the behavior of
- * PopupCellInventory and PopupCellPartition respectively. When making changes,
- * refer to those classes for the expected behavior (item count placement, P indicator, JEI ghost support, etc).
  */
 public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhostIngredients {
 
@@ -72,26 +59,34 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     private static final int TAB_HEIGHT = 22;
     private static final int TAB_Y_OFFSET = -22;
 
+    // Layout constants
     protected static final int ROW_HEIGHT = 18;
-    protected static final int GUI_INDENT = 22;
-    protected static final int CELL_INDENT = GUI_INDENT + 12;
-    protected static final int ROWS_VISIBLE = 8;
+    protected static final int MIN_ROWS = 6;
+    protected static final int DEFAULT_ROWS = 8;
 
-    // Button dimensions
-    protected static final int BUTTON_SIZE = 14;
-    protected static final int BUTTON_EJECT_X = 135;
-    protected static final int BUTTON_INVENTORY_X = 150;
-    protected static final int BUTTON_PARTITION_X = 165;
+    // Magic height number for tall mode calculation (header + footer heights)
+    private static final int MAGIC_HEIGHT_NUMBER = 18 + 98;
 
-    // Slot constants for tab 2 and 3
-    protected static final int SLOT_SIZE = 18;
-    protected static final int SLOTS_PER_ROW = 8;
-    protected static final int MAX_PARTITION_SLOTS = 63;
+    // Dynamic row count (computed based on terminal style)
+    protected int rowsVisible = DEFAULT_ROWS;
 
-    protected final Map<Long, StorageInfo> storageMap = new LinkedHashMap<>();
-    protected final List<Object> lines = new ArrayList<>();
-    protected final List<Object> inventoryLines = new ArrayList<>();
-    protected final List<Object> partitionLines = new ArrayList<>();
+    // Tab renderers
+    protected TerminalTabRenderer terminalRenderer;
+    protected InventoryTabRenderer inventoryRenderer;
+    protected PartitionTabRenderer partitionRenderer;
+    protected RenderContext renderContext;
+
+    // Handlers
+    protected TerminalDataManager dataManager;
+    protected TerminalClickHandler clickHandler;
+
+    // Terminal style button
+    protected GuiTerminalStyleButton terminalStyleButton;
+
+    // Search field and mode button
+    protected MEGuiTextField searchField;
+    protected GuiSearchModeButton searchModeButton;
+    protected SearchFilterMode currentSearchMode = SearchFilterMode.MIXED;
 
     // Current tab
     protected int currentTab;
@@ -113,14 +108,6 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     // Hover tracking for background highlight
     protected int hoveredLineIndex = -1;
 
-    // Double-click tracking
-    protected long lastClickTime = 0;
-    protected int lastClickedLineIndex = -1;
-
-    // Terminal position for sorting (set by container)
-    protected BlockPos terminalPos = BlockPos.ORIGIN;
-    protected int terminalDimension = 0;
-
     // Tab 2/3 hover state
     protected CellInfo hoveredCellCell = null;
     protected StorageInfo hoveredCellStorage = null;
@@ -133,37 +120,170 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     // Partition slot tracking for JEI ghost ingredients and click handling
     protected int hoveredPartitionSlotIndex = -1;
     protected CellInfo hoveredPartitionCell = null;
-    protected final List<PartitionSlotTarget> partitionSlotTargets = new ArrayList<>();
-
-
-
-    // Drag state for cell reordering
-    protected CellInfo draggedCell = null;
-    protected StorageInfo draggedCellStorage = null;
-    protected int draggedCellSlot = -1;
+    protected final List<JeiGhostHandler.PartitionSlotTarget> partitionSlotTargets = new ArrayList<>();
 
     public GuiCellTerminalBase(Container container) {
         super(container);
 
         this.xSize = 208;
-        this.ySize = 222;
+        this.rowsVisible = calculateRowsCount();
+        this.ySize = MAGIC_HEIGHT_NUMBER + this.rowsVisible * ROW_HEIGHT;
 
         GuiScrollbar scrollbar = new GuiScrollbar();
         this.setScrollBar(scrollbar);
 
-        // Load persisted tab
-        this.currentTab = CellTerminalClientConfig.getInstance().getSelectedTab();
+        // Initialize render context
+        this.renderContext = new RenderContext();
+        this.dataManager = new TerminalDataManager();
+        this.clickHandler = new TerminalClickHandler();
+
+        // Load persisted settings
+        CellTerminalClientConfig config = CellTerminalClientConfig.getInstance();
+        this.currentTab = config.getSelectedTab();
         if (this.currentTab < 0 || this.currentTab >= TAB_COUNT) this.currentTab = TAB_TERMINAL;
+        this.currentSearchMode = config.getSearchMode();
+    }
+
+    /**
+     * Calculate the number of rows to display based on terminal style and screen height.
+     */
+    protected int calculateRowsCount() {
+        TerminalStyle style = CellTerminalClientConfig.getInstance().getTerminalStyle();
+
+        if (style == TerminalStyle.SMALL) return DEFAULT_ROWS;
+
+        // TALL mode: expand to fill available screen space
+        // Use ScaledResolution to properly get the scaled screen height (handles auto GUI scale)
+        net.minecraft.client.gui.ScaledResolution res = new net.minecraft.client.gui.ScaledResolution(Minecraft.getMinecraft());
+        int screenHeight = res.getScaledHeight();
+
+        // Leave some padding at top and bottom
+        int availableHeight = screenHeight - 40;
+        int extraSpace = availableHeight - MAGIC_HEIGHT_NUMBER;
+
+        return Math.max(MIN_ROWS, extraSpace / ROW_HEIGHT);
     }
 
     protected abstract String getGuiTitle();
 
     @Override
     public void initGui() {
+        // Recalculate rows based on screen size and terminal style
+        this.rowsVisible = calculateRowsCount();
+        this.ySize = MAGIC_HEIGHT_NUMBER + this.rowsVisible * ROW_HEIGHT;
+
+        // Center GUI with appropriate offset for tall mode
+        int unusedSpace = this.height - this.ySize;
+        this.guiTop = (int) Math.floor(unusedSpace / (unusedSpace < 0 ? 3.8f : 2.0f));
+
         super.initGui();
-        this.getScrollBar().setTop(18).setLeft(189).setHeight(ROWS_VISIBLE * ROW_HEIGHT - 2);
+
+        this.getScrollBar().setTop(18).setLeft(189).setHeight(this.rowsVisible * ROW_HEIGHT - 2);
         this.repositionSlots();
         initTabIcons();
+        initRenderers();
+        initTerminalStyleButton();
+        initSearchField();
+
+        // Update scrollbar range for current tab
+        updateScrollbarForCurrentTab();
+    }
+
+    protected void initRenderers() {
+        this.terminalRenderer = new TerminalTabRenderer(this.fontRenderer, this.itemRender);
+        this.inventoryRenderer = new InventoryTabRenderer(this.fontRenderer, this.itemRender);
+        this.partitionRenderer = new PartitionTabRenderer(this.fontRenderer, this.itemRender);
+    }
+
+    protected void initTerminalStyleButton() {
+        TerminalStyle currentStyle = CellTerminalClientConfig.getInstance().getTerminalStyle();
+
+        // Remove any existing terminal style button before adding a new one
+        if (this.terminalStyleButton != null) this.buttonList.remove(this.terminalStyleButton);
+
+        // Calculate button Y as if in SMALL mode (for consistent positioning across style changes)
+        int smallModeYSize = MAGIC_HEIGHT_NUMBER + DEFAULT_ROWS * ROW_HEIGHT;
+        int smallModeGuiTop = (this.height - smallModeYSize) / 2;
+        int buttonY = Math.max(8, smallModeGuiTop + 8);
+
+        this.terminalStyleButton = new GuiTerminalStyleButton(0, this.guiLeft - 18, buttonY, currentStyle);
+        this.buttonList.add(this.terminalStyleButton);
+    }
+
+    protected void initSearchField() {
+        // Search field: positioned after title, extending close to the scrollbar/button area
+        int titleWidth = this.fontRenderer.getStringWidth(getGuiTitle());
+        int searchX = 22 + titleWidth + 4;
+        int searchY = 4;
+        // Search field extends to x=189
+        int availableWidth = 189 - searchX;
+
+        // Preserve existing search text if reinitializing, otherwise load from config
+        String existingSearch;
+        if (this.searchField != null) {
+            existingSearch = this.searchField.getText();
+        } else {
+            existingSearch = CellTerminalClientConfig.getInstance().getSearchFilter();
+        }
+
+        // Use absolute coordinates so mouseClicked works correctly
+        this.searchField = new MEGuiTextField(this.fontRenderer, this.guiLeft + searchX, this.guiTop + searchY, availableWidth, 12) {
+            @Override
+            public void onTextChange(String oldText) {
+                onSearchTextChanged();
+            }
+        };
+        this.searchField.setEnableBackgroundDrawing(true);
+        this.searchField.setMaxStringLength(50);
+
+        // Set text without triggering onTextChange to avoid redundant rebuilds during init
+        this.searchField.setText(existingSearch, true);
+
+        // Remove any existing search mode button before adding a new one
+        if (this.searchModeButton != null) this.buttonList.remove(this.searchModeButton);
+
+        // Search mode button: positioned above the scrollbar (top-right corner)
+        int buttonX = this.guiLeft + 189;
+        int buttonY = this.guiTop + 4;
+        this.searchModeButton = new GuiSearchModeButton(1, buttonX, buttonY, currentSearchMode);
+        this.buttonList.add(this.searchModeButton);
+
+        // Update button visibility based on current tab
+        updateSearchModeButtonVisibility();
+
+        // Apply filter if there's persisted search text (single call, not via setText callback)
+        if (!existingSearch.isEmpty()) dataManager.setSearchFilter(existingSearch, getEffectiveSearchMode());
+    }
+
+    protected void updateSearchModeButtonVisibility() {
+        if (this.searchModeButton == null) return;
+
+        // Hide button on Tab 2 (Inventory) and Tab 3 (Partition)
+        this.searchModeButton.visible = (currentTab == TAB_TERMINAL);
+    }
+
+    protected void onSearchTextChanged() {
+        SearchFilterMode effectiveMode = getEffectiveSearchMode();
+        dataManager.setSearchFilter(searchField.getText(), effectiveMode);
+        updateScrollbarForCurrentTab();
+
+        // Persist the search filter text
+        CellTerminalClientConfig.getInstance().setSearchFilter(searchField.getText());
+    }
+
+    /**
+     * Get the effective search mode based on current tab.
+     * Tab 2 forces INVENTORY mode, Tab 3 forces PARTITION mode.
+     */
+    protected SearchFilterMode getEffectiveSearchMode() {
+        switch (currentTab) {
+            case TAB_INVENTORY:
+                return SearchFilterMode.INVENTORY;
+            case TAB_PARTITION:
+                return SearchFilterMode.PARTITION;
+            default:
+                return currentSearchMode;
+        }
     }
 
     protected void initTabIcons() {
@@ -184,7 +304,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         for (Object obj : this.inventorySlots.inventorySlots) {
             if (obj instanceof AppEngSlot) {
                 AppEngSlot slot = (AppEngSlot) obj;
-                slot.yPos = this.ySize + slot.getY() - 44;
+                slot.yPos = this.ySize + slot.getY() - 81;
                 slot.xPos = slot.getX() + 14;
             }
         }
@@ -211,15 +331,11 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             int previewY = mouseY + 10;
 
             if (hoverType == 1) {
-                PopupCellInventory preview = new PopupCellInventory(this, hoveredCell, previewX, previewY);
-                preview.draw(mouseX, mouseY);
+                new PopupCellInventory(this, hoveredCell, previewX, previewY).draw(mouseX, mouseY);
             } else if (hoverType == 2) {
-                PopupCellPartition preview = new PopupCellPartition(this, hoveredCell, previewX, previewY);
-                preview.draw(mouseX, mouseY);
+                new PopupCellPartition(this, hoveredCell, previewX, previewY).draw(mouseX, mouseY);
             } else if (hoverType == 3) {
-                String ejectText = I18n.format("gui.cellterminal.eject_cell");
-                List<String> tooltip = Collections.singletonList(ejectText);
-                this.drawHoveringText(tooltip, mouseX, mouseY);
+                this.drawHoveringText(Collections.singletonList(I18n.format("gui.cellterminal.eject_cell")), mouseX, mouseY);
             }
         }
 
@@ -233,777 +349,80 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             String tooltip = getTabTooltip(hoveredTab);
             if (!tooltip.isEmpty()) this.drawHoveringText(Collections.singletonList(tooltip), mouseX, mouseY);
         }
+
+        // Draw terminal style button tooltip
+        if (terminalStyleButton != null && terminalStyleButton.isMouseOver()) {
+            this.drawHoveringText(terminalStyleButton.getTooltip(), mouseX, mouseY);
+        }
+
+        // Draw search mode button tooltip
+        if (searchModeButton != null && searchModeButton.visible && searchModeButton.isMouseOver()) {
+            this.drawHoveringText(searchModeButton.getTooltip(), mouseX, mouseY);
+        }
     }
-
-
 
     @Override
     public void drawFG(int offsetX, int offsetY, int mouseX, int mouseY) {
         this.fontRenderer.drawString(getGuiTitle(), 22, 6, 0x404040);
-        String inventoryLabel = I18n.format("container.inventory");
-        this.fontRenderer.drawString(inventoryLabel, 22, this.ySize - 58 + 3, 0x404040);
+        this.fontRenderer.drawString(I18n.format("container.inventory"), 22, this.ySize - 93, 0x404040);
 
-        // Reset hover states
-        hoveredCell = null;
-        hoverType = 0;
-        hoveredLineIndex = -1;
-        hoveredContentStack = ItemStack.EMPTY;
-        hoveredCellCell = null;
-        hoveredCellStorage = null;
-        hoveredCellSlotIndex = -1;
-        hoveredPartitionSlotIndex = -1;
-        hoveredPartitionCell = null;
+        // Draw search field - translate back since field uses absolute coords but we're in translated context
+        if (this.searchField != null) {
+            GlStateManager.pushMatrix();
+            GlStateManager.translate(-this.guiLeft, -this.guiTop, 0);
+            this.searchField.drawTextBox();
+            GlStateManager.popMatrix();
+        }
 
-        // Clear partition slot targets for JEI ghost ingredients
-        partitionSlotTargets.clear();
+        // Reset render context hover states
+        renderContext.resetHoverState();
+        renderContext.storageMap = dataManager.getStorageMap();
+        renderContext.rowsVisible = this.rowsVisible;
+        renderContext.guiLeft = this.guiLeft;
+        renderContext.guiTop = this.guiTop;
 
-        // Draw based on current tab
+        int relMouseX = mouseX - offsetX;
+        int relMouseY = mouseY - offsetY;
+        final int currentScroll = this.getScrollBar().getCurrentScroll();
+
+        // Draw based on current tab using renderers
         switch (currentTab) {
             case TAB_TERMINAL:
-                drawTerminalTab(offsetX, offsetY, mouseX, mouseY);
+                terminalRenderer.draw(dataManager.getLines(), currentScroll, rowsVisible, relMouseX, relMouseY, renderContext);
                 break;
             case TAB_INVENTORY:
-                drawInventoryTab(offsetX, offsetY, mouseX, mouseY);
+                inventoryRenderer.draw(dataManager.getInventoryLines(), currentScroll, rowsVisible,
+                    relMouseX, relMouseY, mouseX, mouseY, dataManager.getStorageMap(), renderContext);
                 break;
             case TAB_PARTITION:
-                drawPartitionTab(offsetX, offsetY, mouseX, mouseY);
+                partitionRenderer.draw(dataManager.getPartitionLines(), currentScroll, rowsVisible,
+                    relMouseX, relMouseY, mouseX, mouseY, dataManager.getStorageMap(),
+                    this.guiLeft, this.guiTop, renderContext);
                 break;
         }
 
+        syncHoverStateFromContext();
     }
 
-    protected void drawTerminalTab(int offsetX, int offsetY, int mouseX, int mouseY) {
-        int y = 18;
-        final int currentScroll = this.getScrollBar().getCurrentScroll();
-        int relMouseX = mouseX - offsetX;
-        int relMouseY = mouseY - offsetY;
+    protected void syncHoverStateFromContext() {
+        this.hoveredCell = renderContext.hoveredCell;
+        this.hoverType = renderContext.hoverType;
+        this.hoveredLineIndex = renderContext.hoveredLineIndex;
+        this.hoveredContentStack = renderContext.hoveredContentStack;
+        this.hoveredCellCell = renderContext.hoveredCellCell;
+        this.hoveredCellStorage = renderContext.hoveredCellStorage;
+        this.hoveredCellSlotIndex = renderContext.hoveredCellSlotIndex;
+        this.hoveredContentSlotIndex = renderContext.hoveredContentSlotIndex;
+        this.hoveredContentX = renderContext.hoveredContentX;
+        this.hoveredContentY = renderContext.hoveredContentY;
+        this.hoveredPartitionSlotIndex = renderContext.hoveredPartitionSlotIndex;
+        this.hoveredPartitionCell = renderContext.hoveredPartitionCell;
 
-        // Calculate visible area bounds for tree line clipping
-        int visibleTop = 18;
-        int visibleBottom = 18 + ROWS_VISIBLE * ROW_HEIGHT;
-        int totalLines = lines.size();
-
-        for (int i = 0; i < ROWS_VISIBLE && currentScroll + i < totalLines; i++) {
-            Object line = lines.get(currentScroll + i);
-            int lineIndex = currentScroll + i;
-
-            // Check if mouse is hovering over this line
-            boolean isHovered = relMouseX >= 4 && relMouseX < 185
-                && relMouseY >= y && relMouseY < y + ROW_HEIGHT;
-
-            // Draw hover background for cell lines
-            if (isHovered && line instanceof CellInfo) {
-                hoveredLineIndex = lineIndex;
-                drawRect(GUI_INDENT, y - 1, 180, y + ROW_HEIGHT - 1, 0x50CCCCCC);
-            }
-
-            // Draw separator line above storage entries (except first one)
-            if (line instanceof StorageInfo && i > 0) drawRect(GUI_INDENT, y - 1, 180, y, 0xFF606060);
-
-            // Determine tree line extension parameters for cells
-            boolean isFirstInGroup = isFirstInStorageGroupTerminal(lines, lineIndex);
-            boolean isLastInGroup = isLastInStorageGroupTerminal(lines, lineIndex);
-            boolean isFirstVisibleRow = (i == 0);
-            boolean isLastVisibleRow = (i == ROWS_VISIBLE - 1) || (currentScroll + i == totalLines - 1);
-            boolean hasContentAbove = (lineIndex > 0) && !isFirstInGroup;
-            boolean hasContentBelow = (lineIndex < totalLines - 1) && !isLastInGroup;
-
-            if (line instanceof StorageInfo) {
-                drawStorageLine((StorageInfo) line, y);
-            } else if (line instanceof CellInfo) {
-                drawCellLine((CellInfo) line, y, relMouseX, relMouseY, isFirstInGroup, isLastInGroup, visibleTop, visibleBottom, isFirstVisibleRow, isLastVisibleRow, hasContentAbove, hasContentBelow);
-            }
-
-            y += ROW_HEIGHT;
+        this.partitionSlotTargets.clear();
+        for (RenderContext.PartitionSlotTarget target : renderContext.partitionSlotTargets) {
+            this.partitionSlotTargets.add(new PartitionSlotTarget(
+                target.cell, target.slotIndex, target.x, target.y, target.width, target.height));
         }
-    }
-
-    protected void drawInventoryTab(int offsetX, int offsetY, int mouseX, int mouseY) {
-        int y = 18;
-        final int currentScroll = this.getScrollBar().getCurrentScroll();
-        int relMouseX = mouseX - offsetX;
-        int relMouseY = mouseY - offsetY;
-
-        // Calculate visible area bounds for tree line clipping
-        int visibleTop = 18;
-        int visibleBottom = 18 + ROWS_VISIBLE * ROW_HEIGHT;
-        int totalLines = inventoryLines.size();
-
-        for (int i = 0; i < ROWS_VISIBLE && currentScroll + i < totalLines; i++) {
-            Object line = inventoryLines.get(currentScroll + i);
-            int lineIndex = currentScroll + i;
-
-            // Check if mouse is hovering over this line
-            boolean isHovered = relMouseX >= 4 && relMouseX < 185
-                && relMouseY >= y && relMouseY < y + ROW_HEIGHT;
-
-            // Draw hover background for cell/empty slot lines
-            if (isHovered && (line instanceof CellContentRow || line instanceof EmptySlotInfo)) {
-                hoveredLineIndex = lineIndex;
-                drawRect(GUI_INDENT, y - 1, 180, y + ROW_HEIGHT - 1, 0x50CCCCCC);
-            }
-
-            // Draw separator line above storage entries (except first one)
-            if (line instanceof StorageInfo && i > 0) drawRect(GUI_INDENT, y - 1, 180, y, 0xFF606060);
-
-            // Determine if this is the first/last row in storage group for tree line drawing
-            boolean isFirstInGroup = isFirstInStorageGroup(inventoryLines, lineIndex);
-            boolean isLastInGroup = isLastInStorageGroup(inventoryLines, lineIndex);
-
-            // For visibility-based tree line extension:
-            // - First visible row should extend up to visibleTop if there's content above (and not first in storage group)
-            // - Last visible row should extend down to visibleBottom if there's content below (and not last in storage group)
-            boolean isFirstVisibleRow = (i == 0);
-            boolean isLastVisibleRow = (i == ROWS_VISIBLE - 1) || (currentScroll + i == totalLines - 1);
-            boolean hasContentAbove = (lineIndex > 0) && !isFirstInGroup;
-            boolean hasContentBelow = (lineIndex < totalLines - 1) && !isLastInGroup;
-
-            if (line instanceof StorageInfo) {
-                drawStorageLineSimple((StorageInfo) line, y);
-            } else if (line instanceof CellContentRow) {
-                CellContentRow row = (CellContentRow) line;
-                drawCellInventoryLine(row.getCell(), row.getStartIndex(), row.isFirstRow(), y, relMouseX, relMouseY, mouseX, mouseY, isFirstInGroup, isLastInGroup, visibleTop, visibleBottom, isFirstVisibleRow, isLastVisibleRow, hasContentAbove, hasContentBelow);
-            } else if (line instanceof EmptySlotInfo) {
-                drawEmptySlotLine((EmptySlotInfo) line, y, relMouseX, relMouseY, isFirstInGroup, isLastInGroup, visibleTop, visibleBottom, isFirstVisibleRow, isLastVisibleRow, hasContentAbove, hasContentBelow);
-            }
-
-            y += ROW_HEIGHT;
-        }
-    }
-
-    protected void drawPartitionTab(int offsetX, int offsetY, int mouseX, int mouseY) {
-        int y = 18;
-        final int currentScroll = this.getScrollBar().getCurrentScroll();
-        int relMouseX = mouseX - offsetX;
-        int relMouseY = mouseY - offsetY;
-
-        // Calculate visible area bounds for tree line clipping
-        int visibleTop = 18;
-        int visibleBottom = 18 + ROWS_VISIBLE * ROW_HEIGHT;
-        int totalLines = partitionLines.size();
-
-        for (int i = 0; i < ROWS_VISIBLE && currentScroll + i < totalLines; i++) {
-            Object line = partitionLines.get(currentScroll + i);
-            int lineIndex = currentScroll + i;
-
-            // Check if mouse is hovering over this line
-            boolean isHovered = relMouseX >= 4 && relMouseX < 185
-                && relMouseY >= y && relMouseY < y + ROW_HEIGHT;
-
-            // Draw hover background for cell/empty slot lines
-            if (isHovered && (line instanceof CellContentRow || line instanceof EmptySlotInfo)) {
-                hoveredLineIndex = lineIndex;
-                drawRect(GUI_INDENT, y - 1, 180, y + ROW_HEIGHT - 1, 0x50CCCCCC);
-            }
-
-            // Draw separator line above storage entries (except first one)
-            if (line instanceof StorageInfo && i > 0) drawRect(GUI_INDENT, y - 1, 180, y, 0xFF606060);
-
-            // Determine if this is the first/last row in storage group for tree line drawing
-            boolean isFirstInGroup = isFirstInStorageGroup(partitionLines, lineIndex);
-            boolean isLastInGroup = isLastInStorageGroup(partitionLines, lineIndex);
-
-            // For visibility-based tree line extension:
-            boolean isFirstVisibleRow = (i == 0);
-            boolean isLastVisibleRow = (i == ROWS_VISIBLE - 1) || (currentScroll + i == totalLines - 1);
-            boolean hasContentAbove = (lineIndex > 0) && !isFirstInGroup;
-            boolean hasContentBelow = (lineIndex < totalLines - 1) && !isLastInGroup;
-
-            if (line instanceof StorageInfo) {
-                drawStorageLineSimple((StorageInfo) line, y);
-            } else if (line instanceof CellContentRow) {
-                CellContentRow row = (CellContentRow) line;
-                drawCellPartitionLine(row.getCell(), row.getStartIndex(), row.isFirstRow(), y, relMouseX, relMouseY, mouseX, mouseY, isFirstInGroup, isLastInGroup, visibleTop, visibleBottom, isFirstVisibleRow, isLastVisibleRow, hasContentAbove, hasContentBelow);
-            } else if (line instanceof EmptySlotInfo) {
-                drawEmptySlotLine((EmptySlotInfo) line, y, relMouseX, relMouseY, isFirstInGroup, isLastInGroup, visibleTop, visibleBottom, isFirstVisibleRow, isLastVisibleRow, hasContentAbove, hasContentBelow);
-            }
-
-            y += ROW_HEIGHT;
-        }
-    }
-
-    protected void drawStorageLineSimple(StorageInfo storage, int y) {
-        // Draw vertical tree line connecting to cells below
-        int lineX = GUI_INDENT + 7;
-        drawRect(lineX, y + ROW_HEIGHT - 1, lineX + 1, y + ROW_HEIGHT, 0xFF808080);
-
-        // Draw block icon
-        if (!storage.getBlockItem().isEmpty()) {
-            GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-            RenderHelper.enableGUIStandardItemLighting();
-            this.itemRender.renderItemIntoGUI(storage.getBlockItem(), GUI_INDENT, y);
-            RenderHelper.disableStandardItemLighting();
-            GlStateManager.disableLighting();
-            GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-            GlStateManager.enableBlend();
-            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-        }
-
-        // Draw name and location
-        String name = storage.getName();
-        if (name.length() > 20) name = name.substring(0, 18) + "...";
-        this.fontRenderer.drawString(name, GUI_INDENT + 20, y + 1, 0x404040);
-
-        String location = storage.getLocationString();
-        this.fontRenderer.drawString(location, GUI_INDENT + 20, y + 9, 0x808080);
-    }
-
-    protected void drawCellInventoryLine(CellInfo cell, int startIndex, boolean isFirstRow, int y, int mouseX, int mouseY, int absMouseX, int absMouseY, boolean isFirstInGroup, boolean isLastInGroup, int visibleTop, int visibleBottom, boolean isFirstVisibleRow, boolean isLastVisibleRow, boolean hasContentAbove, boolean hasContentBelow) {
-        int lineX = GUI_INDENT + 7;
-
-        // Only draw tree line and cell icon on first row
-        if (isFirstRow) {
-            // Draw tree line with proper bounds, clamped to visible area
-            // Top of line: connect up to storage header or previous cell
-            int lineTop;
-            if (isFirstInGroup) {
-                // First cell in group: connect up to the storage header
-                if (isFirstVisibleRow) {
-                    lineTop = visibleTop;
-                } else {
-                    lineTop = y - ROW_HEIGHT + 9; // Connect to storage header above
-                }
-            } else if (isFirstVisibleRow && hasContentAbove) {
-                lineTop = visibleTop; // Extend to top border when there's content above
-            } else {
-                lineTop = y - ROW_HEIGHT + 9;
-            }
-
-            // Bottom of line: if last in storage group, end at horizontal branch level
-            // Otherwise, extend downward (to visible bottom if last visible row with more content below)
-            int lineBottom;
-            if (isLastInGroup) {
-                lineBottom = y + 9;
-            } else if (isLastVisibleRow && hasContentBelow) {
-                lineBottom = visibleBottom; // Extend to bottom border when there's content below
-            } else {
-                lineBottom = y + ROW_HEIGHT;
-            }
-
-            drawRect(lineX, lineTop, lineX + 1, lineBottom, 0xFF808080);
-            drawRect(lineX, y + 8, lineX + 10, y + 9, 0xFF808080);
-
-            // Draw cell slot background
-            drawSlotBackground(CELL_INDENT, y);
-
-            // Check if mouse is over cell slot
-            boolean cellHovered = mouseX >= CELL_INDENT && mouseX < CELL_INDENT + 16
-                    && mouseY >= y && mouseY < y + 16;
-
-            if (cellHovered) {
-                drawRect(CELL_INDENT + 1, y + 1, CELL_INDENT + 15, y + 15, 0x80FFFFFF);
-                StorageInfo storage = storageMap.get(cell.getParentStorageId());
-                if (storage != null) {
-                    hoveredCellStorage = storage;
-                    hoveredCellCell = cell;
-                    hoveredCellSlotIndex = cell.getSlot();
-                    hoveredContentStack = cell.getCellItem();
-                    hoveredContentX = absMouseX;
-                    hoveredContentY = absMouseY;
-                }
-            }
-
-            // Draw cell icon
-            if (!cell.getCellItem().isEmpty()) {
-                GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-                RenderHelper.enableGUIStandardItemLighting();
-                this.itemRender.renderItemIntoGUI(cell.getCellItem(), CELL_INDENT, y);
-                RenderHelper.disableStandardItemLighting();
-                GlStateManager.disableLighting();
-                GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-            }
-        } else {
-            // Draw continuation tree line for subsequent rows
-            int lineTop;
-            if (isFirstVisibleRow && hasContentAbove) {
-                lineTop = visibleTop;
-            } else {
-                lineTop = y - ROW_HEIGHT + 9;
-            }
-
-            int lineBottom;
-            if (isLastInGroup) {
-                lineBottom = y + 9;
-            } else if (isLastVisibleRow && hasContentBelow) {
-                lineBottom = visibleBottom;
-            } else {
-                lineBottom = y + ROW_HEIGHT;
-            }
-            drawRect(lineX, lineTop, lineX + 1, lineBottom, 0xFF808080);
-        }
-
-        // Draw content item slots for this row
-        List<ItemStack> contents = cell.getContents();
-        List<ItemStack> partition = cell.getPartition();
-        int slotStartX = CELL_INDENT + 20;
-
-        for (int i = 0; i < SLOTS_PER_ROW; i++) {
-            int contentIndex = startIndex + i;
-            int slotX = slotStartX + (i * 16);
-            int slotY = y;
-
-            // Draw mini slot background
-            drawRect(slotX, slotY, slotX + 16, slotY + 16, 0xFF8B8B8B);
-            drawRect(slotX, slotY, slotX + 15, slotY + 1, 0xFF373737);
-            drawRect(slotX, slotY, slotX + 1, slotY + 15, 0xFF373737);
-            drawRect(slotX + 1, slotY + 15, slotX + 16, slotY + 16, 0xFFFFFFFF);
-            drawRect(slotX + 15, slotY + 1, slotX + 16, slotY + 15, 0xFFFFFFFF);
-
-            if (contentIndex < contents.size() && !contents.get(contentIndex).isEmpty()) {
-                ItemStack stack = contents.get(contentIndex);
-                GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-                RenderHelper.enableGUIStandardItemLighting();
-                this.itemRender.renderItemIntoGUI(stack, slotX, slotY);
-                RenderHelper.disableStandardItemLighting();
-
-                // Draw "P" indicator if this item is in partition
-                if (isInPartition(stack, partition)) {
-                    GlStateManager.disableLighting();
-                    GlStateManager.disableDepth();
-                    GlStateManager.pushMatrix();
-                    GlStateManager.scale(0.5f, 0.5f, 0.5f);
-                    this.fontRenderer.drawStringWithShadow("P", (slotX + 1) * 2, (slotY + 1) * 2, 0xFF55FF55);
-                    GlStateManager.popMatrix();
-                    GlStateManager.enableDepth();
-                }
-
-                // Draw item count on item corner (bottom-right)
-                String countStr = formatItemCount(cell.getContentCount(contentIndex));
-                int countWidth = this.fontRenderer.getStringWidth(countStr);
-                GlStateManager.disableDepth();
-                GlStateManager.pushMatrix();
-                GlStateManager.scale(0.5f, 0.5f, 0.5f);
-                // Right-align: for 16x16 slot, text right edge
-                this.fontRenderer.drawStringWithShadow(countStr, (slotX + 15) * 2 - countWidth, (slotY + 11) * 2, 0xFFFFFF);
-                GlStateManager.popMatrix();
-                GlStateManager.enableDepth();
-
-                // Check hover for tooltip and click-to-toggle tracking
-                if (mouseX >= slotX && mouseX < slotX + 16
-                        && mouseY >= slotY && mouseY < slotY + 16) {
-                    drawRect(slotX + 1, slotY + 1, slotX + 15, slotY + 15, 0x80FFFFFF);
-                    hoveredContentStack = stack;
-                    hoveredContentX = absMouseX;
-                    hoveredContentY = absMouseY;
-                    hoveredContentSlotIndex = contentIndex;
-                    hoveredCellCell = cell;
-                }
-            }
-        }
-
-    }
-
-    protected boolean isInPartition(ItemStack stack, List<ItemStack> partition) {
-        if (stack.isEmpty()) return false;
-
-        for (ItemStack partItem : partition) {
-            if (ItemStack.areItemsEqual(stack, partItem)) return true;
-        }
-
-        return false;
-    }
-
-    protected void drawCellPartitionLine(CellInfo cell, int startIndex, boolean isFirstRow, int y, int mouseX, int mouseY, int absMouseX, int absMouseY, boolean isFirstInGroup, boolean isLastInGroup, int visibleTop, int visibleBottom, boolean isFirstVisibleRow, boolean isLastVisibleRow, boolean hasContentAbove, boolean hasContentBelow) {
-        int lineX = GUI_INDENT + 7;
-
-        // Only draw tree line and cell icon on first row
-        if (isFirstRow) {
-            // Draw tree line with proper bounds, clamped to visible area
-            int lineTop;
-            if (isFirstInGroup) {
-                // First cell in group: connect up to the storage header
-                if (isFirstVisibleRow) {
-                    lineTop = visibleTop;
-                } else {
-                    lineTop = y - ROW_HEIGHT + 9; // Connect to storage header above
-                }
-            } else if (isFirstVisibleRow && hasContentAbove) {
-                lineTop = visibleTop;
-            } else {
-                lineTop = y - ROW_HEIGHT + 9;
-            }
-
-            int lineBottom;
-            if (isLastInGroup) {
-                lineBottom = y + 9;
-            } else if (isLastVisibleRow && hasContentBelow) {
-                lineBottom = visibleBottom;
-            } else {
-                lineBottom = y + ROW_HEIGHT;
-            }
-
-            drawRect(lineX, lineTop, lineX + 1, lineBottom, 0xFF808080);
-            drawRect(lineX, y + 8, lineX + 10, y + 9, 0xFF808080);
-
-            // Draw cell slot background
-            drawSlotBackground(CELL_INDENT, y);
-
-            // Check if mouse is over cell slot
-            boolean cellHovered = mouseX >= CELL_INDENT && mouseX < CELL_INDENT + 16
-                    && mouseY >= y && mouseY < y + 16;
-
-            if (cellHovered) {
-                drawRect(CELL_INDENT + 1, y + 1, CELL_INDENT + 15, y + 15, 0x80FFFFFF);
-                StorageInfo storage = storageMap.get(cell.getParentStorageId());
-                if (storage != null) {
-                    hoveredCellStorage = storage;
-                    hoveredCellCell = cell;
-                    hoveredCellSlotIndex = cell.getSlot();
-                    hoveredContentStack = cell.getCellItem();
-                    hoveredContentX = absMouseX;
-                    hoveredContentY = absMouseY;
-                }
-            }
-
-            // Draw cell icon
-            if (!cell.getCellItem().isEmpty()) {
-                GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-                RenderHelper.enableGUIStandardItemLighting();
-                this.itemRender.renderItemIntoGUI(cell.getCellItem(), CELL_INDENT, y);
-                RenderHelper.disableStandardItemLighting();
-                GlStateManager.disableLighting();
-                GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-            }
-        } else {
-            // Draw continuation tree line for subsequent rows
-            int lineTop;
-            if (isFirstVisibleRow && hasContentAbove) {
-                lineTop = visibleTop;
-            } else {
-                lineTop = y - ROW_HEIGHT + 9;
-            }
-
-            int lineBottom;
-            if (isLastInGroup) {
-                lineBottom = y + 9;
-            } else if (isLastVisibleRow && hasContentBelow) {
-                lineBottom = visibleBottom;
-            } else {
-                lineBottom = y + ROW_HEIGHT;
-            }
-            drawRect(lineX, lineTop, lineX + 1, lineBottom, 0xFF808080);
-        }
-
-        // Draw partition item slots for this row
-        // Use orange-ish tint for partition slots to differentiate from content slots
-        List<ItemStack> partitions = cell.getPartition();
-        int slotStartX = CELL_INDENT + 20;
-
-        for (int i = 0; i < SLOTS_PER_ROW; i++) {
-            int partitionIndex = startIndex + i;
-
-            // Stop if we've reached the maximum partition slots (8th row has only 7 slots)
-            if (partitionIndex >= MAX_PARTITION_SLOTS) break;
-
-            int slotX = slotStartX + (i * 16);
-            int slotY = y;
-
-            // Draw mini slot background with subtle orange/amber tint for partition
-            drawRect(slotX, slotY, slotX + 16, slotY + 16, 0xFF9B8B7B);
-            drawRect(slotX, slotY, slotX + 15, slotY + 1, 0xFF473737);
-            drawRect(slotX, slotY, slotX + 1, slotY + 15, 0xFF473737);
-            drawRect(slotX + 1, slotY + 15, slotX + 16, slotY + 16, 0xFFFFEEDD);
-            drawRect(slotX + 15, slotY + 1, slotX + 16, slotY + 15, 0xFFFFEEDD);
-
-            // Track slot position for JEI ghost ingredients (absolute screen coordinates)
-            int absSlotX = this.guiLeft + slotX;
-            int absSlotY = this.guiTop + slotY;
-            partitionSlotTargets.add(new PartitionSlotTarget(cell, partitionIndex, absSlotX, absSlotY, 16, 16));
-
-            boolean slotHovered = mouseX >= slotX && mouseX < slotX + 16
-                    && mouseY >= slotY && mouseY < slotY + 16;
-
-            if (partitionIndex < partitions.size() && !partitions.get(partitionIndex).isEmpty()) {
-                ItemStack stack = partitions.get(partitionIndex);
-                GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-                RenderHelper.enableGUIStandardItemLighting();
-                this.itemRender.renderItemIntoGUI(stack, slotX, slotY);
-                RenderHelper.disableStandardItemLighting();
-
-                // Check hover for tooltip and click-to-remove tracking
-                if (slotHovered) {
-                    drawRect(slotX + 1, slotY + 1, slotX + 15, slotY + 15, 0x80FFFFFF);
-                    hoveredContentStack = stack;
-                    hoveredContentX = absMouseX;
-                    hoveredContentY = absMouseY;
-                    hoveredPartitionSlotIndex = partitionIndex;
-                    hoveredPartitionCell = cell;
-                }
-            } else if (slotHovered) {
-                // Empty slot hover - track for JEI ghost ingredient
-                drawRect(slotX + 1, slotY + 1, slotX + 15, slotY + 15, 0x40FFFFFF);
-                hoveredPartitionSlotIndex = partitionIndex;
-                hoveredPartitionCell = cell;
-            }
-        }
-
-    }
-
-    protected void drawSlotBackground(int x, int y) {
-        // Standard Minecraft-style slot background
-        drawRect(x, y, x + 16, y + 16, 0xFF8B8B8B);
-        drawRect(x, y, x + 15, y + 1, 0xFF373737);
-        drawRect(x, y, x + 1, y + 15, 0xFF373737);
-        drawRect(x + 1, y + 15, x + 16, y + 16, 0xFFFFFFFF);
-        drawRect(x + 15, y + 1, x + 16, y + 15, 0xFFFFFFFF);
-    }
-
-    protected void drawEmptySlotLine(EmptySlotInfo emptySlot, int y, int mouseX, int mouseY, boolean isFirstInGroup, boolean isLastInGroup, int visibleTop, int visibleBottom, boolean isFirstVisibleRow, boolean isLastVisibleRow, boolean hasContentAbove, boolean hasContentBelow) {
-        // Draw tree line with proper bounds, clamped to visible area
-        int lineX = GUI_INDENT + 7;
-
-        int lineTop;
-        if (isFirstInGroup) {
-            // First entry in group: connect up to the storage header
-            if (isFirstVisibleRow) {
-                lineTop = visibleTop;
-            } else {
-                lineTop = y - ROW_HEIGHT + 9; // Connect to storage header above
-            }
-        } else if (isFirstVisibleRow && hasContentAbove) {
-            lineTop = visibleTop;
-        } else {
-            lineTop = y - ROW_HEIGHT + 9;
-        }
-
-        int lineBottom;
-        if (isLastInGroup) {
-            lineBottom = y + 9;
-        } else if (isLastVisibleRow && hasContentBelow) {
-            lineBottom = visibleBottom;
-        } else {
-            lineBottom = y + ROW_HEIGHT;
-        }
-
-        drawRect(lineX, lineTop, lineX + 1, lineBottom, 0xFF808080);
-        drawRect(lineX, y + 8, lineX + 10, y + 9, 0xFF808080);
-
-        // Draw empty slot with proper slot background
-        drawSlotBackground(CELL_INDENT, y);
-
-        // Check if mouse is over slot
-        boolean slotHovered = mouseX >= CELL_INDENT && mouseX < CELL_INDENT + 16
-                && mouseY >= y && mouseY < y + 16;
-
-        if (slotHovered) {
-            drawRect(CELL_INDENT + 1, y + 1, CELL_INDENT + 15, y + 15, 0x80FFFFFF);
-            StorageInfo storage = storageMap.get(emptySlot.getParentStorageId());
-            if (storage != null) {
-                hoveredCellStorage = storage;
-                hoveredCellSlotIndex = emptySlot.getSlot();
-            }
-        }
-    }
-
-    protected String formatItemCount(long count) {
-        if (count <= 1) return "";
-        if (count < 1000) return String.valueOf(count);
-
-        return ReadableNumberConverter.INSTANCE.toSlimReadableForm(count);
-    }
-
-    /**
-     * Check if the line at the given index is the first cell/slot in its storage group.
-     * Returns true if the previous line is a StorageInfo or if this is the first line.
-     */
-    protected boolean isFirstInStorageGroup(List<Object> lines, int index) {
-        if (index <= 0) return true;
-
-        Object prevLine = lines.get(index - 1);
-
-        return prevLine instanceof StorageInfo;
-    }
-
-    /**
-     * Check if the line at the given index is the last cell/slot in its storage group.
-     * Returns true if the next line is a StorageInfo or if this is the last line.
-     */
-    protected boolean isLastInStorageGroup(List<Object> lines, int index) {
-        if (index >= lines.size() - 1) return true;
-
-        Object nextLine = lines.get(index + 1);
-
-        return nextLine instanceof StorageInfo;
-    }
-
-    /**
-     * Check if the line at the given index is the first cell in its storage group (Terminal tab).
-     * Returns true if the previous line is a StorageInfo or if this is the first line.
-     */
-    protected boolean isFirstInStorageGroupTerminal(List<Object> lines, int index) {
-        if (index <= 0) return true;
-
-        Object prevLine = lines.get(index - 1);
-
-        return prevLine instanceof StorageInfo;
-    }
-
-    /**
-     * Check if the line at the given index is the last cell in its storage group (Terminal tab).
-     * Returns true if the next line is a StorageInfo or if this is the last line.
-     */
-    protected boolean isLastInStorageGroupTerminal(List<Object> lines, int index) {
-        if (index >= lines.size() - 1) return true;
-
-        Object nextLine = lines.get(index + 1);
-
-        return nextLine instanceof StorageInfo;
-    }
-
-    protected void drawStorageLine(StorageInfo storage, int y) {
-        // Draw expand/collapse indicator on the right
-        String expandIcon = storage.isExpanded() ? "[-]" : "[+]";
-        this.fontRenderer.drawString(expandIcon, 165, y + 6, 0x606060);
-
-        // Draw vertical tree line connecting to cells below (if expanded and has slots)
-        if (storage.isExpanded() && storage.getSlotCount() > 0) {
-            int lineX = GUI_INDENT + 7;
-            // Draw from bottom of this row down to connect with cells
-            drawRect(lineX, y + ROW_HEIGHT - 1, lineX + 1, y + ROW_HEIGHT, 0xFF808080);
-        }
-
-        // Draw block icon
-        if (!storage.getBlockItem().isEmpty()) {
-            GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-            RenderHelper.enableGUIStandardItemLighting();
-            this.itemRender.renderItemIntoGUI(storage.getBlockItem(), GUI_INDENT, y);
-            RenderHelper.disableStandardItemLighting();
-            GlStateManager.disableLighting();
-            GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-            GlStateManager.enableBlend();
-            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-        }
-
-        // Draw name and location
-        String name = storage.getName();
-        if (name.length() > 20) name = name.substring(0, 18) + "...";
-        this.fontRenderer.drawString(name, GUI_INDENT + 20, y + 1, 0x404040);
-
-        String location = storage.getLocationString();
-        this.fontRenderer.drawString(location, GUI_INDENT + 20, y + 9, 0x808080);
-    }
-
-    /**
-     * Get the number of characters used for decorations (§ codes) in a string.
-     * @param name The string to check
-     * @return The length of decoration codes
-     */
-    protected int getDecorationLength(String name) {
-        int decorLength = 0;
-
-        for (int i = 0; i < name.length() - 1; i++) {
-            if (name.charAt(i) == '§') {
-                decorLength += 2;
-                i++;
-            }
-        }
-
-        return decorLength;
-    }
-
-    protected void drawCellLine(CellInfo cell, int y, int mouseX, int mouseY, boolean isFirstInGroup, boolean isLastInGroup, int visibleTop, int visibleBottom, boolean isFirstVisibleRow, boolean isLastVisibleRow, boolean hasContentAbove, boolean hasContentBelow) {
-        // Draw tree line to show hierarchy
-        int lineX = GUI_INDENT + 7;
-
-        // Calculate tree line top position
-        int lineTop;
-        if (isFirstInGroup) {
-            // First cell in group: connect up to the storage header
-            // If first visible row, only draw from visible top
-            if (isFirstVisibleRow) {
-                lineTop = visibleTop;
-            } else {
-                lineTop = y - ROW_HEIGHT + 9; // Connect to storage header above
-            }
-        } else if (isFirstVisibleRow && hasContentAbove) {
-            lineTop = visibleTop; // Extend to top border when there's content above
-        } else {
-            lineTop = y - ROW_HEIGHT + 9; // Connect to previous row
-        }
-
-        // Calculate tree line bottom position
-        int lineBottom;
-        if (isLastInGroup) {
-            lineBottom = y + 9; // End at horizontal branch level
-        } else if (isLastVisibleRow && hasContentBelow) {
-            lineBottom = visibleBottom; // Extend to bottom border when there's content below
-        } else {
-            lineBottom = y + ROW_HEIGHT; // Connect to next row
-        }
-
-        drawRect(lineX, lineTop, lineX + 1, lineBottom, 0xFF808080);
-        drawRect(lineX, y + 8, lineX + 10, y + 9, 0xFF808080);
-
-        // Draw cell icon with indent
-        if (!cell.getCellItem().isEmpty()) {
-            GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-            RenderHelper.enableGUIStandardItemLighting();
-            this.itemRender.renderItemIntoGUI(cell.getCellItem(), CELL_INDENT, y);
-            RenderHelper.disableStandardItemLighting();
-            GlStateManager.disableLighting();
-            GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-            GlStateManager.enableBlend();
-            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-        }
-
-        // Draw cell name
-        String name = cell.getDisplayName();
-        int decorLength = getDecorationLength(name);
-        if (name.length() - decorLength > 16) name = name.substring(0, 14 + decorLength) + "...";
-        this.fontRenderer.drawString(name, CELL_INDENT + 18, y + 1, 0x404040);
-
-        // Draw usage bar
-        int barX = CELL_INDENT + 18;
-        int barY = y + 10;
-        int barWidth = 80;
-        int barHeight = 4;
-
-        drawRect(barX, barY, barX + barWidth, barY + barHeight, 0xFF555555);
-        int filledWidth = (int) (barWidth * cell.getByteUsagePercent());
-        int fillColor = getUsageColor(cell.getByteUsagePercent());
-        if (filledWidth > 0) drawRect(barX, barY, barX + filledWidth, barY + barHeight, fillColor);
-
-        // Check button hover states
-        boolean ejectHovered = mouseX >= BUTTON_EJECT_X && mouseX < BUTTON_EJECT_X + BUTTON_SIZE
-            && mouseY >= y + 1 && mouseY < y + 1 + BUTTON_SIZE;
-        boolean invHovered = mouseX >= BUTTON_INVENTORY_X && mouseX < BUTTON_INVENTORY_X + BUTTON_SIZE
-            && mouseY >= y + 1 && mouseY < y + 1 + BUTTON_SIZE;
-        boolean partHovered = mouseX >= BUTTON_PARTITION_X && mouseX < BUTTON_PARTITION_X + BUTTON_SIZE
-            && mouseY >= y + 1 && mouseY < y + 1 + BUTTON_SIZE;
-
-        // Draw buttons
-        drawButton(BUTTON_EJECT_X, y + 1, "E", ejectHovered);
-        drawButton(BUTTON_INVENTORY_X, y + 1, "I", invHovered);
-        drawButton(BUTTON_PARTITION_X, y + 1, "P", partHovered);
-
-        // Track hover state for preview/tooltip
-        if (ejectHovered) {
-            hoveredCell = cell;
-            hoverType = 3;
-        } else if (invHovered) {
-            hoveredCell = cell;
-            hoverType = 1;
-        } else if (partHovered) {
-            hoveredCell = cell;
-            hoverType = 2;
-        }
-    }
-
-    protected void drawButton(int x, int y, String label, boolean hovered) {
-        int btnColor = hovered ? 0xFF707070 : 0xFF8B8B8B;
-        drawRect(x, y, x + BUTTON_SIZE, y + BUTTON_SIZE, btnColor);
-        drawRect(x, y, x + BUTTON_SIZE, y + 1, 0xFFFFFFFF);
-        drawRect(x, y, x + 1, y + BUTTON_SIZE, 0xFFFFFFFF);
-        drawRect(x, y + BUTTON_SIZE - 1, x + BUTTON_SIZE, y + BUTTON_SIZE, 0xFF555555);
-        drawRect(x + BUTTON_SIZE - 1, y, x + BUTTON_SIZE, y + BUTTON_SIZE, 0xFF555555);
-        this.fontRenderer.drawString(label, x + 4, y + 3, 0x404040);
-    }
-
-    protected int getUsageColor(float percent) {
-        if (percent > 0.9f) return 0xFFFF3333;
-        if (percent > 0.75f) return 0xFFFFAA00;
-
-        return 0xFF33FF33;
     }
 
     @Override
@@ -1019,7 +438,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         this.drawTexturedModalRect(offsetX, offsetY, 0, 0, this.xSize, 18);
 
         // Draw middle section (repeated rows)
-        for (int i = 0; i < ROWS_VISIBLE; i++) {
+        for (int i = 0; i < this.rowsVisible; i++) {
             this.drawTexturedModalRect(offsetX, offsetY + 18 + i * ROW_HEIGHT, 0, 52, this.xSize, ROW_HEIGHT);
         }
 
@@ -1028,7 +447,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 
         // Draw bottom section
-        int bottomY = offsetY + 18 + ROWS_VISIBLE * ROW_HEIGHT;
+        int bottomY = offsetY + 18 + this.rowsVisible * ROW_HEIGHT;
         this.drawTexturedModalRect(offsetX, bottomY, 0, 158, this.xSize, 98);
 
         drawTabs(offsetX, offsetY, mouseX, mouseY);
@@ -1110,6 +529,19 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
+        // Handle search field clicks
+        if (this.searchField != null) {
+            // Right-click clears the field and focuses it
+            if (mouseButton == 1 && this.searchField.isMouseIn(mouseX, mouseY)) {
+                this.searchField.setText("");
+                this.searchField.setFocused(true);
+
+                return;
+            }
+
+            this.searchField.mouseClicked(mouseX, mouseY, mouseButton);
+        }
+
         // Handle popup clicks first
         if (inventoryPopup != null) {
             if (inventoryPopup.handleClick(mouseX, mouseY, mouseButton)) return;
@@ -1129,237 +561,94 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             return;
         }
 
-        // Check tab clicks
-        if (handleTabClick(mouseX, mouseY)) return;
+        if (clickHandler.handleTabClick(mouseX, mouseY, guiLeft, guiTop, currentTab, createClickCallback())) return;
 
         super.mouseClicked(mouseX, mouseY, mouseButton);
 
-        // Handle tab-specific clicks
         if (currentTab == TAB_TERMINAL) {
-            handleTerminalTabClick(mouseX, mouseY, mouseButton);
+            clickHandler.handleTerminalTabClick(mouseX, mouseY, mouseButton, guiLeft, guiTop,
+                rowsVisible, getScrollBar().getCurrentScroll(), dataManager.getLines(),
+                dataManager.getStorageMap(), dataManager.getTerminalDimension(), createClickCallback());
         } else if (currentTab == TAB_INVENTORY || currentTab == TAB_PARTITION) {
-            handleCellTabClick(mouseX, mouseY, mouseButton);
+            clickHandler.handleCellTabClick(currentTab, hoveredCellCell, hoveredContentSlotIndex,
+                hoveredPartitionCell, hoveredPartitionSlotIndex, hoveredCellStorage, hoveredCellSlotIndex,
+                createClickCallback());
         }
     }
 
-    protected boolean handleTabClick(int mouseX, int mouseY) {
-        int tabY = this.guiTop + TAB_Y_OFFSET;
-
-        for (int i = 0; i < 3; i++) {
-            int tabX = this.guiLeft + 4 + (i * (TAB_WIDTH + 2));
-
-            if (mouseX >= tabX && mouseX < tabX + TAB_WIDTH
-                    && mouseY >= tabY && mouseY < tabY + TAB_HEIGHT) {
-                if (currentTab != i) {
-                    currentTab = i;
-                    // Reset scroll position to 0, then update range for new tab
-                    this.getScrollBar().setRange(0, 0, 1);
-                    updateScrollbarForCurrentTab();
-                    CellTerminalClientConfig.getInstance().setSelectedTab(i);
-                }
-
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    protected void handleTerminalTabClick(int mouseX, int mouseY, int mouseButton) {
-        int relX = mouseX - this.guiLeft;
-        int relY = mouseY - this.guiTop;
-
-        if (relX < 4 || relX > 190 || relY < 18 || relY >= 18 + ROWS_VISIBLE * ROW_HEIGHT) return;
-
-        int row = (relY - 18) / ROW_HEIGHT;
-        int lineIndex = this.getScrollBar().getCurrentScroll() + row;
-
-        if (lineIndex >= lines.size()) return;
-
-        Object line = lines.get(lineIndex);
-
-        // Check for held cell - insert into storage
-        ItemStack heldStack = this.mc.player.inventory.getItemStack();
-        if (!heldStack.isEmpty()) {
-            long storageId = -1;
-
-            if (line instanceof StorageInfo) {
-                storageId = ((StorageInfo) line).getId();
-            } else if (line instanceof CellInfo) {
-                storageId = ((CellInfo) line).getParentStorageId();
+    protected TerminalClickHandler.Callback createClickCallback() {
+        return new TerminalClickHandler.Callback() {
+            @Override
+            public void onTabChanged(int tab) {
+                currentTab = tab;
+                getScrollBar().setRange(0, 0, 1);
+                updateScrollbarForCurrentTab();
+                updateSearchModeButtonVisibility();
+                onSearchTextChanged();  // Reapply filter with tab-specific mode
             }
 
-            if (storageId >= 0) {
-                CellTerminalNetwork.INSTANCE.sendToServer(new PacketInsertCell(storageId, -1));
-
-                return;
-            }
-        }
-
-        // Check for double-click to highlight block
-        long now = System.currentTimeMillis();
-        if (lineIndex == lastClickedLineIndex && now - lastClickTime < 400) {
-            // Double-click detected
-            handleDoubleClick(line);
-            lastClickedLineIndex = -1;
-
-            return;
-        }
-
-        lastClickedLineIndex = lineIndex;
-        lastClickTime = now;
-
-        if (line instanceof StorageInfo) {
-            StorageInfo storage = (StorageInfo) line;
-
-            // Only toggle expand when clicking on the [+]/[-] button (around x=165)
-            if (relX >= 165 && relX < 180) {
-                storage.toggleExpanded();
-                rebuildLines();
+            @Override
+            public void onStorageToggle(StorageInfo storage) {
+                dataManager.rebuildLines();
+                updateScrollbarForCurrentTab();
             }
 
-            return;
-        }
-
-        if (line instanceof CellInfo) {
-            handleCellClick((CellInfo) line, relX, relY, row, mouseX, mouseY);
-        }
-    }
-
-    // TODO: Expose cell slots as real inventory slots for Mouse Tweaks compatibility.
-    //
-    // Implementation approach:
-    // 1. Create a SlotCellStorage class extending SlotFake (see appeng.container.slot.SlotFake)
-    //    - Store storageId and slotIndex instead of IItemHandler reference
-    //    - Override click handling to send PacketInsertCell/PacketEjectCell
-    //    - Override getStack() to return the cell ItemStack from client-side StorageInfo
-    //
-    // 2. In ContainerCellTerminalBase:
-    //    - Add a List<SlotCellStorage> cellSlots field
-    //    - After regenStorageList(), clear old slots and add new ones based on storage data
-    //    - Use addSlotToContainer() but position them off-screen initially
-    //    - Send slot positions to client as part of PacketCellTerminalUpdate
-    //
-    // 3. In this GUI class:
-    //    - In drawInventoryTab/drawPartitionTab, update slot.xPos/yPos to match drawn positions
-    //    - Set slots off-screen when not on their respective tab (xPos = -9999)
-    //    - Let Minecraft's normal slot handling take over click events
-    //
-    // 4. For Mouse Tweaks specifically:
-    //    - Ensure slots implement IMouseTweaksDisableWheelTweak if needed
-    //    - Test with both insert (holding cell) and eject (clicking cell) operations
-    //
-    // Challenges:
-    // - Slots are normally static in containers; dynamic add/remove requires care
-    // - Client/server sync of slot positions and contents must be handled
-    // - May conflict with player inventory slot indices
-    protected void handleCellTabClick(int mouseX, int mouseY, int mouseButton) {
-        // Tab 2 (Inventory): Check if clicking on a content item to toggle partition
-        if (currentTab == TAB_INVENTORY && hoveredCellCell != null && hoveredContentSlotIndex >= 0) {
-            List<ItemStack> contents = hoveredCellCell.getContents();
-
-            if (hoveredContentSlotIndex < contents.size() && !contents.get(hoveredContentSlotIndex).isEmpty()) {
-                // Click on content item - toggle its partition status
-                onTogglePartitionItem(hoveredCellCell, contents.get(hoveredContentSlotIndex));
-
-                return;
-            }
-        }
-
-        // Tab 3 (Partition): Check if clicking on a partition slot
-        if (currentTab == TAB_PARTITION && hoveredPartitionCell != null && hoveredPartitionSlotIndex >= 0) {
-            List<ItemStack> partitions = hoveredPartitionCell.getPartition();
-            ItemStack heldStack = this.mc.player.inventory.getItemStack();
-            boolean slotOccupied = hoveredPartitionSlotIndex < partitions.size() && !partitions.get(hoveredPartitionSlotIndex).isEmpty();
-
-            // If holding an item, replace/add to the partition slot
-            if (!heldStack.isEmpty()) {
-                onAddPartitionItem(hoveredPartitionCell, hoveredPartitionSlotIndex, heldStack);
-
-                return;
+            @Override
+            public void openInventoryPopup(CellInfo cell, int mouseX, int mouseY) {
+                inventoryPopup = new PopupCellInventory(GuiCellTerminalBase.this, cell, mouseX, mouseY);
             }
 
-            // If not holding an item and slot is occupied, remove it
-            if (slotOccupied) {
-                onRemovePartitionItem(hoveredPartitionCell, hoveredPartitionSlotIndex);
-
-                return;
+            @Override
+            public void openPartitionPopup(CellInfo cell, int mouseX, int mouseY) {
+                partitionPopup = new PopupCellPartition(GuiCellTerminalBase.this, cell, mouseX, mouseY);
             }
-        }
 
-        // Handle cell slot clicks (pickup/swap cells)
-        if (hoveredCellStorage == null || hoveredCellSlotIndex < 0) return;
+            @Override
+            public void onTogglePartitionItem(CellInfo cell, ItemStack stack) {
+                GuiCellTerminalBase.this.onTogglePartitionItem(cell, stack);
+            }
 
-        // Use PacketPickupCell for slot-like behavior (pickup/swap cells)
-        CellTerminalNetwork.INSTANCE.sendToServer(
-            new PacketPickupCell(hoveredCellStorage.getId(), hoveredCellSlotIndex)
-        );
-    }
+            @Override
+            public void onAddPartitionItem(CellInfo cell, int slotIndex, ItemStack stack) {
+                GuiCellTerminalBase.this.onAddPartitionItem(cell, slotIndex, stack);
+            }
 
-    protected void handleDoubleClick(Object line) {
-        StorageInfo storage = null;
-
-        if (line instanceof StorageInfo) {
-            storage = (StorageInfo) line;
-        } else if (line instanceof CellInfo) {
-            CellInfo cell = (CellInfo) line;
-            storage = this.storageMap.get(cell.getParentStorageId());
-        }
-
-        if (storage == null) return;
-
-        // Check if in same dimension
-        if (storage.getDimension() != Minecraft.getMinecraft().player.dimension) {
-            Minecraft.getMinecraft().player.sendMessage(
-                new TextComponentTranslation("cellterminal.error.different_dimension")
-            );
-
-            return;
-        }
-
-        // Send highlight request to server
-        CellTerminalNetwork.INSTANCE.sendToServer(
-            new PacketHighlightBlock(storage.getPos(), storage.getDimension())
-        );
-    }
-
-    protected void handleCellClick(CellInfo cell, int relX, int relY, int row, int mouseX, int mouseY) {
-        int rowY = 18 + row * ROW_HEIGHT;
-
-        // Check eject button
-        if (relX >= BUTTON_EJECT_X && relX < BUTTON_EJECT_X + BUTTON_SIZE
-                && relY >= rowY + 1 && relY < rowY + 1 + BUTTON_SIZE) {
-            CellTerminalNetwork.INSTANCE.sendToServer(
-                new PacketEjectCell(cell.getParentStorageId(), cell.getSlot())
-            );
-
-            return;
-        }
-
-        // Check inventory button
-        if (relX >= BUTTON_INVENTORY_X && relX < BUTTON_INVENTORY_X + BUTTON_SIZE
-                && relY >= rowY + 1 && relY < rowY + 1 + BUTTON_SIZE) {
-            inventoryPopup = new PopupCellInventory(this, cell, mouseX, mouseY);
-
-            return;
-        }
-
-        // Check partition button
-        if (relX >= BUTTON_PARTITION_X && relX < BUTTON_PARTITION_X + BUTTON_SIZE
-                && relY >= rowY + 1 && relY < rowY + 1 + BUTTON_SIZE) {
-            partitionPopup = new PopupCellPartition(this, cell, mouseX, mouseY);
-        }
+            @Override
+            public void onRemovePartitionItem(CellInfo cell, int slotIndex) {
+                GuiCellTerminalBase.this.onRemovePartitionItem(cell, slotIndex);
+            }
+        };
     }
 
     @Override
     protected void actionPerformed(GuiButton btn) throws IOException {
+        if (btn == terminalStyleButton) {
+            // Cycle to next terminal style and reinitialize GUI
+            TerminalStyle newStyle = CellTerminalClientConfig.getInstance().cycleTerminalStyle();
+            terminalStyleButton.setStyle(newStyle);
+
+            // Reinitialize GUI to apply new dimensions
+            this.initGui();
+
+            return;
+        }
+
+        if (btn == searchModeButton) {
+            // Cycle search mode, persist it, and reapply filter
+            currentSearchMode = searchModeButton.cycleMode();
+            CellTerminalClientConfig.getInstance().setSearchMode(currentSearchMode);
+            onSearchTextChanged();
+
+            return;
+        }
+
         super.actionPerformed(btn);
     }
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
-        // Esc key (keyCode 1) should close modals first
-        if (keyCode == 1) {
+        // Esc key should close modals first
+        if (keyCode == Keyboard.KEY_ESCAPE) {
             if (inventoryPopup != null) {
                 inventoryPopup = null;
 
@@ -1371,147 +660,29 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
                 return;
             }
+
+            // If search field is focused, unfocus it
+            if (this.searchField != null && this.searchField.isFocused()) {
+                this.searchField.setFocused(false);
+
+                return;
+            }
         }
+
+        // Handle search field keyboard input first
+        if (this.searchField != null && this.searchField.textboxKeyTyped(typedChar, keyCode)) return;
 
         super.keyTyped(typedChar, keyCode);
     }
 
     public void postUpdate(NBTTagCompound data) {
-        // Update terminal position if provided
-        if (data.hasKey("terminalPos")) {
-            this.terminalPos = BlockPos.fromLong(data.getLong("terminalPos"));
-            this.terminalDimension = data.getInteger("terminalDim");
-        }
-
-        if (!data.hasKey("storages")) return;
-
-        this.storageMap.clear();
-        NBTTagList storageList = data.getTagList("storages", Constants.NBT.TAG_COMPOUND);
-
-        for (int i = 0; i < storageList.tagCount(); i++) {
-            NBTTagCompound storageNbt = storageList.getCompoundTagAt(i);
-            StorageInfo storage = new StorageInfo(storageNbt);
-            this.storageMap.put(storage.getId(), storage);
-        }
-
-        rebuildLines();
-    }
-
-    protected void rebuildLines() {
-        this.lines.clear();
-        this.inventoryLines.clear();
-        this.partitionLines.clear();
-
-        // Sort storages by distance to terminal (dimension first, then distance)
-        List<StorageInfo> sortedStorages = new ArrayList<>(this.storageMap.values());
-        sortedStorages.sort(createStorageComparator());
-
-        for (StorageInfo storage : sortedStorages) {
-            this.lines.add(storage);
-            this.inventoryLines.add(storage);
-            this.partitionLines.add(storage);
-
-            // Add all cell slots (including empty) for each storage
-            for (int slot = 0; slot < storage.getSlotCount(); slot++) {
-                CellInfo cell = storage.getCellAtSlot(slot);
-
-                if (cell != null) {
-                    cell.setParentStorageId(storage.getId());
-
-                    if (storage.isExpanded()) {
-                        this.lines.add(cell);
-                    }
-
-                    // For inventory tab: add rows based on content count
-                    int contentCount = cell.getContents().size();
-                    int contentRows = Math.max(1, (contentCount + SLOTS_PER_ROW - 1) / SLOTS_PER_ROW);
-                    for (int row = 0; row < contentRows; row++) {
-                        this.inventoryLines.add(new CellContentRow(cell, row * SLOTS_PER_ROW, row == 0));
-                    }
-
-                    // For partition tab: add rows based on highest non-empty slot
-                    int highestSlot = getHighestNonEmptyPartitionSlot(cell);
-                    int partitionRows = Math.max(1, (highestSlot + SLOTS_PER_ROW) / SLOTS_PER_ROW);
-                    for (int row = 0; row < partitionRows; row++) {
-                        this.partitionLines.add(new CellContentRow(cell, row * SLOTS_PER_ROW, row == 0));
-                    }
-                } else {
-                    // Add placeholder for empty slot (only to inventory/partition tabs, not terminal)
-                    EmptySlotInfo emptySlot = new EmptySlotInfo(storage.getId(), slot);
-                    this.inventoryLines.add(emptySlot);
-                    this.partitionLines.add(emptySlot);
-                }
-            }
-        }
-
+        dataManager.processUpdate(data);
         updateScrollbarForCurrentTab();
     }
 
-    /**
-     * Get the highest slot index that contains a non-empty partition item.
-     * Adds one extra row if the last slot is filled to allow for expansion.
-     */
-    protected int getHighestNonEmptyPartitionSlot(CellInfo cell) {
-        List<ItemStack> partition = cell.getPartition();
-        int highest = -1;
-
-        for (int i = 0; i < partition.size(); i++) {
-            if (!partition.get(i).isEmpty()) {
-                highest = i;
-            }
-        }
-
-        // If the last slot of the last visible row is filled, add an extra row
-        // This allows users to add items to the next row
-        if (highest >= 0) {
-            int currentRows = (highest / SLOTS_PER_ROW) + 1;
-            int lastSlotInLastRow = (currentRows * SLOTS_PER_ROW) - 1;
-
-            // Check if ANY more slots are available (not just a full row)
-            if (highest == lastSlotInLastRow && highest < MAX_PARTITION_SLOTS - 1) {
-                // Return a value that triggers one more row (capped at max)
-                highest = Math.min(highest + SLOTS_PER_ROW, MAX_PARTITION_SLOTS - 1);
-            }
-        }
-
-        return highest;
-    }
-
     protected void updateScrollbarForCurrentTab() {
-        int lineCount;
-
-        switch (currentTab) {
-            case TAB_INVENTORY:
-                lineCount = inventoryLines.size();
-                break;
-            case TAB_PARTITION:
-                lineCount = partitionLines.size();
-                break;
-            default:
-                lineCount = lines.size();
-                break;
-        }
-
-        this.getScrollBar().setRange(0, Math.max(0, lineCount - ROWS_VISIBLE), 1);
-    }
-
-    protected Comparator<StorageInfo> createStorageComparator() {
-        return (a, b) -> {
-            // Same dimension as terminal comes first
-            boolean aInDim = a.getDimension() == terminalDimension;
-            boolean bInDim = b.getDimension() == terminalDimension;
-
-            if (aInDim != bInDim) return aInDim ? -1 : 1;
-
-            // Sort by dimension
-            if (a.getDimension() != b.getDimension()) return Integer.compare(a.getDimension(), b.getDimension());
-
-            // Sort by distance to terminal
-            double distA = terminalPos.distanceSq(a.getPos());
-            double distB = terminalPos.distanceSq(b.getPos());
-
-            return Double.compare(distA, distB);
-        };
+        int lineCount = dataManager.getLineCount(currentTab);
+        this.getScrollBar().setRange(0, Math.max(0, lineCount - this.rowsVisible), 1);
     }
 
     // Callbacks from popups
@@ -1556,107 +727,13 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
     @Override
     public List<IGhostIngredientHandler.Target<?>> getPhantomTargets(Object ingredient) {
-
-        // Popup takes priority - return targets for JEI drag-and-drop functionality
-        // Note: We draw these targets ourselves in drawPopupJeiGhostTargets() so they appear on top of the popup
-        if (partitionPopup != null && (ingredient instanceof ItemStack || ingredient instanceof FluidStack)) {
-            return partitionPopup.getGhostTargets();
-        }
-
-        // Tab 3 (Partition) - expose partition slots for JEI ghost ingredients
-        if (currentTab == TAB_PARTITION && (ingredient instanceof ItemStack || ingredient instanceof FluidStack)) {
-            List<IGhostIngredientHandler.Target<?>> targets = new ArrayList<>();
-
-            for (PartitionSlotTarget slot : partitionSlotTargets) {
-                targets.add(new IGhostIngredientHandler.Target<Object>() {
-                    @Override
-                    public Rectangle getArea() {
-                        return new Rectangle(slot.x, slot.y, slot.width, slot.height);
-                    }
-
-                    @Override
-                    public void accept(Object ing) {
-                        ItemStack stack = ItemStack.EMPTY;
-
-                        if (ing instanceof ItemStack) {
-                            ItemStack itemStack = (ItemStack) ing;
-
-                            if (slot.cell.isFluid()) {
-                                // For fluid cells, try to extract fluid from the item
-                                FluidStack contained = net.minecraftforge.fluids.FluidUtil.getFluidContained(itemStack);
-
-                                if (contained == null) {
-                                    Minecraft.getMinecraft().player.sendMessage(
-                                        new TextComponentTranslation("cellterminal.error.fluid_cell_item")
-                                    );
-
-                                    return;
-                                }
-
-                                // Convert extracted FluidStack to ItemStack representation
-                                IStorageChannel<IAEFluidStack> fluidChannel =
-                                    AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
-                                IAEFluidStack aeFluidStack = fluidChannel.createStack(contained);
-
-                                if (aeFluidStack == null) return;
-
-                                stack = aeFluidStack.asItemStackRepresentation();
-                            } else {
-                                stack = itemStack;
-                            }
-                        } else if (ing instanceof FluidStack) {
-                            // For item cells, reject fluids and show error
-                            if (!slot.cell.isFluid()) {
-                                Minecraft.getMinecraft().player.sendMessage(
-                                    new TextComponentTranslation("cellterminal.error.item_cell_fluid")
-                                );
-
-                                return;
-                            }
-
-                            // Convert FluidStack to ItemStack representation
-                            FluidStack fluidStack = (FluidStack) ing;
-                            appeng.api.storage.IStorageChannel<appeng.api.storage.data.IAEFluidStack> fluidChannel =
-                                appeng.api.AEApi.instance().storage().getStorageChannel(appeng.api.storage.channels.IFluidStorageChannel.class);
-                            appeng.api.storage.data.IAEFluidStack aeFluidStack = fluidChannel.createStack(fluidStack);
-
-                            if (aeFluidStack == null) return;
-
-                            stack = aeFluidStack.asItemStackRepresentation();
-                        }
-
-                        if (stack.isEmpty()) return;
-
-                        // Replace the partition at the target slot directly
-                        onAddPartitionItem(slot.cell, slot.slotIndex, stack);
-                    }
-                });
-            }
-
-            return targets;
-        }
-
-        return new ArrayList<>();
+        return JeiGhostHandler.getPhantomTargets(currentTab, partitionPopup, partitionSlotTargets,
+            (cell, slotIndex, stack) -> onAddPartitionItem(cell, slotIndex, stack));
     }
 
-    /**
-     * Helper class to track partition slot positions for JEI ghost ingredients.
-     */
-    protected static class PartitionSlotTarget {
-        public final CellInfo cell;
-        public final int slotIndex;
-        public final int x;
-        public final int y;
-        public final int width;
-        public final int height;
+    // Accessors for popups and renderers
 
-        public PartitionSlotTarget(CellInfo cell, int slotIndex, int x, int y, int width, int height) {
-            this.cell = cell;
-            this.slotIndex = slotIndex;
-            this.x = x;
-            this.y = y;
-            this.width = width;
-            this.height = height;
-        }
+    public Map<Long, StorageInfo> getStorageMap() {
+        return dataManager.getStorageMap();
     }
 }

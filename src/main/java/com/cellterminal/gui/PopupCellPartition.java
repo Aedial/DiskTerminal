@@ -11,6 +11,8 @@ import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
+import net.minecraft.enchantment.EnchantmentData;
+import net.minecraft.item.ItemEnchantedBook;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraftforge.fluids.FluidStack;
@@ -24,6 +26,7 @@ import appeng.api.storage.data.IAEFluidStack;
 import mezz.jei.api.gui.IGhostIngredientHandler;
 
 import com.cellterminal.client.CellInfo;
+import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 
 
 /**
@@ -208,6 +211,102 @@ public class PopupCellPartition extends Gui {
     }
 
     /**
+     * Convert any JEI ingredient to an ItemStack for use with AE2 cells.
+     * Handles ItemStack, FluidStack, EnchantmentData (JEI's hack for enchanted books),
+     * and any future/unknown ingredient types.
+     *
+     * @param ingredient The JEI ingredient to convert
+     * @return The converted ItemStack, or ItemStack.EMPTY if conversion failed or was rejected
+     */
+    private ItemStack convertJeiIngredientToItemStack(Object ingredient) {
+        // Direct ItemStack - most common case
+        if (ingredient instanceof ItemStack) {
+            ItemStack itemStack = (ItemStack) ingredient;
+
+            // For essentia cells, try to extract essentia from containers (phials, jars, etc.)
+            if (cell.isEssentia()) {
+                ItemStack essentiaRep = ThaumicEnergisticsIntegration.tryConvertEssentiaContainerToAspect(itemStack);
+
+                if (!essentiaRep.isEmpty()) return essentiaRep;
+
+                // If it's not an essentia container, reject it
+                Minecraft.getMinecraft().player.sendMessage(
+                    new TextComponentTranslation("cellterminal.error.essentia_cell_item")
+                );
+
+                return ItemStack.EMPTY;
+            }
+
+            if (cell.isFluid()) {
+                // For fluid cells, try to extract fluid from the item (e.g., bucket)
+                FluidStack contained = FluidUtil.getFluidContained(itemStack);
+
+                if (contained == null) {
+                    Minecraft.getMinecraft().player.sendMessage(
+                        new TextComponentTranslation("cellterminal.error.fluid_cell_item")
+                    );
+
+                    return ItemStack.EMPTY;
+                }
+
+                IStorageChannel<IAEFluidStack> fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
+                IAEFluidStack aeFluidStack = fluidChannel.createStack(contained);
+
+                if (aeFluidStack == null) return ItemStack.EMPTY;
+
+                return aeFluidStack.asItemStackRepresentation();
+            }
+
+            return itemStack;
+        }
+
+        // FluidStack - from JEI fluid entries
+        if (ingredient instanceof FluidStack) {
+            if (cell.isEssentia()) {
+                Minecraft.getMinecraft().player.sendMessage(
+                    new TextComponentTranslation("cellterminal.error.essentia_cell_fluid")
+                );
+
+                return ItemStack.EMPTY;
+            }
+
+            if (!cell.isFluid()) {
+                Minecraft.getMinecraft().player.sendMessage(
+                    new TextComponentTranslation("cellterminal.error.item_cell_fluid")
+                );
+
+                return ItemStack.EMPTY;
+            }
+
+            FluidStack fluidStack = (FluidStack) ingredient;
+            IStorageChannel<IAEFluidStack> fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
+            IAEFluidStack aeFluidStack = fluidChannel.createStack(fluidStack);
+
+            if (aeFluidStack == null) return ItemStack.EMPTY;
+
+            return aeFluidStack.asItemStackRepresentation();
+        }
+
+        // EnchantmentData - JEI's deprecated hack for enchanted books (removed in 1.13+)
+        if (ingredient instanceof EnchantmentData) {
+            if (cell.isFluid() || cell.isEssentia()) {
+                Minecraft.getMinecraft().player.sendMessage(
+                    new TextComponentTranslation(cell.isFluid() ? "cellterminal.error.fluid_cell_item" : "cellterminal.error.essentia_cell_item")
+                );
+
+                return ItemStack.EMPTY;
+            }
+
+            EnchantmentData enchantData = (EnchantmentData) ingredient;
+
+            return ItemEnchantedBook.getEnchantedItemStack(enchantData);
+        }
+
+        // Unknown ingredient type - reject silently (popup doesn't need logging)
+        return ItemStack.EMPTY;
+    }
+
+    /**
      * Handle JEI ghost ingredient drop.
      * FIXME: The green slots do not appear when dragging from JEI into the popup.
      * FIXME: The green slots are not cleared when the popup is closed.
@@ -217,54 +316,7 @@ public class PopupCellPartition extends Gui {
     public boolean handleGhostDrop(int slotIndex, Object ingredient) {
         if (slotIndex < 0 || slotIndex >= MAX_PARTITION_SLOTS) return false;
 
-        ItemStack stack;
-
-        if (ingredient instanceof ItemStack) {
-            ItemStack itemStack = (ItemStack) ingredient;
-
-            if (cell.isFluid()) {
-                // For fluid cells, try to extract fluid from the item
-                FluidStack contained = FluidUtil.getFluidContained(itemStack);
-
-                if (contained == null) {
-                    Minecraft.getMinecraft().player.sendMessage(
-                        new TextComponentTranslation("cellterminal.error.fluid_cell_item")
-                    );
-
-                    return false;
-                }
-
-                // Convert extracted FluidStack to ItemStack representation
-                IStorageChannel<IAEFluidStack> fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
-                IAEFluidStack aeFluidStack = fluidChannel.createStack(contained);
-
-                if (aeFluidStack == null) return false;
-
-                stack = aeFluidStack.asItemStackRepresentation();
-            } else {
-                stack = itemStack;
-            }
-        } else if (ingredient instanceof FluidStack) {
-            // For item cells, reject fluids and show error
-            if (!cell.isFluid()) {
-                Minecraft.getMinecraft().player.sendMessage(
-                    new TextComponentTranslation("cellterminal.error.item_cell_fluid")
-                );
-
-                return false;
-            }
-
-            // Convert FluidStack to ItemStack representation
-            FluidStack fluidStack = (FluidStack) ingredient;
-            IStorageChannel<IAEFluidStack> fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
-            IAEFluidStack aeFluidStack = fluidChannel.createStack(fluidStack);
-
-            if (aeFluidStack == null) return false;
-
-            stack = aeFluidStack.asItemStackRepresentation();
-        } else {
-            return false;
-        }
+        ItemStack stack = convertJeiIngredientToItemStack(ingredient);
 
         if (stack.isEmpty()) return false;
 
@@ -283,6 +335,68 @@ public class PopupCellPartition extends Gui {
 
         return true;
     }
+
+    // OLD EXPLICIT TYPE HANDLING - Uncomment this and remove convertJeiIngredientToItemStack
+    // if you need to revert to the previous behavior due to issues with unknown ingredient types.
+    /*
+    public boolean handleGhostDrop(int slotIndex, Object ingredient) {
+        if (slotIndex < 0 || slotIndex >= MAX_PARTITION_SLOTS) return false;
+
+        ItemStack stack;
+
+        if (ingredient instanceof ItemStack) {
+            ItemStack itemStack = (ItemStack) ingredient;
+            if (cell.isFluid()) {
+                FluidStack contained = FluidUtil.getFluidContained(itemStack);
+                if (contained == null) {
+                    Minecraft.getMinecraft().player.sendMessage(new TextComponentTranslation("cellterminal.error.fluid_cell_item"));
+                    return false;
+                }
+                IStorageChannel<IAEFluidStack> fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
+                IAEFluidStack aeFluidStack = fluidChannel.createStack(contained);
+                if (aeFluidStack == null) return false;
+                stack = aeFluidStack.asItemStackRepresentation();
+            } else {
+                stack = itemStack;
+            }
+        } else if (ingredient instanceof FluidStack) {
+            if (!cell.isFluid()) {
+                Minecraft.getMinecraft().player.sendMessage(new TextComponentTranslation("cellterminal.error.item_cell_fluid"));
+                return false;
+            }
+            FluidStack fluidStack = (FluidStack) ingredient;
+            IStorageChannel<IAEFluidStack> fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
+            IAEFluidStack aeFluidStack = fluidChannel.createStack(fluidStack);
+            if (aeFluidStack == null) return false;
+            stack = aeFluidStack.asItemStackRepresentation();
+        } else if (ingredient instanceof EnchantmentData) {
+            if (cell.isFluid()) {
+                Minecraft.getMinecraft().player.sendMessage(new TextComponentTranslation("cellterminal.error.fluid_cell_item"));
+                return false;
+            }
+            EnchantmentData enchantData = (EnchantmentData) ingredient;
+            stack = ItemEnchantedBook.getEnchantedItemStack(enchantData);
+        } else {
+            return false;
+        }
+
+        if (stack.isEmpty()) return false;
+
+        int targetSlot = slotIndex;
+        if (!editablePartition.get(slotIndex).isEmpty()) {
+            targetSlot = findEmptySlot();
+            if (targetSlot == -1) return false;
+        }
+
+        editablePartition.set(targetSlot, stack.copy());
+
+        if (parent instanceof GuiCellTerminalBase) {
+            ((GuiCellTerminalBase) parent).onAddPartitionItem(cell, targetSlot, stack);
+        }
+
+        return true;
+    }
+    */
 
     private int findEmptySlot() {
         for (int i = 0; i < editablePartition.size(); i++) {

@@ -13,32 +13,38 @@ import com.cellterminal.container.ContainerWirelessCellTerminal;
 
 
 /**
- * Packet sent from client to server to pick up a cell from a drive into the player's hand.
+ * Packet sent from client to server to pick up a cell from a drive.
  * Used for tab 2/3 slot interactions (clicking cells to pick them up/swap).
+ * If toInventory is true (shift-click), the cell goes to player's inventory.
+ * If toInventory is false (regular click), the cell goes to player's hand for reorganization.
  */
 public class PacketPickupCell implements IMessage {
 
     private long storageId;
     private int cellSlot;
+    private boolean toInventory;
 
     public PacketPickupCell() {
     }
 
-    public PacketPickupCell(long storageId, int cellSlot) {
+    public PacketPickupCell(long storageId, int cellSlot, boolean toInventory) {
         this.storageId = storageId;
         this.cellSlot = cellSlot;
+        this.toInventory = toInventory;
     }
 
     @Override
     public void fromBytes(ByteBuf buf) {
         this.storageId = buf.readLong();
         this.cellSlot = buf.readInt();
+        this.toInventory = buf.readBoolean();
     }
 
     @Override
     public void toBytes(ByteBuf buf) {
         buf.writeLong(storageId);
         buf.writeInt(cellSlot);
+        buf.writeBoolean(toInventory);
     }
 
     public static class Handler implements IMessageHandler<PacketPickupCell, IMessage> {
@@ -52,10 +58,10 @@ public class PacketPickupCell implements IMessage {
 
                 if (container instanceof ContainerCellTerminal) {
                     ContainerCellTerminal cellContainer = (ContainerCellTerminal) container;
-                    cellContainer.handlePickupCell(message.storageId, message.cellSlot, player);
+                    cellContainer.handlePickupCell(message.storageId, message.cellSlot, player, message.toInventory);
                 } else if (container instanceof ContainerWirelessCellTerminal) {
                     ContainerWirelessCellTerminal wirelessContainer = (ContainerWirelessCellTerminal) container;
-                    wirelessContainer.handlePickupCell(message.storageId, message.cellSlot, player);
+                    wirelessContainer.handlePickupCell(message.storageId, message.cellSlot, player, message.toInventory);
                 }
             });
 

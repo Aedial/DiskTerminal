@@ -14,6 +14,7 @@ import com.cellterminal.container.ContainerWirelessCellTerminal;
 
 /**
  * Packet sent from client to server to eject a cell from a drive.
+ * Always ejects to player's inventory (or drops if inventory is full).
  */
 public class PacketEjectCell implements IMessage {
 

@@ -23,6 +23,29 @@ gui.cellterminal.tab.terminal.tooltip=Cell Overview
 gui.cellterminal.tab.inventory.tooltip=View Cell Contents
 gui.cellterminal.tab.partition.tooltip=Edit Cell Partitions
 
+# Terminal style button
+gui.cellterminal.terminal_style=Terminal Style
+gui.cellterminal.terminal_style.small=Small (Fixed size)
+gui.cellterminal.terminal_style.tall=Tall (Fills screen)
+
+# Search mode button
+gui.cellterminal.search_mode=Search Mode
+gui.cellterminal.search_mode.inventory=Inventory (Search cell contents)
+gui.cellterminal.search_mode.partition=Partition (Search cell filters)
+gui.cellterminal.search_mode.mixed=Mixed (Search both)
+
+# Config settings
+config.cellterminal.gui=GUI Settings
+config.cellterminal.gui.tooltip=Cell Terminal GUI preferences
+config.cellterminal.gui.selectedTab=Selected Tab
+config.cellterminal.gui.selectedTab.tooltip=The currently selected tab (0=Terminal, 1=Inventory, 2=Partition)
+config.cellterminal.gui.terminalStyle=Terminal Style
+config.cellterminal.gui.terminalStyle.tooltip=Terminal size style: SMALL (fixed 8 rows), TALL (expands to fill screen)
+config.cellterminal.gui.searchFilter=Search Filter
+config.cellterminal.gui.searchFilter.tooltip=The last search filter text used in the Cell Terminal
+config.cellterminal.gui.searchMode=Search Mode
+config.cellterminal.gui.searchMode.tooltip=Search filter mode: INVENTORY, PARTITION, or MIXED
+
 # Panel hints
 gui.cellterminal.hint.terminal=Click to remove, drag from JEI to add
 gui.cellterminal.hint.inventory=Click inventory item to partition
@@ -42,5 +65,7 @@ gui.cellterminal.eject_cell=Eject cell
 # Error messages
 cellterminal.error.fluid_cell_item=Cannot add items to a fluid cell partition
 cellterminal.error.item_cell_fluid=Cannot add fluids to an item cell partition
+cellterminal.error.essentia_cell_item=Cannot add items to an essentia cell partition. Use filled phials or jars.
+cellterminal.error.essentia_cell_fluid=Cannot add fluids to an essentia cell partition
 cellterminal.error.no_empty_slot=No empty slot in storage
 cellterminal.error.different_dimension=Cannot highlight block in different dimension
