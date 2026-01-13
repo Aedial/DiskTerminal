@@ -17,11 +17,34 @@ gui.cellterminal.double_click_add=双击以添加到分区
 
 # Panel tabs
 gui.cellterminal.tab.terminal=终端
-gui.cellterminal.tab.inventory=物品栏
+gui.cellterminal.tab.inventory=库存
 gui.cellterminal.tab.partition=分区
 gui.cellterminal.tab.terminal.tooltip=元件总览
 gui.cellterminal.tab.inventory.tooltip=查看元件内容
 gui.cellterminal.tab.partition.tooltip=编辑元件分区
+
+# Terminal style button
+gui.cellterminal.terminal_style=终端风格
+gui.cellterminal.terminal_style.small=小（固定大小）
+gui.cellterminal.terminal_style.tall=高（填满屏幕）
+
+# Search mode button
+gui.cellterminal.search_mode=搜索模式
+gui.cellterminal.search_mode.inventory=库存（搜索元件内容）
+gui.cellterminal.search_mode.partition=分区（搜索元件过滤项）
+gui.cellterminal.search_mode.mixed=混合（同时搜索两者）
+
+# Config settings
+config.cellterminal.gui=GUI设置
+config.cellterminal.gui.tooltip=元件终端GUI偏好设置
+config.cellterminal.gui.selectedTab=所选标签页
+config.cellterminal.gui.selectedTab.tooltip=当前选中的标签页（0=终端，1=库存，2=分区）
+config.cellterminal.gui.terminalStyle=元件风格
+config.cellterminal.gui.terminalStyle.tooltip=终端大小风格：SMALL（固定8行），TALL（扩展以填满屏幕）
+config.cellterminal.gui.searchFilter=搜索过滤
+config.cellterminal.gui.searchFilter.tooltip=元件终端中最后使用的搜索过滤文本
+config.cellterminal.gui.searchMode=搜索模式
+config.cellterminal.gui.searchMode.tooltip=搜索过滤模式：INVENTORY（库存），PARTITION（分区），或MIXED（混合）
 
 # Panel hints
 gui.cellterminal.hint.terminal=点击以移除，从JEI中拖拽以添加
@@ -42,5 +65,7 @@ gui.cellterminal.eject_cell=弹出元件
 # Error messages
 cellterminal.error.fluid_cell_item=无法将物品添加到流体元件分区
 cellterminal.error.item_cell_fluid=无法将流体添加到物品元件分区
+cellterminal.error.essentia_cell_item=无法将物品添加到源质元件分区。使用装有源质的安瓿或罐子。
+cellterminal.error.essentia_cell_fluid=无法将流体添加到源质元件分区
 cellterminal.error.no_empty_slot=存储空间无空余槽位
 cellterminal.error.different_dimension=无法高亮显示其他维度的方块
