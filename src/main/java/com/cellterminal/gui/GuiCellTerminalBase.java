@@ -20,6 +20,7 @@ import net.minecraft.nbt.NBTTagCompound;
 import appeng.api.AEApi;
 import appeng.client.gui.AEBaseGui;
 import appeng.client.gui.widgets.GuiScrollbar;
+import appeng.client.gui.widgets.MEGuiTextField;
 import appeng.container.interfaces.IJEIGhostIngredients;
 import appeng.container.slot.AppEngSlot;
 
@@ -28,6 +29,7 @@ import mezz.jei.api.gui.IGhostIngredientHandler;
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.CellTerminalClientConfig;
 import com.cellterminal.client.CellTerminalClientConfig.TerminalStyle;
+import com.cellterminal.client.SearchFilterMode;
 import com.cellterminal.client.StorageInfo;
 import com.cellterminal.gui.handler.JeiGhostHandler;
 import com.cellterminal.gui.handler.JeiGhostHandler.PartitionSlotTarget;
@@ -81,6 +83,11 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     // Terminal style button
     protected GuiTerminalStyleButton terminalStyleButton;
 
+    // Search field and mode button
+    protected MEGuiTextField searchField;
+    protected GuiSearchModeButton searchModeButton;
+    protected SearchFilterMode currentSearchMode = SearchFilterMode.MIXED;
+
     // Current tab
     protected int currentTab;
 
@@ -130,9 +137,11 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         this.dataManager = new TerminalDataManager();
         this.clickHandler = new TerminalClickHandler();
 
-        // Load persisted tab
-        this.currentTab = CellTerminalClientConfig.getInstance().getSelectedTab();
+        // Load persisted settings
+        CellTerminalClientConfig config = CellTerminalClientConfig.getInstance();
+        this.currentTab = config.getSelectedTab();
         if (this.currentTab < 0 || this.currentTab >= TAB_COUNT) this.currentTab = TAB_TERMINAL;
+        this.currentSearchMode = config.getSearchMode();
     }
 
     /**
@@ -174,6 +183,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         initTabIcons();
         initRenderers();
         initTerminalStyleButton();
+        initSearchField();
 
         // Update scrollbar range for current tab
         updateScrollbarForCurrentTab();
@@ -200,6 +210,86 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
         this.terminalStyleButton = new GuiTerminalStyleButton(0, this.guiLeft - 18, buttonY, currentStyle);
         this.buttonList.add(this.terminalStyleButton);
+    }
+
+    protected void initSearchField() {
+        // Search field: positioned after title, before the scrollbar area
+        // Title is at x=22, we need some space for it
+        // Note: Use absolute coordinates for click detection (mouseClicked receives absolute coords)
+        int titleWidth = this.fontRenderer.getStringWidth(getGuiTitle());
+        int searchX = 22 + titleWidth + 4;
+        int searchY = 4;
+        int buttonWidth = 14;  // Width of the mode button
+        int availableWidth = 185 - searchX - buttonWidth - 2;
+
+        // Preserve existing search text if reinitializing, otherwise load from config
+        String existingSearch;
+        if (this.searchField != null) {
+            existingSearch = this.searchField.getText();
+        } else {
+            existingSearch = CellTerminalClientConfig.getInstance().getSearchFilter();
+        }
+
+        // Use absolute coordinates so mouseClicked works correctly
+        this.searchField = new MEGuiTextField(this.fontRenderer, this.guiLeft + searchX, this.guiTop + searchY, availableWidth, 12) {
+            @Override
+            public void onTextChange(String oldText) {
+                onSearchTextChanged();
+            }
+        };
+        this.searchField.setEnableBackgroundDrawing(true);
+        this.searchField.setMaxStringLength(50);
+
+        // Set text without triggering onTextChange to avoid redundant rebuilds during init
+        this.searchField.setText(existingSearch, true);
+
+        // Remove any existing search mode button before adding a new one
+        if (this.searchModeButton != null) {
+            this.buttonList.remove(this.searchModeButton);
+        }
+
+        // Search mode button: positioned after the search field
+        int buttonX = this.guiLeft + searchX + availableWidth + 2;
+        int buttonY = this.guiTop + searchY;
+        this.searchModeButton = new GuiSearchModeButton(1, buttonX, buttonY, currentSearchMode);
+        this.buttonList.add(this.searchModeButton);
+
+        // Update button visibility based on current tab
+        updateSearchModeButtonVisibility();
+
+        // Apply filter if there's persisted search text (single call, not via setText callback)
+        if (!existingSearch.isEmpty()) dataManager.setSearchFilter(existingSearch, getEffectiveSearchMode());
+    }
+
+    protected void updateSearchModeButtonVisibility() {
+        if (this.searchModeButton == null) return;
+
+        // Hide button on Tab 2 (Inventory) and Tab 3 (Partition)
+        this.searchModeButton.visible = (currentTab == TAB_TERMINAL);
+    }
+
+    protected void onSearchTextChanged() {
+        SearchFilterMode effectiveMode = getEffectiveSearchMode();
+        dataManager.setSearchFilter(searchField.getText(), effectiveMode);
+        updateScrollbarForCurrentTab();
+
+        // Persist the search filter text
+        CellTerminalClientConfig.getInstance().setSearchFilter(searchField.getText());
+    }
+
+    /**
+     * Get the effective search mode based on current tab.
+     * Tab 2 forces INVENTORY mode, Tab 3 forces PARTITION mode.
+     */
+    protected SearchFilterMode getEffectiveSearchMode() {
+        switch (currentTab) {
+            case TAB_INVENTORY:
+                return SearchFilterMode.INVENTORY;
+            case TAB_PARTITION:
+                return SearchFilterMode.PARTITION;
+            default:
+                return currentSearchMode;
+        }
     }
 
     protected void initTabIcons() {
@@ -270,12 +360,25 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         if (terminalStyleButton != null && terminalStyleButton.isMouseOver()) {
             this.drawHoveringText(terminalStyleButton.getTooltip(), mouseX, mouseY);
         }
+
+        // Draw search mode button tooltip
+        if (searchModeButton != null && searchModeButton.visible && searchModeButton.isMouseOver()) {
+            this.drawHoveringText(searchModeButton.getTooltip(), mouseX, mouseY);
+        }
     }
 
     @Override
     public void drawFG(int offsetX, int offsetY, int mouseX, int mouseY) {
         this.fontRenderer.drawString(getGuiTitle(), 22, 6, 0x404040);
         this.fontRenderer.drawString(I18n.format("container.inventory"), 22, this.ySize - 93, 0x404040);
+
+        // Draw search field - translate back since field uses absolute coords but we're in translated context
+        if (this.searchField != null) {
+            GlStateManager.pushMatrix();
+            GlStateManager.translate(-this.guiLeft, -this.guiTop, 0);
+            this.searchField.drawTextBox();
+            GlStateManager.popMatrix();
+        }
 
         // Reset render context hover states
         renderContext.resetHoverState();
@@ -432,6 +535,19 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
+        // Handle search field clicks
+        if (this.searchField != null) {
+            // Right-click clears the field and focuses it
+            if (mouseButton == 1 && this.searchField.isMouseIn(mouseX, mouseY)) {
+                this.searchField.setText("");
+                this.searchField.setFocused(true);
+
+                return;
+            }
+
+            this.searchField.mouseClicked(mouseX, mouseY, mouseButton);
+        }
+
         // Handle popup clicks first
         if (inventoryPopup != null) {
             if (inventoryPopup.handleClick(mouseX, mouseY, mouseButton)) return;
@@ -473,6 +589,8 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
                 currentTab = tab;
                 getScrollBar().setRange(0, 0, 1);
                 updateScrollbarForCurrentTab();
+                updateSearchModeButtonVisibility();
+                onSearchTextChanged();  // Reapply filter with tab-specific mode
             }
 
             @Override
@@ -521,6 +639,15 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             return;
         }
 
+        if (btn == searchModeButton) {
+            // Cycle search mode, persist it, and reapply filter
+            currentSearchMode = searchModeButton.cycleMode();
+            CellTerminalClientConfig.getInstance().setSearchMode(currentSearchMode);
+            onSearchTextChanged();
+
+            return;
+        }
+
         super.actionPerformed(btn);
     }
 
@@ -539,7 +666,17 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
                 return;
             }
+
+            // If search field is focused, unfocus it
+            if (this.searchField != null && this.searchField.isFocused()) {
+                this.searchField.setFocused(false);
+
+                return;
+            }
         }
+
+        // Handle search field keyboard input first
+        if (this.searchField != null && this.searchField.textboxKeyTyped(typedChar, keyCode)) return;
 
         super.keyTyped(typedChar, keyCode);
     }

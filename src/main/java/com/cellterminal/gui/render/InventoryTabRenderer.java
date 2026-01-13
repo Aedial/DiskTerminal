@@ -67,7 +67,7 @@ public class InventoryTabRenderer extends CellTerminalRenderer {
             boolean hasContentBelow = (lineIndex < totalLines - 1) && !isLastInGroup;
 
             if (line instanceof StorageInfo) {
-                drawStorageLineSimple((StorageInfo) line, y);
+                drawStorageLineSimple((StorageInfo) line, y, inventoryLines, lineIndex);
             } else if (line instanceof CellContentRow) {
                 CellContentRow row = (CellContentRow) line;
                 drawCellInventoryLine(row.getCell(), row.getStartIndex(), row.isFirstRow(),
@@ -86,10 +86,15 @@ public class InventoryTabRenderer extends CellTerminalRenderer {
         }
     }
 
-    private void drawStorageLineSimple(StorageInfo storage, int y) {
-        // Draw vertical tree line connecting to cells below
-        int lineX = GUI_INDENT + 7;
-        Gui.drawRect(lineX, y + ROW_HEIGHT - 1, lineX + 1, y + ROW_HEIGHT, 0xFF808080);
+    private void drawStorageLineSimple(StorageInfo storage, int y, List<Object> lines, int lineIndex) {
+        // Draw vertical tree line connecting to cells below (only if there are cells following)
+        boolean hasCellsFollowing = lineIndex + 1 < lines.size()
+            && (lines.get(lineIndex + 1) instanceof CellContentRow || lines.get(lineIndex + 1) instanceof EmptySlotInfo);
+
+        if (hasCellsFollowing) {
+            int lineX = GUI_INDENT + 7;
+            Gui.drawRect(lineX, y + ROW_HEIGHT - 1, lineX + 1, y + ROW_HEIGHT, 0xFF808080);
+        }
 
         // Draw block icon
         renderItemStack(storage.getBlockItem(), GUI_INDENT, y);
@@ -140,10 +145,13 @@ public class InventoryTabRenderer extends CellTerminalRenderer {
             // Draw cell icon
             renderItemStack(cell.getCellItem(), CELL_INDENT, y);
         } else {
-            // Draw continuation tree line for subsequent rows
-            drawTreeLines(lineX, y, false, isFirstInGroup, isLastInGroup,
-                visibleTop, visibleBottom, isFirstVisibleRow, isLastVisibleRow,
-                hasContentAbove, hasContentBelow);
+            // Continuation rows: only draw tree lines if there are MORE cells after this one
+            // If this cell is the last in the group, no tree lines for continuation rows
+            if (!isLastInGroup) {
+                drawTreeLines(lineX, y, false, isFirstInGroup, false,
+                    visibleTop, visibleBottom, isFirstVisibleRow, isLastVisibleRow,
+                    hasContentAbove, hasContentBelow);
+            }
         }
 
         // Draw content item slots for this row

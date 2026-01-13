@@ -70,7 +70,7 @@ public class TerminalTabRenderer extends CellTerminalRenderer {
             boolean hasContentBelow = (lineIndex < totalLines - 1) && !isLastInGroup;
 
             if (line instanceof StorageInfo) {
-                drawStorageLine((StorageInfo) line, y);
+                drawStorageLine((StorageInfo) line, y, lines, lineIndex);
             } else if (line instanceof CellInfo) {
                 drawCellLine((CellInfo) line, y, relMouseX, relMouseY,
                     isFirstInGroup, isLastInGroup, visibleTop, visibleBottom,
@@ -81,13 +81,18 @@ public class TerminalTabRenderer extends CellTerminalRenderer {
         }
     }
 
-    private void drawStorageLine(StorageInfo storage, int y) {
+    private void drawStorageLine(StorageInfo storage, int y, List<Object> lines, int lineIndex) {
         // Draw expand/collapse indicator
         String expandIcon = storage.isExpanded() ? "[-]" : "[+]";
         fontRenderer.drawString(expandIcon, 165, y + 6, 0x606060);
 
-        // Draw vertical tree line connecting to cells below (if expanded and has slots)
-        if (storage.isExpanded() && storage.getSlotCount() > 0) {
+        // Draw vertical tree line connecting to cells below (if expanded and has cells following)
+        // Check if the next line in the filtered list is a CellInfo for this storage
+        boolean hasCellsFollowing = storage.isExpanded()
+            && lineIndex + 1 < lines.size()
+            && lines.get(lineIndex + 1) instanceof CellInfo;
+
+        if (hasCellsFollowing) {
             int lineX = GUI_INDENT + 7;
             Gui.drawRect(lineX, y + ROW_HEIGHT - 1, lineX + 1, y + ROW_HEIGHT, 0xFF808080);
         }

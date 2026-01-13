@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import net.minecraft.item.ItemStack;
@@ -15,6 +16,7 @@ import net.minecraftforge.common.util.Constants;
 import com.cellterminal.client.CellContentRow;
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.EmptySlotInfo;
+import com.cellterminal.client.SearchFilterMode;
 import com.cellterminal.client.StorageInfo;
 
 
@@ -33,6 +35,10 @@ public class TerminalDataManager {
 
     private BlockPos terminalPos = BlockPos.ORIGIN;
     private int terminalDimension = 0;
+
+    // Current filter settings
+    private String searchFilter = "";
+    private SearchFilterMode searchMode = SearchFilterMode.MIXED;
 
     public Map<Long, StorageInfo> getStorageMap() {
         return storageMap;
@@ -78,6 +84,15 @@ public class TerminalDataManager {
         rebuildLines();
     }
 
+    /**
+     * Set the search filter text and mode, then rebuild lines.
+     */
+    public void setSearchFilter(String filter, SearchFilterMode mode) {
+        this.searchFilter = filter.toLowerCase(Locale.ROOT).trim();
+        this.searchMode = mode;
+        rebuildLines();
+    }
+
     public void rebuildLines() {
         this.lines.clear();
         this.inventoryLines.clear();
@@ -87,9 +102,15 @@ public class TerminalDataManager {
         sortedStorages.sort(createStorageComparator());
 
         for (StorageInfo storage : sortedStorages) {
-            this.lines.add(storage);
-            this.inventoryLines.add(storage);
-            this.partitionLines.add(storage);
+            // Track if we added any cells from this storage for each list
+            boolean addedToLines = false;
+            boolean addedToInventoryLines = false;
+            boolean addedToPartitionLines = false;
+
+            // Keep track of where to insert storage header if needed
+            int linesStartIndex = this.lines.size();
+            int inventoryLinesStartIndex = this.inventoryLines.size();
+            int partitionLinesStartIndex = this.partitionLines.size();
 
             for (int slot = 0; slot < storage.getSlotCount(); slot++) {
                 CellInfo cell = storage.getCellAtSlot(slot);
@@ -97,28 +118,112 @@ public class TerminalDataManager {
                 if (cell != null) {
                     cell.setParentStorageId(storage.getId());
 
-                    if (storage.isExpanded()) {
-                        this.lines.add(cell);
+                    boolean matchesInventory = cellMatchesFilter(cell, true);
+                    boolean matchesPartition = cellMatchesFilter(cell, false);
+                    boolean matchesForTerminal = matchesCellForMode(matchesInventory, matchesPartition);
+
+                    // Terminal tab - uses current search mode
+                    if (matchesForTerminal) {
+                        if (!addedToLines) {
+                            this.lines.add(linesStartIndex, storage);
+                            addedToLines = true;
+                        }
+
+                        if (storage.isExpanded()) this.lines.add(cell);
                     }
 
-                    int contentCount = cell.getContents().size();
-                    int contentRows = Math.max(1, (contentCount + SLOTS_PER_ROW - 1) / SLOTS_PER_ROW);
-                    for (int row = 0; row < contentRows; row++) {
-                        this.inventoryLines.add(new CellContentRow(cell, row * SLOTS_PER_ROW, row == 0));
+                    // Inventory tab - always uses inventory mode
+                    if (matchesInventory) {
+                        if (!addedToInventoryLines) {
+                            this.inventoryLines.add(inventoryLinesStartIndex, storage);
+                            addedToInventoryLines = true;
+                        }
+
+                        int contentCount = cell.getContents().size();
+                        int contentRows = Math.max(1, (contentCount + SLOTS_PER_ROW - 1) / SLOTS_PER_ROW);
+                        for (int row = 0; row < contentRows; row++) {
+                            this.inventoryLines.add(new CellContentRow(cell, row * SLOTS_PER_ROW, row == 0));
+                        }
                     }
 
-                    int highestSlot = getHighestNonEmptyPartitionSlot(cell);
-                    int partitionRows = Math.max(1, (highestSlot + SLOTS_PER_ROW) / SLOTS_PER_ROW);
-                    for (int row = 0; row < partitionRows; row++) {
-                        this.partitionLines.add(new CellContentRow(cell, row * SLOTS_PER_ROW, row == 0));
+                    // Partition tab - always uses partition mode
+                    if (matchesPartition) {
+                        if (!addedToPartitionLines) {
+                            this.partitionLines.add(partitionLinesStartIndex, storage);
+                            addedToPartitionLines = true;
+                        }
+
+                        int highestSlot = getHighestNonEmptyPartitionSlot(cell);
+                        int partitionRows = Math.max(1, (highestSlot + SLOTS_PER_ROW) / SLOTS_PER_ROW);
+                        for (int row = 0; row < partitionRows; row++) {
+                            this.partitionLines.add(new CellContentRow(cell, row * SLOTS_PER_ROW, row == 0));
+                        }
                     }
                 } else {
-                    EmptySlotInfo emptySlot = new EmptySlotInfo(storage.getId(), slot);
-                    this.inventoryLines.add(emptySlot);
-                    this.partitionLines.add(emptySlot);
+                    // Empty slots - only show if no filter active
+                    if (searchFilter.isEmpty()) {
+                        if (!addedToInventoryLines) {
+                            this.inventoryLines.add(inventoryLinesStartIndex, storage);
+                            addedToInventoryLines = true;
+                        }
+
+                        if (!addedToPartitionLines) {
+                            this.partitionLines.add(partitionLinesStartIndex, storage);
+                            addedToPartitionLines = true;
+                        }
+
+                        EmptySlotInfo emptySlot = new EmptySlotInfo(storage.getId(), slot);
+                        this.inventoryLines.add(emptySlot);
+                        this.partitionLines.add(emptySlot);
+                    }
                 }
             }
         }
+    }
+
+    /**
+     * Check if a cell matches the filter based on the current search mode.
+     */
+    private boolean matchesCellForMode(boolean matchesInventory, boolean matchesPartition) {
+        if (searchFilter.isEmpty()) return true;
+
+        switch (searchMode) {
+            case INVENTORY:
+                return matchesInventory;
+            case PARTITION:
+                return matchesPartition;
+            case MIXED:
+            default:
+                return matchesInventory || matchesPartition;
+        }
+    }
+
+    /**
+     * Check if a cell matches the search filter for a specific search type.
+     * @param cell The cell to check
+     * @param checkInventory true to check inventory contents, false to check partition
+     * @return true if the cell matches the filter or if filter is empty
+     */
+    private boolean cellMatchesFilter(CellInfo cell, boolean checkInventory) {
+        if (searchFilter.isEmpty()) return true;
+
+        List<ItemStack> itemsToCheck = checkInventory ? cell.getContents() : cell.getPartition();
+
+        for (ItemStack stack : itemsToCheck) {
+            if (stack.isEmpty()) continue;
+
+            // Check localized display name
+            String displayName = stack.getDisplayName().toLowerCase(Locale.ROOT);
+            if (displayName.contains(searchFilter)) return true;
+
+            // Check registry name (internal ID)
+            if (stack.getItem().getRegistryName() != null) {
+                String registryName = stack.getItem().getRegistryName().toString().toLowerCase(Locale.ROOT);
+                if (registryName.contains(searchFilter)) return true;
+            }
+        }
+
+        return false;
     }
 
     private int getHighestNonEmptyPartitionSlot(CellInfo cell) {

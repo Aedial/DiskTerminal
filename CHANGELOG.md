@@ -11,6 +11,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ## [0.3.0] - 2026-01-13
 ### Added
 - Add button to toggle between tall and compact GUI styles, with persistent setting
+- Add item filter for inventory/partition, with button to toggle filter input
 
 ### Fixed
 - Fix JEI drag-and-drop not working for enchanted books

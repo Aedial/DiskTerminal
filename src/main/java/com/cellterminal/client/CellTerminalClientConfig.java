@@ -21,8 +21,12 @@ public class CellTerminalClientConfig {
     private final Configuration config;
     private final Property selectedTabProperty;
     private final Property terminalStyleProperty;
+    private final Property searchFilterProperty;
+    private final Property searchModeProperty;
     private int selectedTab = 0;
     private TerminalStyle terminalStyle = TerminalStyle.SMALL;
+    private String searchFilter = "";
+    private SearchFilterMode searchMode = SearchFilterMode.MIXED;
 
     private CellTerminalClientConfig() {
         File configFile = new File(Minecraft.getMinecraft().gameDir, "config/" + CONFIG_FILE);
@@ -30,11 +34,25 @@ public class CellTerminalClientConfig {
 
         this.selectedTabProperty = config.get(CATEGORY_GUI, "selectedTab", 0,
             "The currently selected tab in the Cell Terminal GUI (0=Terminal, 1=Inventory, 2=Partition)");
+        this.selectedTabProperty.setLanguageKey("config.cellterminal.gui.selectedTab");
         this.selectedTab = this.selectedTabProperty.getInt();
 
         this.terminalStyleProperty = config.get(CATEGORY_GUI, "terminalStyle", TerminalStyle.SMALL.name(),
             "Terminal size style: SMALL (fixed 8 rows), TALL (expands to fill screen)");
+        this.terminalStyleProperty.setLanguageKey("config.cellterminal.gui.terminalStyle");
         this.terminalStyle = TerminalStyle.fromName(this.terminalStyleProperty.getString());
+
+        this.searchFilterProperty = config.get(CATEGORY_GUI, "searchFilter", "",
+            "The last search filter text used in the Cell Terminal");
+        this.searchFilterProperty.setLanguageKey("config.cellterminal.gui.searchFilter");
+        this.searchFilter = this.searchFilterProperty.getString();
+
+        this.searchModeProperty = config.get(CATEGORY_GUI, "searchMode", SearchFilterMode.MIXED.name(),
+            "Search filter mode: INVENTORY (search contents), PARTITION (search filters), MIXED (search both)");
+        this.searchModeProperty.setLanguageKey("config.cellterminal.gui.searchMode");
+        this.searchMode = SearchFilterMode.fromName(this.searchModeProperty.getString());
+
+        config.setCategoryLanguageKey(CATEGORY_GUI, "config.cellterminal.gui");
 
         if (config.hasChanged()) config.save();
     }
@@ -76,6 +94,41 @@ public class CellTerminalClientConfig {
     public TerminalStyle cycleTerminalStyle() {
         TerminalStyle next = terminalStyle.next();
         setTerminalStyle(next);
+
+        return next;
+    }
+
+    public String getSearchFilter() {
+        return searchFilter;
+    }
+
+    public void setSearchFilter(String filter) {
+        if (this.searchFilter.equals(filter)) return;
+
+        this.searchFilter = filter;
+        this.searchFilterProperty.set(filter);
+        config.save();
+    }
+
+    public SearchFilterMode getSearchMode() {
+        return searchMode;
+    }
+
+    public void setSearchMode(SearchFilterMode mode) {
+        if (this.searchMode == mode) return;
+
+        this.searchMode = mode;
+        this.searchModeProperty.set(mode.name());
+        config.save();
+    }
+
+    /**
+     * Cycle to the next search mode.
+     * @return The new search mode after cycling
+     */
+    public SearchFilterMode cycleSearchMode() {
+        SearchFilterMode next = searchMode.next();
+        setSearchMode(next);
 
         return next;
     }

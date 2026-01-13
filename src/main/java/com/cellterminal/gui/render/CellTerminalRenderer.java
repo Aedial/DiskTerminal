@@ -13,6 +13,7 @@ import net.minecraft.item.ItemStack;
 
 import appeng.util.ReadableNumberConverter;
 
+import com.cellterminal.client.CellContentRow;
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.EmptySlotInfo;
 import com.cellterminal.client.StorageInfo;
@@ -124,11 +125,31 @@ public abstract class CellTerminalRenderer {
 
     /**
      * Check if the line at the given index is the last in its storage group.
+     * For multi-row cells, this returns true for ALL rows of the last cell.
      */
     protected boolean isLastInStorageGroup(List<Object> lines, int index) {
         if (index >= lines.size() - 1) return true;
 
-        return lines.get(index + 1) instanceof StorageInfo;
+        // Look ahead to find if there are any more cells after all rows of current cell
+        for (int i = index + 1; i < lines.size(); i++) {
+            Object line = lines.get(i);
+
+                // Hit the next storage, so current cell is last in group
+            if (line instanceof StorageInfo) return true;
+
+            if (line instanceof CellContentRow) {
+                CellContentRow row = (CellContentRow) line;
+                // If this is a first row, it's a different cell - current is last
+                if (row.isFirstRow()) return false;
+                // Otherwise it's a continuation row of the same cell, keep looking
+            } else if (line instanceof EmptySlotInfo) {
+                // Empty slot is a different entry - current is not last
+                return false;
+            }
+        }
+
+        // Reached end of list
+        return true;
     }
 
     /**
