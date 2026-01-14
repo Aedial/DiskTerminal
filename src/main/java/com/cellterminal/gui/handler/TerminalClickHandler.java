@@ -39,9 +39,13 @@ public class TerminalClickHandler {
     private static final int BUTTON_INVENTORY_X = 150;
     private static final int BUTTON_PARTITION_X = 165;
 
-    // Double-click tracking
+    // Double-click tracking (Tab 1)
     private long lastClickTime = 0;
     private int lastClickedLineIndex = -1;
+
+    // Double-click tracking (Tabs 2/3)
+    private long lastClickTimeTab23 = 0;
+    private long lastClickedStorageIdTab23 = -1;
 
     // Callback interface for GUI interactions
     public interface Callback {
@@ -138,7 +142,35 @@ public class TerminalClickHandler {
 
     public void handleCellTabClick(int currentTab, CellInfo hoveredCellCell, int hoveredContentSlotIndex,
             CellInfo hoveredPartitionCell, int hoveredPartitionSlotIndex,
-            StorageInfo hoveredCellStorage, int hoveredCellSlotIndex, Callback callback) {
+            StorageInfo hoveredCellStorage, int hoveredCellSlotIndex,
+            Map<Long, StorageInfo> storageMap, int terminalDimension, Callback callback) {
+
+        // Check for double-click to highlight block (on storage entries or cells)
+        long now = System.currentTimeMillis();
+        StorageInfo clickedStorage = hoveredCellStorage;
+
+        // Determine which storage was clicked (either directly or via cell/content)
+        if (clickedStorage == null && hoveredCellCell != null) {
+            clickedStorage = storageMap.get(hoveredCellCell.getParentStorageId());
+        }
+
+        if (clickedStorage == null && hoveredPartitionCell != null) {
+            clickedStorage = storageMap.get(hoveredPartitionCell.getParentStorageId());
+        }
+
+        // FIXME: the double-click doesn't work for tab 2/3 storage entries
+        long currentStorageId = clickedStorage != null ? clickedStorage.getId() : -1;
+        if (currentStorageId >= 0 && currentStorageId == lastClickedStorageIdTab23
+                && now - lastClickTimeTab23 < 400) {
+            // Double-click detected - highlight the storage
+            handleDoubleClickTab23(clickedStorage, terminalDimension);
+            lastClickedStorageIdTab23 = -1;
+
+            return;
+        }
+
+        lastClickedStorageIdTab23 = currentStorageId;
+        lastClickTimeTab23 = now;
 
         // Tab 2 (Inventory): Check if clicking on a content item to toggle partition
         if (currentTab == TAB_INVENTORY && hoveredCellCell != null && hoveredContentSlotIndex >= 0) {
@@ -192,6 +224,16 @@ public class TerminalClickHandler {
 
         if (storage == null) return;
 
+        highlightStorage(storage);
+    }
+
+    private void handleDoubleClickTab23(StorageInfo storage, int terminalDimension) {
+        if (storage == null) return;
+
+        highlightStorage(storage);
+    }
+
+    private void highlightStorage(StorageInfo storage) {
         if (storage.getDimension() != Minecraft.getMinecraft().player.dimension) {
             Minecraft.getMinecraft().player.sendMessage(
                 new TextComponentTranslation("cellterminal.error.different_dimension")

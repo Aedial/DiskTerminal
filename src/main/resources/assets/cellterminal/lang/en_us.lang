@@ -2,6 +2,30 @@
 item.cellterminal.cell_terminal.name=Cell Terminal
 item.cellterminal.wireless_cell_terminal.name=Wireless Cell Terminal
 
+# Compacting Cells
+item.cellterminal.compacting_cell.1k.name=1k Compacting Storage Cell
+item.cellterminal.compacting_cell.4k.name=4k Compacting Storage Cell
+item.cellterminal.compacting_cell.16k.name=16k Compacting Storage Cell
+item.cellterminal.compacting_cell.64k.name=64k Compacting Storage Cell
+
+# Dense Compacting Cells (NAE2)
+item.cellterminal.dense_compacting_cell.256k.name=256k Compacting Storage Cell
+item.cellterminal.dense_compacting_cell.1m.name=1M Compacting Storage Cell
+item.cellterminal.dense_compacting_cell.4m.name=4M Compacting Storage Cell
+item.cellterminal.dense_compacting_cell.16m.name=16M Compacting Storage Cell
+
+# Compacting Components
+item.cellterminal.compacting_component.1k.name=1k Compacting Storage Component
+item.cellterminal.compacting_component.4k.name=4k Compacting Storage Component
+item.cellterminal.compacting_component.16k.name=16k Compacting Storage Component
+item.cellterminal.compacting_component.64k.name=64k Compacting Storage Component
+
+# Dense Compacting Components (NAE2)
+item.cellterminal.dense_compacting_component.256k.name=256k Compacting Storage Component
+item.cellterminal.dense_compacting_component.1m.name=1M Compacting Storage Component
+item.cellterminal.dense_compacting_component.4m.name=4M Compacting Storage Component
+item.cellterminal.dense_compacting_component.16m.name=16M Compacting Storage Component
+
 # GUI
 gui.cellterminal.cell_terminal.title=Cell Terminal
 gui.cellterminal.wireless_cell_terminal.title=Wireless Cell Terminal
@@ -69,3 +93,49 @@ cellterminal.error.essentia_cell_item=Cannot add items to an essentia cell parti
 cellterminal.error.essentia_cell_fluid=Cannot add fluids to an essentia cell partition
 cellterminal.error.no_empty_slot=No empty slot in storage
 cellterminal.error.different_dimension=Cannot highlight block in different dimension
+
+# Keybindings
+key.cellterminal.category=Cell Terminal
+key.cellterminal.quick_partition_auto.desc=Quick Partition (Auto Type)
+key.cellterminal.quick_partition_item.desc=Quick Partition (Item Cell)
+key.cellterminal.quick_partition_fluid.desc=Quick Partition (Fluid Cell)
+key.cellterminal.quick_partition_essentia.desc=Quick Partition (Essentia Cell)
+
+# Quick partition messages
+cellterminal.quick_partition.no_item=No item under cursor
+cellterminal.quick_partition.no_cell_item=No item cell without partition found
+cellterminal.quick_partition.no_cell_fluid=No fluid cell without partition found
+cellterminal.quick_partition.no_cell_essentia=No essentia cell without partition found
+cellterminal.quick_partition.no_cell_auto=No cell without partition found for this item type
+cellterminal.quick_partition.success=Partitioned %s into %s
+cellterminal.quick_partition.essentia_unavailable=Essentia cells require Thaumic Energistics mod
+cellterminal.quick_partition.wrong_tab=Quick partition only works in the Partition tab
+
+# Controls help (bottom left widget)
+gui.cellterminal.controls.title=§nControls§r
+gui.cellterminal.controls.jei_drag=Drag from JEI to add.
+gui.cellterminal.controls.key_auto=%s: Partition (auto)
+gui.cellterminal.controls.key_item=%s: Partition (item)
+gui.cellterminal.controls.key_fluid=%s: Partition (fluid)
+gui.cellterminal.controls.key_essentia=%s: Partition (essentia)
+gui.cellterminal.controls.key_not_set=(not set)
+gui.cellterminal.controls.auto_warning=§cAuto mode may misattribute items! Use with caution.§r
+gui.cellterminal.controls.essentia_warning=§dEssentia cells require Thaumic Energistics mod.§r
+gui.cellterminal.controls.double_click_storage=Double-click on the storage entry to highlight in-world.
+gui.cellterminal.controls.double_click_storage_cell=Double-click on storage/cell entry to highlight in-world.
+gui.cellterminal.controls.click_partition_toggle=Click slot: toggle partition.
+gui.cellterminal.controls.partition_indicator=§aP§r = slot is partitioned.
+gui.cellterminal.controls.keybind_targets=Keybinds partition the 1st cell with no partition.
+
+# Compacting Cell Tooltips
+tooltip.cellterminal.compacting_cell.not_partitioned=Partition required to use
+tooltip.cellterminal.compacting_cell.stores_one_type=Stores one item type with compression
+tooltip.cellterminal.compacting_cell.insert_to_set_compression=Insert items to set compression chain
+tooltip.cellterminal.compacting_cell.converts_up=Compresses to: %s
+tooltip.cellterminal.compacting_cell.converts_down=Decompresses to: %s
+tooltip.cellterminal.compacting_cell.no_compression=No compression available for this item
+
+# Void Card
+item.cellterminal.void_card.name=Void Overflow Card
+tooltip.cellterminal.void_card.desc=Voids overflow items when cell is full
+tooltip.cellterminal.void_card.use=Use in Compacting Storage Cells
