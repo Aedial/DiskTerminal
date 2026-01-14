@@ -262,4 +262,77 @@ public class ThaumicEnergisticsIntegration {
             return false;
         }
     }
+
+    /**
+     * Check if an object is an essentia-related JEI ingredient.
+     * This includes Thaumic Energistics IAEEssentiaStack or Thaumcraft Aspect objects.
+     *
+     * @param ingredient The JEI ingredient to check
+     * @return true if the ingredient represents essentia
+     */
+    public static boolean isEssentiaIngredient(Object ingredient) {
+        if (!isModLoaded() || ingredient == null) return false;
+
+        return isEssentiaIngredientInternal(ingredient);
+    }
+
+    @Optional.Method(modid = MODID)
+    private static boolean isEssentiaIngredientInternal(Object ingredient) {
+        try {
+            // Check for IAEEssentiaStack
+            if (ingredient instanceof thaumicenergistics.api.storage.IAEEssentiaStack) return true;
+
+            // Check for Thaumcraft Aspect
+            if (ingredient instanceof thaumcraft.api.aspects.Aspect) return true;
+
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Try to convert a JEI ingredient to an essentia ItemStack representation.
+     * Handles IAEEssentiaStack and Thaumcraft Aspect objects.
+     *
+     * @param ingredient The JEI ingredient to convert
+     * @return ItemStack representation of the essentia, or empty if not essentia
+     */
+    public static ItemStack tryConvertJeiIngredientToEssentia(Object ingredient) {
+        if (!isModLoaded() || ingredient == null) return ItemStack.EMPTY;
+
+        return tryConvertJeiIngredientToEssentiaInternal(ingredient);
+    }
+
+    @Optional.Method(modid = MODID)
+    private static ItemStack tryConvertJeiIngredientToEssentiaInternal(Object ingredient) {
+        try {
+            IStorageChannel<thaumicenergistics.api.storage.IAEEssentiaStack> essentiaChannel =
+                AEApi.instance().storage().getStorageChannel(thaumicenergistics.api.storage.IEssentiaStorageChannel.class);
+
+            if (essentiaChannel == null) return ItemStack.EMPTY;
+
+            // Handle IAEEssentiaStack directly
+            if (ingredient instanceof thaumicenergistics.api.storage.IAEEssentiaStack) {
+                thaumicenergistics.api.storage.IAEEssentiaStack essentiaStack =
+                    (thaumicenergistics.api.storage.IAEEssentiaStack) ingredient;
+
+                return essentiaStack.asItemStackRepresentation();
+            }
+
+            // Handle Thaumcraft Aspect
+            if (ingredient instanceof thaumcraft.api.aspects.Aspect) {
+                thaumcraft.api.aspects.Aspect aspect = (thaumcraft.api.aspects.Aspect) ingredient;
+                thaumicenergistics.api.storage.IAEEssentiaStack aeEssentiaStack = essentiaChannel.createStack(aspect);
+
+                if (aeEssentiaStack != null) return aeEssentiaStack.asItemStackRepresentation();
+            }
+
+            return ItemStack.EMPTY;
+        } catch (Exception e) {
+            CellTerminal.LOGGER.debug("Failed to convert JEI ingredient to essentia: " + e.getMessage());
+
+            return ItemStack.EMPTY;
+        }
+    }
 }

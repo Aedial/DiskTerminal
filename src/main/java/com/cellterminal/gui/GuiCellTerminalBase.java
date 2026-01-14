@@ -1,5 +1,6 @@
 package com.cellterminal.gui;
 
+import java.awt.Rectangle;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -16,6 +17,7 @@ import net.minecraft.client.resources.I18n;
 import net.minecraft.inventory.Container;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.text.TextComponentString;
 
 import appeng.api.AEApi;
 import appeng.client.gui.AEBaseGui;
@@ -29,10 +31,13 @@ import mezz.jei.api.gui.IGhostIngredientHandler;
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.CellTerminalClientConfig;
 import com.cellterminal.client.CellTerminalClientConfig.TerminalStyle;
+import com.cellterminal.client.KeyBindings;
 import com.cellterminal.client.SearchFilterMode;
 import com.cellterminal.client.StorageInfo;
+import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 import com.cellterminal.gui.handler.JeiGhostHandler;
 import com.cellterminal.gui.handler.JeiGhostHandler.PartitionSlotTarget;
+import com.cellterminal.gui.handler.QuickPartitionHandler;
 import com.cellterminal.gui.handler.TerminalClickHandler;
 import com.cellterminal.gui.handler.TerminalDataManager;
 import com.cellterminal.gui.render.InventoryTabRenderer;
@@ -304,7 +309,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         for (Object obj : this.inventorySlots.inventorySlots) {
             if (obj instanceof AppEngSlot) {
                 AppEngSlot slot = (AppEngSlot) obj;
-                slot.yPos = this.ySize + slot.getY() - 81;
+                slot.yPos = this.ySize + slot.getY() - 82;
                 slot.xPos = slot.getX() + 14;
             }
         }
@@ -402,6 +407,213 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         }
 
         syncHoverStateFromContext();
+
+        // Draw controls help based on current tab
+        switch (currentTab) {
+            case TAB_TERMINAL:
+                drawTerminalControlsHelp();
+                break;
+            case TAB_INVENTORY:
+                drawInventoryControlsHelp();
+                break;
+            case TAB_PARTITION:
+                drawPartitionControlsHelp();
+                break;
+        }
+    }
+
+    // Constants for controls help widget positioning
+    // JEI buttons are at guiLeft - 18, with ~4px margin from screen edge
+    // We position the panel to leave similar margins on both sides
+    protected static final int CONTROLS_HELP_RIGHT_MARGIN = 4;  // Gap between panel and GUI
+    protected static final int CONTROLS_HELP_LEFT_MARGIN = 4;  // Gap between screen edge and panel
+    protected static final int CONTROLS_HELP_PADDING = 4;  // Inner padding
+    protected static final int CONTROLS_HELP_LINE_HEIGHT = 10;  // Height per line
+
+    // Cached wrapped lines for controls help (used for both rendering and exclusion area)
+    protected List<String> cachedControlsHelpLines = new ArrayList<>();
+    protected int cachedControlsHelpTab = -1;
+
+    /**
+     * Draw controls help for Terminal tab (tab 1).
+     */
+    protected void drawTerminalControlsHelp() {
+        List<String> lines = new ArrayList<>();
+        lines.add(I18n.format("gui.cellterminal.controls.double_click_storage_cell"));
+        drawControlsHelpWidget(lines);
+    }
+
+    /**
+     * Draw controls help for Inventory tab (tab 2).
+     */
+    protected void drawInventoryControlsHelp() {
+        List<String> lines = new ArrayList<>();
+
+        lines.add(I18n.format("gui.cellterminal.controls.partition_indicator"));
+        lines.add(I18n.format("gui.cellterminal.controls.click_partition_toggle"));
+        lines.add(I18n.format("gui.cellterminal.controls.double_click_storage"));
+
+        drawControlsHelpWidget(lines);
+    }
+
+    /**
+     * Draw controls help for Partition tab (tab 3).
+     */
+    protected void drawPartitionControlsHelp() {
+        List<String> lines = new ArrayList<>();
+
+        // Note about what keybinds target
+        lines.add(I18n.format("gui.cellterminal.controls.keybind_targets"));
+
+        lines.add("");  // spacing line
+
+        // Keybind instructions
+        String notSet = I18n.format("gui.cellterminal.controls.key_not_set");
+
+        String autoKey = KeyBindings.QUICK_PARTITION_AUTO.isBound()
+            ? KeyBindings.QUICK_PARTITION_AUTO.getDisplayName() : notSet;
+        lines.add(I18n.format("gui.cellterminal.controls.key_auto", autoKey));
+
+        // Auto type warning if set
+        if (!autoKey.equals(notSet)) lines.add(I18n.format("gui.cellterminal.controls.auto_warning"));
+
+        lines.add("");  // spacing line
+
+        String itemKey = KeyBindings.QUICK_PARTITION_ITEM.isBound()
+            ? KeyBindings.QUICK_PARTITION_ITEM.getDisplayName() : notSet;
+        lines.add(I18n.format("gui.cellterminal.controls.key_item", itemKey));
+
+        String fluidKey = KeyBindings.QUICK_PARTITION_FLUID.isBound()
+            ? KeyBindings.QUICK_PARTITION_FLUID.getDisplayName() : notSet;
+        lines.add(I18n.format("gui.cellterminal.controls.key_fluid", fluidKey));
+
+        String essentiaKey = KeyBindings.QUICK_PARTITION_ESSENTIA.isBound()
+            ? KeyBindings.QUICK_PARTITION_ESSENTIA.getDisplayName() : notSet;
+        lines.add(I18n.format("gui.cellterminal.controls.key_essentia", essentiaKey));
+
+        // Essentia cells warning if set and Thaumic Energistics not loaded
+        if (!essentiaKey.equals(notSet) && !ThaumicEnergisticsIntegration.isModLoaded()) {
+            lines.add(I18n.format("gui.cellterminal.controls.essentia_warning"));
+        }
+
+        lines.add("");  // spacing line
+
+        // JEI drag and drop instruction
+        lines.add(I18n.format("gui.cellterminal.controls.jei_drag"));
+
+        // Double-click hint
+        lines.add(I18n.format("gui.cellterminal.controls.double_click_storage"));
+
+        drawControlsHelpWidget(lines);
+    }
+
+    /**
+     * Draw the controls help widget with the given lines.
+     * Lines will be wrapped to fit the available width.
+     */
+    protected void drawControlsHelpWidget(List<String> lines) {
+        if (lines.isEmpty()) return;
+
+        // Calculate panel width based on available space (guiLeft minus margins on both sides)
+        int panelWidth = this.guiLeft - CONTROLS_HELP_RIGHT_MARGIN - CONTROLS_HELP_LEFT_MARGIN;
+        if (panelWidth < 60) panelWidth = 60;  // Minimum width
+
+        // Calculate available text width (panel width minus padding on both sides)
+        int textWidth = panelWidth - (CONTROLS_HELP_PADDING * 2);
+
+        // Wrap all lines and cache them
+        List<String> wrappedLines = new ArrayList<>();
+        for (String line : lines) {
+            if (line.isEmpty()) {
+                wrappedLines.add("");  // Preserve spacing lines
+            } else {
+                wrappedLines.addAll(fontRenderer.listFormattedStringToWidth(line, textWidth));
+            }
+        }
+
+        // Cache the wrapped lines for exclusion area calculation
+        cachedControlsHelpLines = wrappedLines;
+        cachedControlsHelpTab = currentTab;
+
+        // Calculate positions
+        // Panel right edge has small gap from GUI, left edge has small gap from screen edge
+        int panelRight = -CONTROLS_HELP_RIGHT_MARGIN;
+        int panelLeft = -this.guiLeft + CONTROLS_HELP_LEFT_MARGIN;
+        int contentHeight = wrappedLines.size() * CONTROLS_HELP_LINE_HEIGHT;
+        int panelHeight = contentHeight + (CONTROLS_HELP_PADDING * 2);
+
+        // Position panel at bottom of GUI
+        int panelBottom = this.ySize - 8;
+        int panelTop = panelBottom - panelHeight;
+
+        // Draw AE2-style panel background
+        // Main background (dark semi-transparent)
+        drawRect(panelLeft, panelTop, panelRight, panelBottom, 0xC0000000);
+
+        // Border - AE2 style with subtle highlight/shadow
+        // Top edge (lighter)
+        drawRect(panelLeft, panelTop, panelRight, panelTop + 1, 0xFF606060);
+        // Left edge (lighter)
+        drawRect(panelLeft, panelTop, panelLeft + 1, panelBottom, 0xFF606060);
+        // Bottom edge (darker)
+        drawRect(panelLeft, panelBottom - 1, panelRight, panelBottom, 0xFF303030);
+        // Right edge (darker)
+        drawRect(panelRight - 1, panelTop, panelRight, panelBottom, 0xFF303030);
+
+        // Draw each wrapped line
+        int textX = panelLeft + CONTROLS_HELP_PADDING;
+        int textY = panelTop + CONTROLS_HELP_PADDING;
+        for (int i = 0; i < wrappedLines.size(); i++) {
+            String line = wrappedLines.get(i);
+            if (!line.isEmpty()) {
+                fontRenderer.drawString(line, textX, textY + (i * CONTROLS_HELP_LINE_HEIGHT), 0xCCCCCC);
+            }
+        }
+    }
+
+    /**
+     * Get the bounding rectangle for the controls help widget.
+     * Uses cached wrapped lines from the last render for accurate sizing.
+     * Used for JEI exclusion areas.
+     */
+    protected Rectangle getControlsHelpBounds() {
+        // Use cached lines if available and for the current tab
+        if (cachedControlsHelpLines.isEmpty() || cachedControlsHelpTab != currentTab) {
+            return new Rectangle(0, 0, 0, 0);
+        }
+
+        int lineCount = cachedControlsHelpLines.size();
+        int contentHeight = lineCount * CONTROLS_HELP_LINE_HEIGHT;
+        int panelHeight = contentHeight + (CONTROLS_HELP_PADDING * 2);
+
+        // Calculate panel width and position (same logic as in drawControlsHelpWidget)
+        int panelWidth = this.guiLeft - CONTROLS_HELP_RIGHT_MARGIN - CONTROLS_HELP_LEFT_MARGIN;
+        if (panelWidth < 60) panelWidth = 60;
+
+        int panelRight = -CONTROLS_HELP_RIGHT_MARGIN;
+        int panelLeft = -this.guiLeft + CONTROLS_HELP_LEFT_MARGIN;
+        int panelBottom = this.ySize - 8;
+        int panelTop = panelBottom - panelHeight;
+
+        return new Rectangle(
+            this.guiLeft + panelLeft,
+            this.guiTop + panelTop,
+            panelWidth,
+            panelHeight
+        );
+    }
+
+    /**
+     * Get JEI exclusion areas to prevent overlap with controls help widget.
+     */
+    @Override
+    public List<Rectangle> getJEIExclusionArea() {
+        List<Rectangle> areas = new ArrayList<>();
+        Rectangle controlsHelp = getControlsHelpBounds();
+
+        if (controlsHelp.width > 0) areas.add(controlsHelp);
+
+        return areas;
     }
 
     protected void syncHoverStateFromContext() {
@@ -572,7 +784,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         } else if (currentTab == TAB_INVENTORY || currentTab == TAB_PARTITION) {
             clickHandler.handleCellTabClick(currentTab, hoveredCellCell, hoveredContentSlotIndex,
                 hoveredPartitionCell, hoveredPartitionSlotIndex, hoveredCellStorage, hoveredCellSlotIndex,
-                createClickCallback());
+                dataManager.getStorageMap(), dataManager.getTerminalDimension(), createClickCallback());
         }
     }
 
@@ -669,10 +881,80 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             }
         }
 
+        // Handle quick partition keybinds (only in partition tab, not when search is focused)
+        if (currentTab == TAB_PARTITION && (this.searchField == null || !this.searchField.isFocused())) {
+            if (handleQuickPartitionKeybind(keyCode)) return;
+        }
+
         // Handle search field keyboard input first
         if (this.searchField != null && this.searchField.textboxKeyTyped(typedChar, keyCode)) return;
 
         super.keyTyped(typedChar, keyCode);
+    }
+
+    /**
+     * Handle quick partition keybinds.
+     * @return true if a keybind was handled
+     */
+    protected boolean handleQuickPartitionKeybind(int keyCode) {
+        KeyBindings matchedKey = null;
+        QuickPartitionHandler.PartitionType type = null;
+
+        if (KeyBindings.QUICK_PARTITION_AUTO.isActiveAndMatches(keyCode)) {
+            matchedKey = KeyBindings.QUICK_PARTITION_AUTO;
+            type = QuickPartitionHandler.PartitionType.AUTO;
+        } else if (KeyBindings.QUICK_PARTITION_ITEM.isActiveAndMatches(keyCode)) {
+            matchedKey = KeyBindings.QUICK_PARTITION_ITEM;
+            type = QuickPartitionHandler.PartitionType.ITEM;
+        } else if (KeyBindings.QUICK_PARTITION_FLUID.isActiveAndMatches(keyCode)) {
+            matchedKey = KeyBindings.QUICK_PARTITION_FLUID;
+            type = QuickPartitionHandler.PartitionType.FLUID;
+        } else if (KeyBindings.QUICK_PARTITION_ESSENTIA.isActiveAndMatches(keyCode)) {
+            matchedKey = KeyBindings.QUICK_PARTITION_ESSENTIA;
+            type = QuickPartitionHandler.PartitionType.ESSENTIA;
+        }
+
+        if (matchedKey == null || type == null) return false;
+
+        QuickPartitionHandler.QuickPartitionResult result = QuickPartitionHandler.attemptQuickPartition(
+            type, dataManager.getPartitionLines(), dataManager.getStorageMap());
+
+        // Display result message
+        if (Minecraft.getMinecraft().player != null) {
+            Minecraft.getMinecraft().player.sendMessage(new TextComponentString(result.message));
+        }
+
+        // Scroll to the cell if successful
+        if (result.success && result.scrollToLine >= 0) scrollToLine(result.scrollToLine);
+
+        return true;
+    }
+
+    /**
+     * Scroll to a specific line index.
+     */
+    protected void scrollToLine(int lineIndex) {
+        int currentScroll = this.getScrollBar().getCurrentScroll();
+
+        // wheel() clamps delta to -1/+1, so we need to call it multiple times
+        // Positive delta in wheel() scrolls up (towards 0), negative scrolls down
+        while (currentScroll < lineIndex) {
+            this.getScrollBar().wheel(-1);
+            int newScroll = this.getScrollBar().getCurrentScroll();
+
+            if (newScroll == currentScroll) break; // Can't scroll further
+
+            currentScroll = newScroll;
+        }
+
+        while (currentScroll > lineIndex) {
+            this.getScrollBar().wheel(1);
+            int newScroll = this.getScrollBar().getCurrentScroll();
+
+            if (newScroll == currentScroll) break; // Can't scroll further
+
+            currentScroll = newScroll;
+        }
     }
 
     public void postUpdate(NBTTagCompound data) {
