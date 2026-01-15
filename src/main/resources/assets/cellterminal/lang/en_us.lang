@@ -1,30 +1,35 @@
 # Items
 item.cellterminal.cell_terminal.name=Cell Terminal
 item.cellterminal.wireless_cell_terminal.name=Wireless Cell Terminal
+item.cellterminal.cell_terminal.tooltip=§bFor all your partitioning needs!
 
 # Compacting Cells
 item.cellterminal.compacting_cell.1k.name=1k Compacting Storage Cell
 item.cellterminal.compacting_cell.4k.name=4k Compacting Storage Cell
 item.cellterminal.compacting_cell.16k.name=16k Compacting Storage Cell
 item.cellterminal.compacting_cell.64k.name=64k Compacting Storage Cell
-
-# Dense Compacting Cells (NAE2)
-item.cellterminal.dense_compacting_cell.256k.name=256k Compacting Storage Cell
-item.cellterminal.dense_compacting_cell.1m.name=1M Compacting Storage Cell
-item.cellterminal.dense_compacting_cell.4m.name=4M Compacting Storage Cell
-item.cellterminal.dense_compacting_cell.16m.name=16M Compacting Storage Cell
+item.cellterminal.compacting_cell.256k.name=256k Compacting Storage Cell
+item.cellterminal.compacting_cell.1m.name=1M Compacting Storage Cell
+item.cellterminal.compacting_cell.4m.name=4M Compacting Storage Cell
+item.cellterminal.compacting_cell.16m.name=16M Compacting Storage Cell
+item.cellterminal.compacting_cell.64m.name=64M Compacting Storage Cell
+item.cellterminal.compacting_cell.256m.name=256M Compacting Storage Cell
+item.cellterminal.compacting_cell.1g.name=1G Compacting Storage Cell
+item.cellterminal.compacting_cell.2g.name=2G Compacting Storage Cell
 
 # Compacting Components
 item.cellterminal.compacting_component.1k.name=1k Compacting Storage Component
 item.cellterminal.compacting_component.4k.name=4k Compacting Storage Component
 item.cellterminal.compacting_component.16k.name=16k Compacting Storage Component
 item.cellterminal.compacting_component.64k.name=64k Compacting Storage Component
-
-# Dense Compacting Components (NAE2)
-item.cellterminal.dense_compacting_component.256k.name=256k Compacting Storage Component
-item.cellterminal.dense_compacting_component.1m.name=1M Compacting Storage Component
-item.cellterminal.dense_compacting_component.4m.name=4M Compacting Storage Component
-item.cellterminal.dense_compacting_component.16m.name=16M Compacting Storage Component
+item.cellterminal.compacting_component.256k.name=256k Compacting Storage Component
+item.cellterminal.compacting_component.1m.name=1M Compacting Storage Component
+item.cellterminal.compacting_component.4m.name=4M Compacting Storage Component
+item.cellterminal.compacting_component.16m.name=16M Compacting Storage Component
+item.cellterminal.compacting_component.64m.name=64M Compacting Storage Component
+item.cellterminal.compacting_component.256m.name=256M Compacting Storage Component
+item.cellterminal.compacting_component.1g.name=1G Compacting Storage Component
+item.cellterminal.compacting_component.2g.name=2G Compacting Storage Component
 
 # GUI
 gui.cellterminal.cell_terminal.title=Cell Terminal
@@ -135,7 +140,68 @@ tooltip.cellterminal.compacting_cell.converts_up=Compresses to: %s
 tooltip.cellterminal.compacting_cell.converts_down=Decompresses to: %s
 tooltip.cellterminal.compacting_cell.no_compression=No compression available for this item
 
-# Void Card
-item.cellterminal.void_card.name=Void Overflow Card
-tooltip.cellterminal.void_card.desc=Voids overflow items when cell is full
-tooltip.cellterminal.void_card.use=Use in Compacting Storage Cells
+# Overflow Card
+item.cellterminal.overflow_card.name=Overflow Card
+tooltip.cellterminal.overflow_card.desc=Voids overflow items when cell is full
+tooltip.cellterminal.overflow_card.use=Use in Compacting Storage Cells
+
+# High-Density Cells (1k-1G max, each displayed byte represents ~2.1B actual storage)
+item.cellterminal.high_density_cell.1k.name=1k High-Density Storage Cell
+item.cellterminal.high_density_cell.4k.name=4k High-Density Storage Cell
+item.cellterminal.high_density_cell.16k.name=16k High-Density Storage Cell
+item.cellterminal.high_density_cell.64k.name=64k High-Density Storage Cell
+item.cellterminal.high_density_cell.256k.name=256k High-Density Storage Cell
+item.cellterminal.high_density_cell.1m.name=1M High-Density Storage Cell
+item.cellterminal.high_density_cell.4m.name=4M High-Density Storage Cell
+item.cellterminal.high_density_cell.16m.name=16M High-Density Storage Cell
+item.cellterminal.high_density_cell.64m.name=64M High-Density Storage Cell
+item.cellterminal.high_density_cell.256m.name=256M High-Density Storage Cell
+item.cellterminal.high_density_cell.1g.name=1G High-Density Storage Cell
+
+# High-Density Components
+item.cellterminal.high_density_component.1k.name=1k High-Density Storage Component
+item.cellterminal.high_density_component.4k.name=4k High-Density Storage Component
+item.cellterminal.high_density_component.16k.name=16k High-Density Storage Component
+item.cellterminal.high_density_component.64k.name=64k High-Density Storage Component
+item.cellterminal.high_density_component.256k.name=256k High-Density Storage Component
+item.cellterminal.high_density_component.1m.name=1M High-Density Storage Component
+item.cellterminal.high_density_component.4m.name=4M High-Density Storage Component
+item.cellterminal.high_density_component.16m.name=16M High-Density Storage Component
+item.cellterminal.high_density_component.64m.name=64M High-Density Storage Component
+item.cellterminal.high_density_component.256m.name=256M High-Density Storage Component
+item.cellterminal.high_density_component.1g.name=1G High-Density Storage Component
+
+# High-Density Compacting Cells (1k-16M max due to overflow safety)
+item.cellterminal.high_density_compacting_cell.1k.name=1k High-Density Compacting Cell
+item.cellterminal.high_density_compacting_cell.4k.name=4k High-Density Compacting Cell
+item.cellterminal.high_density_compacting_cell.16k.name=16k High-Density Compacting Cell
+item.cellterminal.high_density_compacting_cell.64k.name=64k High-Density Compacting Cell
+item.cellterminal.high_density_compacting_cell.256k.name=256k High-Density Compacting Cell
+item.cellterminal.high_density_compacting_cell.1m.name=1M High-Density Compacting Cell
+item.cellterminal.high_density_compacting_cell.4m.name=4M High-Density Compacting Cell
+item.cellterminal.high_density_compacting_cell.16m.name=16M High-Density Compacting Cell
+
+# High-Density Compacting Components
+item.cellterminal.high_density_compacting_component.1k.name=1k High-Density Compacting Component
+item.cellterminal.high_density_compacting_component.4k.name=4k High-Density Compacting Component
+item.cellterminal.high_density_compacting_component.16k.name=16k High-Density Compacting Component
+item.cellterminal.high_density_compacting_component.64k.name=64k High-Density Compacting Component
+item.cellterminal.high_density_compacting_component.256k.name=256k High-Density Compacting Component
+item.cellterminal.high_density_compacting_component.1m.name=1M High-Density Compacting Component
+item.cellterminal.high_density_compacting_component.4m.name=4M High-Density Compacting Component
+item.cellterminal.high_density_compacting_component.16m.name=16M High-Density Compacting Component
+
+# Normal Storage Cells (64M-2G)
+item.nae2.storage_cell.65536k.name=§265536k§r ME Storage Cell
+item.nae2.storage_cell.262144k.name=§b262144k§r ME Storage Cell
+item.nae2.storage_cell.1048576k.name=§51048576k§r ME Storage Cell
+item.nae2.storage_cell.2097152k.name=§d2097152k§r ME Storage Cell
+
+item.nae2.material.cell_part.65536k.name=§265536k§r ME Storage Component
+item.nae2.material.cell_part.262144k.name=§b262144k§r ME Storage Component
+item.nae2.material.cell_part.1048576k.name=§51048576k§r ME Storage Component
+item.nae2.material.cell_part.2097152k.name=§d2097152k§r ME Storage Component
+
+# High-Density Tooltips
+tooltip.cellterminal.high_density_cell.info=High-Density: ~2.1B per Byte
+tooltip.cellterminal.high_density_component.info=High-Density storage component

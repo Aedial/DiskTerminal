@@ -1,0 +1,17 @@
+{
+    "type": "minecraft:crafting_shapeless",
+    "ingredients": [
+        {
+            "item": "appliedenergistics2:material",
+            "data": 39
+        },
+        {
+            "item": "cellterminal:compacting_component",
+            "data": 2
+        }
+    ],
+    "result": {
+        "item": "cellterminal:compacting_cell",
+        "data": 2
+    }
+}

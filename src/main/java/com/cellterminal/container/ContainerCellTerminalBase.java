@@ -40,6 +40,8 @@ import appeng.tile.storage.TileDrive;
 import appeng.util.Platform;
 
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
+import com.cellterminal.items.cells.compacting.CompactingCellInventory;
+import com.cellterminal.items.cells.compacting.IItemCompactingCell;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketCellTerminalUpdate;
 import com.cellterminal.network.PacketPartitionAction;
@@ -477,14 +479,44 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
                 break;
         }
 
+        // For compacting cells, trigger chain initialization when partition is set
+        // Pass the partition item directly to avoid timing issues with NBT reads
+        // IMPORTANT: We must refresh the handler cache BEFORE writing chain data,
+        // because the refresh calls persist() on the OLD handler which would overwrite our changes.
+        if (cellStack.getItem() instanceof IItemCompactingCell) {
+            // First, force refresh to persist and clear the old handler
+            // This prevents the old handler from overwriting our chain data later
+            forceCellHandlerRefresh(tracker, cellSlot);
+
+            ItemStack partitionItem = ItemStack.EMPTY;
+
+            // Determine what item was just partitioned based on action
+            if (action == PacketPartitionAction.Action.ADD_ITEM && !itemStack.isEmpty()) {
+                partitionItem = itemStack;
+            } else if (action == PacketPartitionAction.Action.TOGGLE_ITEM && !itemStack.isEmpty()) {
+                // For toggle, only use if we're adding (not removing)
+                int existingSlot = findItemInConfig(configInv, itemStack);
+                if (existingSlot < 0) {
+                    // Item wasn't found, so we just added it
+                    partitionItem = itemStack;
+                }
+            } else if (action == PacketPartitionAction.Action.SET_ALL_FROM_CONTENTS) {
+                // Get first item from config as partition
+                for (int i = 0; i < configInv.getSlots(); i++) {
+                    ItemStack slot = configInv.getStackInSlot(i);
+                    if (!slot.isEmpty()) {
+                        partitionItem = slot;
+                        break;
+                    }
+                }
+            }
+
+            // Now write the chain data - the old handler is gone so it won't overwrite this
+            initializeCompactingCellChain(cellStack, partitionItem, tracker.tile.getWorld());
+        }
+
         // Mark the TileEntity as dirty to save changes
         tracker.tile.markDirty();
-
-        // Force the drive/chest to rebuild its cell inventory handler cache.
-        // This is necessary because BasicCellInventoryHandler caches the partition list
-        // in its constructor, so changes to the config inventory aren't reflected until
-        // the handler is recreated.
-        forceCellHandlerRefresh(tracker, cellSlot);
 
         // Trigger refresh to send updated data to client
         this.needsFullRefresh = true;
@@ -511,6 +543,30 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
             // Setting the same stack triggers the inventory change listener
             // which clears the drive's isCached flag and rebuilds handlers
             modifiable.setStackInSlot(cellSlot, cellStack);
+        }
+    }
+
+    /**
+     * Initialize the compression chain for a compacting cell when partition is set from Cell Terminal.
+     * This allows the chain to be ready immediately without needing to insert items first.
+     * 
+     * @param cellStack The compacting cell ItemStack
+     * @param partitionItem The item being partitioned (pass empty to read from config)
+     * @param world The world for recipe lookups
+     */
+    private void initializeCompactingCellChain(ItemStack cellStack, ItemStack partitionItem, net.minecraft.world.World world) {
+        if (cellStack.isEmpty()) return;
+        if (!(cellStack.getItem() instanceof IItemCompactingCell)) return;
+
+        IItemCompactingCell cellType = (IItemCompactingCell) cellStack.getItem();
+        CompactingCellInventory inventory = new CompactingCellInventory(cellType, cellStack, null);
+
+        // If we have a specific partition item, use it directly to avoid timing issues
+        if (!partitionItem.isEmpty()) {
+            inventory.initializeChainForItem(partitionItem, world);
+        } else {
+            // Fallback to reading from config
+            inventory.initializeChainFromPartition(world);
         }
     }
 
