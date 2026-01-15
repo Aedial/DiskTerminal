@@ -115,6 +115,52 @@ public abstract class CellTerminalRenderer {
     }
 
     /**
+     * Render a small (8x8) item icon at the given position.
+     */
+    protected void renderSmallItemStack(ItemStack stack, int x, int y) {
+        if (stack.isEmpty()) return;
+
+        GlStateManager.pushMatrix();
+        GlStateManager.translate(x, y, 0);
+        GlStateManager.scale(0.5f, 0.5f, 1.0f);
+
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        RenderHelper.enableGUIStandardItemLighting();
+        itemRender.renderItemIntoGUI(stack, 0, 0);
+        RenderHelper.disableStandardItemLighting();
+        GlStateManager.disableLighting();
+
+        GlStateManager.popMatrix();
+
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.enableBlend();
+        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+    }
+
+    /**
+     * Draw upgrade icons for a cell.
+     * Icons are drawn at the left side of the cell entry, using small 8x8 icons.
+     * @param cell The cell info
+     * @param x The x position to start drawing (left edge)
+     * @param y The y position of the row
+     * @return The width consumed by upgrade icons
+     */
+    protected int drawCellUpgradeIcons(CellInfo cell, int x, int y) {
+        List<ItemStack> upgrades = cell.getUpgrades();
+        if (upgrades.isEmpty()) return 0;
+
+        int iconX = x;
+        int iconY = y + 1; // Align with top of cell icon
+
+        for (ItemStack upgrade : upgrades) {
+            renderSmallItemStack(upgrade, iconX, iconY);
+            iconX += 9; // 8px icon + 1px spacing
+        }
+
+        return iconX - x;
+    }
+
+    /**
      * Check if the line at the given index is the first in its storage group.
      */
     protected boolean isFirstInStorageGroup(List<Object> lines, int index) {

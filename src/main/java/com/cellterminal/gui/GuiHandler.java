@@ -17,6 +17,7 @@ import appeng.container.ContainerOpenContext;
 
 import com.cellterminal.CellTerminal;
 import com.cellterminal.container.ContainerCellTerminal;
+import com.cellterminal.container.ContainerPriorityWand;
 import com.cellterminal.container.ContainerWirelessCellTerminal;
 import com.cellterminal.part.PartCellTerminal;
 
@@ -25,6 +26,12 @@ public class GuiHandler implements IGuiHandler {
 
     public static final int GUI_CELL_TERMINAL = 0;
     public static final int GUI_WIRELESS_CELL_TERMINAL = 1;
+    public static final int GUI_PRIORITY_WAND = 2;
+
+    public static void openPriorityWandGui(EntityPlayer player, EnumHand hand) {
+        int guiId = (GUI_PRIORITY_WAND << 4) | (hand == EnumHand.MAIN_HAND ? 0 : 1);
+        player.openGui(CellTerminal.instance, guiId, player.getEntityWorld(), 0, 0, 0);
+    }
 
     public static void openCellTerminalGui(EntityPlayer player, TileEntity te, AEPartLocation side) {
         BlockPos pos = te.getPos();
@@ -63,6 +70,9 @@ public class GuiHandler implements IGuiHandler {
         } else if (guiType == GUI_WIRELESS_CELL_TERMINAL) {
             boolean isBauble = y == 1;
             return new ContainerWirelessCellTerminal(player.inventory, x, isBauble);
+        } else if (guiType == GUI_PRIORITY_WAND) {
+            EnumHand hand = (id & 1) == 0 ? EnumHand.MAIN_HAND : EnumHand.OFF_HAND;
+            return new ContainerPriorityWand(player.inventory, hand);
         }
 
         return null;
@@ -85,6 +95,9 @@ public class GuiHandler implements IGuiHandler {
         } else if (guiType == GUI_WIRELESS_CELL_TERMINAL) {
             boolean isBauble = y == 1;
             return new GuiWirelessCellTerminal(player.inventory, x, isBauble);
+        } else if (guiType == GUI_PRIORITY_WAND) {
+            EnumHand hand = (id & 1) == 0 ? EnumHand.MAIN_HAND : EnumHand.OFF_HAND;
+            return new GuiPriorityWand(player.inventory, hand);
         }
 
         return null;

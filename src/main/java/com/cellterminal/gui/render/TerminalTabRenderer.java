@@ -50,10 +50,19 @@ public class TerminalTabRenderer extends CellTerminalRenderer {
             boolean isHovered = relMouseX >= 4 && relMouseX < 185
                 && relMouseY >= y && relMouseY < y + ROW_HEIGHT;
 
-            // Draw hover background for cell lines
-            if (isHovered && line instanceof CellInfo) {
-                ctx.hoveredLineIndex = lineIndex;
-                Gui.drawRect(GUI_INDENT, y - 1, 180, y + ROW_HEIGHT - 1, 0x50CCCCCC);
+            // Track hover state based on line type
+            if (isHovered) {
+                if (line instanceof CellInfo) {
+                    ctx.hoveredLineIndex = lineIndex;
+                    ctx.hoveredCellCell = (CellInfo) line;
+                    ctx.hoveredCellStorage = ctx.storageMap.get(((CellInfo) line).getParentStorageId());
+                    ctx.hoveredCellSlotIndex = ((CellInfo) line).getSlot();
+                    // Draw hover background for cell lines
+                    Gui.drawRect(GUI_INDENT, y - 1, 180, y + ROW_HEIGHT - 1, 0x50CCCCCC);
+                } else if (line instanceof StorageInfo) {
+                    ctx.hoveredStorageLine = (StorageInfo) line;
+                    ctx.hoveredLineIndex = lineIndex;
+                }
             }
 
             // Draw separator line above storage entries (except first one)
@@ -70,7 +79,7 @@ public class TerminalTabRenderer extends CellTerminalRenderer {
             boolean hasContentBelow = (lineIndex < totalLines - 1) && !isLastInGroup;
 
             if (line instanceof StorageInfo) {
-                drawStorageLine((StorageInfo) line, y, lines, lineIndex);
+                drawStorageLine((StorageInfo) line, y, lines, lineIndex, ctx);
             } else if (line instanceof CellInfo) {
                 drawCellLine((CellInfo) line, y, relMouseX, relMouseY,
                     isFirstInGroup, isLastInGroup, visibleTop, visibleBottom,
@@ -81,10 +90,13 @@ public class TerminalTabRenderer extends CellTerminalRenderer {
         }
     }
 
-    private void drawStorageLine(StorageInfo storage, int y, List<Object> lines, int lineIndex) {
+    private void drawStorageLine(StorageInfo storage, int y, List<Object> lines, int lineIndex, RenderContext ctx) {
+        // Track this storage for priority field rendering
+        ctx.visibleStorages.add(new RenderContext.VisibleStorageEntry(storage, y));
+
         // Draw expand/collapse indicator
         String expandIcon = storage.isExpanded() ? "[-]" : "[+]";
-        fontRenderer.drawString(expandIcon, 165, y + 6, 0x606060);
+        fontRenderer.drawString(expandIcon, 167, y + 1, 0x606060);
 
         // Draw vertical tree line connecting to cells below (if expanded and has cells following)
         // Check if the next line in the filtered list is a CellInfo for this storage
@@ -119,6 +131,10 @@ public class TerminalTabRenderer extends CellTerminalRenderer {
         drawTreeLines(lineX, y, true, isFirstInGroup, isLastInGroup,
             visibleTop, visibleBottom, isFirstVisibleRow, isLastVisibleRow,
             hasContentAbove, hasContentBelow);
+
+        // Draw upgrade icons to the left of the cell icon
+        int upgradeX = 4;
+        drawCellUpgradeIcons(cell, upgradeX, y);
 
         // Draw cell icon
         renderItemStack(cell.getCellItem(), CELL_INDENT, y);

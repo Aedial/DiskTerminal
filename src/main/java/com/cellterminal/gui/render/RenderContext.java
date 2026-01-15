@@ -32,6 +32,7 @@ public class RenderContext {
     // Hover state - Terminal tab
     public CellInfo hoveredCell = null;
     public int hoverType = 0; // 0=none, 1=inventory, 2=partition, 3=eject
+    public StorageInfo hoveredStorageLine = null; // Storage header line being hovered
 
     // Hover state - line tracking
     public int hoveredLineIndex = -1;
@@ -50,12 +51,29 @@ public class RenderContext {
     public CellInfo hoveredPartitionCell = null;
     public final List<PartitionSlotTarget> partitionSlotTargets = new ArrayList<>();
 
+    // Visible storage positions for priority field rendering
+    public final List<VisibleStorageEntry> visibleStorages = new ArrayList<>();
+
+    /**
+     * Tracks a visible storage entry and its Y position for priority field placement.
+     */
+    public static class VisibleStorageEntry {
+        public final StorageInfo storage;
+        public final int y;
+
+        public VisibleStorageEntry(StorageInfo storage, int y) {
+            this.storage = storage;
+            this.y = y;
+        }
+    }
+
     /**
      * Reset all hover state at the start of a render cycle.
      */
     public void resetHoverState() {
         hoveredCell = null;
         hoverType = 0;
+        hoveredStorageLine = null;
         hoveredLineIndex = -1;
         hoveredContentStack = ItemStack.EMPTY;
         hoveredCellCell = null;
@@ -65,6 +83,7 @@ public class RenderContext {
         hoveredPartitionSlotIndex = -1;
         hoveredPartitionCell = null;
         partitionSlotTargets.clear();
+        visibleStorages.clear();
     }
 
     /**

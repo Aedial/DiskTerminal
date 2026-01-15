@@ -14,12 +14,15 @@ import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.resources.I18n;
+import net.minecraft.inventory.ClickType;
 import net.minecraft.inventory.Container;
+import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.text.TextComponentString;
 
 import appeng.api.AEApi;
+import appeng.api.implementations.items.IUpgradeModule;
 import appeng.client.gui.AEBaseGui;
 import appeng.client.gui.widgets.GuiScrollbar;
 import appeng.client.gui.widgets.MEGuiTextField;
@@ -28,6 +31,7 @@ import appeng.container.slot.AppEngSlot;
 
 import mezz.jei.api.gui.IGhostIngredientHandler;
 
+import com.cellterminal.client.CellContentRow;
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.CellTerminalClientConfig;
 import com.cellterminal.client.CellTerminalClientConfig.TerminalStyle;
@@ -46,6 +50,7 @@ import com.cellterminal.gui.render.RenderContext;
 import com.cellterminal.gui.render.TerminalTabRenderer;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketPartitionAction;
+import com.cellterminal.network.PacketUpgradeCell;
 
 
 /**
@@ -106,6 +111,10 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     protected PopupCellPartition partitionPopup = null;
     protected CellInfo hoveredCell = null;
     protected int hoverType = 0; // 0=none, 1=inventory, 2=partition, 3=eject
+    protected StorageInfo hoveredStorageLine = null; // Storage header being hovered
+
+    // Priority field manager (inline editable fields)
+    protected PriorityFieldManager priorityFieldManager = null;
 
     // Tab hover for tooltips
     protected int hoveredTab = -1;
@@ -189,9 +198,14 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         initRenderers();
         initTerminalStyleButton();
         initSearchField();
+        initPriorityFieldManager();
 
         // Update scrollbar range for current tab
         updateScrollbarForCurrentTab();
+    }
+
+    protected void initPriorityFieldManager() {
+        this.priorityFieldManager = new PriorityFieldManager(this.fontRenderer);
     }
 
     protected void initRenderers() {
@@ -364,6 +378,11 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         if (searchModeButton != null && searchModeButton.visible && searchModeButton.isMouseOver()) {
             this.drawHoveringText(searchModeButton.getTooltip(), mouseX, mouseY);
         }
+
+        // Draw priority field tooltip
+        if (priorityFieldManager != null && priorityFieldManager.isMouseOverField(mouseX, mouseY)) {
+            this.drawHoveringText(Collections.singletonList(I18n.format("gui.cellterminal.priority.tooltip")), mouseX, mouseY);
+        }
     }
 
     @Override
@@ -390,6 +409,9 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         int relMouseY = mouseY - offsetY;
         final int currentScroll = this.getScrollBar().getCurrentScroll();
 
+        // Reset priority field visibility before rendering
+        if (priorityFieldManager != null) priorityFieldManager.resetVisibility();
+
         // Draw based on current tab using renderers
         switch (currentTab) {
             case TAB_TERMINAL:
@@ -406,7 +428,22 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
                 break;
         }
 
-        syncHoverStateFromContext();
+        // Update priority field positions based on visible storages
+        if (priorityFieldManager != null) {
+            for (RenderContext.VisibleStorageEntry entry : renderContext.visibleStorages) {
+                PriorityFieldManager.PriorityField field = priorityFieldManager.getOrCreateField(
+                    entry.storage, guiLeft, guiTop);
+                priorityFieldManager.updateFieldPosition(field, 0, entry.y, guiLeft, guiTop);
+            }
+
+            // Draw priority fields (in GUI-relative context)
+            priorityFieldManager.drawFieldsRelative(guiLeft, guiTop);
+
+            // Cleanup stale fields
+            priorityFieldManager.cleanupStaleFields(dataManager.getStorageMap());
+        }
+
+        syncHoverStateFromContext(relMouseX, relMouseY);
 
         // Draw controls help based on current tab
         switch (currentTab) {
@@ -616,9 +653,10 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         return areas;
     }
 
-    protected void syncHoverStateFromContext() {
+    protected void syncHoverStateFromContext(int relMouseX, int relMouseY) {
         this.hoveredCell = renderContext.hoveredCell;
         this.hoverType = renderContext.hoverType;
+        this.hoveredStorageLine = renderContext.hoveredStorageLine;
         this.hoveredLineIndex = renderContext.hoveredLineIndex;
         this.hoveredContentStack = renderContext.hoveredContentStack;
         this.hoveredCellCell = renderContext.hoveredCellCell;
@@ -740,6 +778,36 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     }
 
     @Override
+    protected void handleMouseClick(Slot slot, int slotIdx, int mouseButton, ClickType clickType) {
+        // Intercept shift-clicks on upgrade items in player inventory to insert into cells
+        if (clickType == ClickType.QUICK_MOVE && slot != null && slot.getHasStack()) {
+            ItemStack slotStack = slot.getStack();
+
+            if (slotStack.getItem() instanceof IUpgradeModule) {
+                CellInfo targetCell = findFirstVisibleCellThatCanAcceptUpgrade(slotStack);
+
+                if (targetCell != null) {
+                    StorageInfo storage = dataManager.getStorageMap().get(targetCell.getParentStorageId());
+
+                    if (storage != null) {
+                        // Pass the slot index so server knows where to take the upgrade from
+                        CellTerminalNetwork.INSTANCE.sendToServer(new PacketUpgradeCell(
+                            storage.getId(),
+                            targetCell.getSlot(),
+                            true,
+                            slot.getSlotIndex()
+                        ));
+
+                        return;
+                    }
+                }
+            }
+        }
+
+        super.handleMouseClick(slot, slotIdx, mouseButton, clickType);
+    }
+
+    @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
         // Handle search field clicks
         if (this.searchField != null) {
@@ -754,7 +822,14 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             this.searchField.mouseClicked(mouseX, mouseY, mouseButton);
         }
 
-        // Handle popup clicks first
+        // Handle priority field clicks
+        if (priorityFieldManager != null && priorityFieldManager.handleClick(mouseX, mouseY, mouseButton)) {
+            return;
+        }
+
+        // Handle upgrade clicks when holding an upgrade item
+        if (mouseButton == 0 && handleUpgradeClick(mouseX, mouseY)) return;
+
         if (inventoryPopup != null) {
             if (inventoryPopup.handleClick(mouseX, mouseY, mouseButton)) return;
 
@@ -859,6 +934,11 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
+        // Handle priority field keyboard first
+        if (priorityFieldManager != null && priorityFieldManager.handleKeyTyped(typedChar, keyCode)) {
+            return;
+        }
+
         // Esc key should close modals first
         if (keyCode == Keyboard.KEY_ESCAPE) {
             if (inventoryPopup != null) {
@@ -928,6 +1008,132 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         if (result.success && result.scrollToLine >= 0) scrollToLine(result.scrollToLine);
 
         return true;
+    }
+
+    /**
+     * Handle upgrade click when player is holding an upgrade item.
+     * Regular click on cell: upgrade that cell
+     * Regular click on storage header: upgrade first cell in that storage
+     * Shift click: upgrade first visible cell that can accept this upgrade
+     * @return true if an upgrade click was handled
+     */
+    protected boolean handleUpgradeClick(int mouseX, int mouseY) {
+        // Check if player is holding an upgrade
+        ItemStack heldStack = Minecraft.getMinecraft().player.inventory.getItemStack();
+        if (heldStack.isEmpty()) return false;
+        if (!(heldStack.getItem() instanceof IUpgradeModule)) return false;
+
+        boolean isShiftClick = Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT);
+
+        if (isShiftClick) {
+            // Shift-click: upgrade first visible cell that can accept this upgrade
+            CellInfo targetCell = findFirstVisibleCellThatCanAcceptUpgrade(heldStack);
+            if (targetCell == null) return false;
+
+            StorageInfo storage = dataManager.getStorageMap().get(targetCell.getParentStorageId());
+            if (storage == null) return false;
+
+            CellTerminalNetwork.INSTANCE.sendToServer(new PacketUpgradeCell(
+                storage.getId(),
+                targetCell.getSlot(),
+                true
+            ));
+
+            return true;
+        }
+
+        // Regular click: check if hovering a cell directly
+        if (hoveredCellCell != null && hoveredCellStorage != null) {
+            if (!hoveredCellCell.canAcceptUpgrade(heldStack)) return false;
+
+            CellTerminalNetwork.INSTANCE.sendToServer(new PacketUpgradeCell(
+                hoveredCellStorage.getId(),
+                hoveredCellSlotIndex,
+                false
+            ));
+
+            return true;
+        }
+
+        // Regular click on storage header: upgrade first cell in that storage
+        if (hoveredStorageLine != null) {
+            CellInfo targetCell = findFirstCellInStorageThatCanAcceptUpgrade(hoveredStorageLine, heldStack);
+            if (targetCell == null) return false;
+
+            CellTerminalNetwork.INSTANCE.sendToServer(new PacketUpgradeCell(
+                hoveredStorageLine.getId(),
+                targetCell.getSlot(),
+                false
+            ));
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Find the first visible cell that can accept the given upgrade.
+     * Respects current tab's filtered and sorted line list.
+     * Checks both compatibility (upgrade type supported by cell) and available space.
+     * @param upgradeStack The upgrade item to check compatibility with
+     * @return The first CellInfo that can accept the upgrade, or null if none found
+     */
+    protected CellInfo findFirstVisibleCellThatCanAcceptUpgrade(ItemStack upgradeStack) {
+        List<Object> lines;
+
+        switch (currentTab) {
+            case TAB_TERMINAL:
+                lines = dataManager.getLines();
+                break;
+            case TAB_INVENTORY:
+                lines = dataManager.getInventoryLines();
+                break;
+            case TAB_PARTITION:
+                lines = dataManager.getPartitionLines();
+                break;
+            default:
+                return null;
+        }
+
+        // Track cells we've already checked to avoid duplicate checks
+        java.util.Set<Long> checkedCellIds = new java.util.HashSet<>();
+
+        for (Object line : lines) {
+            CellInfo cell = null;
+
+            if (line instanceof CellInfo) {
+                cell = (CellInfo) line;
+            } else if (line instanceof CellContentRow) {
+                // Tab 2/3 use CellContentRow which wraps CellInfo
+                cell = ((CellContentRow) line).getCell();
+            }
+
+            if (cell == null) continue;
+
+            // Skip if we've already checked this cell (Tab 2/3 have multiple rows per cell)
+            long cellId = cell.getParentStorageId() * 100 + cell.getSlot();
+            if (checkedCellIds.contains(cellId)) continue;
+            checkedCellIds.add(cellId);
+
+            if (cell.canAcceptUpgrade(upgradeStack)) return cell;
+        }
+
+        return null;
+    }
+
+    /**
+     * Find the first cell in a specific storage that can accept the given upgrade.
+     * @param storage The storage to search in
+     * @param upgradeStack The upgrade item to check compatibility with
+     * @return The first CellInfo that can accept the upgrade, or null if none found
+     */
+    protected CellInfo findFirstCellInStorageThatCanAcceptUpgrade(StorageInfo storage, ItemStack upgradeStack) {
+        for (CellInfo cell : storage.getCells()) {
+            if (cell.canAcceptUpgrade(upgradeStack)) return cell;
+        }
+
+        return null;
     }
 
     /**

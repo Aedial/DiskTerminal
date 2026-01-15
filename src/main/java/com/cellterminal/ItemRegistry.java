@@ -12,6 +12,7 @@ import appeng.api.AEApi;
 
 import com.cellterminal.items.ItemCellTerminal;
 import com.cellterminal.items.ItemOverflowCard;
+import com.cellterminal.items.ItemPriorityWand;
 import com.cellterminal.items.ItemWirelessCellTerminal;
 import com.cellterminal.items.cells.compacting.ItemCompactingCell;
 import com.cellterminal.items.cells.compacting.ItemCompactingComponent;
@@ -37,6 +38,7 @@ public class ItemRegistry {
     public static ItemNormalStorageCell NORMAL_STORAGE_CELL;
     public static ItemNormalStorageComponent NORMAL_STORAGE_COMPONENT;
     public static ItemOverflowCard OVERFLOW_CARD;
+    public static ItemPriorityWand PRIORITY_WAND;
 
     public static void init() {
         CELL_TERMINAL = new ItemCellTerminal();
@@ -50,6 +52,7 @@ public class ItemRegistry {
         NORMAL_STORAGE_CELL = new ItemNormalStorageCell();
         NORMAL_STORAGE_COMPONENT = new ItemNormalStorageComponent();
         OVERFLOW_CARD = new ItemOverflowCard();
+        PRIORITY_WAND = new ItemPriorityWand();
     }
 
     @SubscribeEvent
@@ -65,6 +68,7 @@ public class ItemRegistry {
         event.getRegistry().register(NORMAL_STORAGE_CELL);
         event.getRegistry().register(NORMAL_STORAGE_COMPONENT);
         event.getRegistry().register(OVERFLOW_CARD);
+        event.getRegistry().register(PRIORITY_WAND);
 
         AEApi.instance().registries().partModels().registerModels(PartCellTerminal.getResources());
     }
@@ -74,6 +78,7 @@ public class ItemRegistry {
         registerModel(CELL_TERMINAL);
         registerModel(WIRELESS_CELL_TERMINAL);
         registerModel(OVERFLOW_CARD);
+        registerModel(PRIORITY_WAND);
 
         // Register compacting cell models for each tier
         String[] cellTiers = ItemCompactingCell.getTierNames();

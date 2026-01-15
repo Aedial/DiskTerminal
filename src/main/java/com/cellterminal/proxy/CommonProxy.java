@@ -10,6 +10,7 @@ import appeng.api.AEApi;
 
 import com.cellterminal.CellTerminal;
 import com.cellterminal.ItemRegistry;
+import com.cellterminal.events.PriorityWandEventHandler;
 import com.cellterminal.gui.GuiHandler;
 import com.cellterminal.items.cells.compacting.CompactingCellHandler;
 import com.cellterminal.items.cells.highdensity.HighDensityCellHandler;
@@ -21,6 +22,7 @@ public class CommonProxy {
     public void preInit(FMLPreInitializationEvent event) {
         ItemRegistry.init();
         MinecraftForge.EVENT_BUS.register(new ItemRegistry());
+        MinecraftForge.EVENT_BUS.register(new PriorityWandEventHandler());
     }
 
     public void init(FMLInitializationEvent event) {

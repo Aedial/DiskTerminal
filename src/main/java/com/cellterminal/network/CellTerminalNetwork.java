@@ -72,5 +72,37 @@ public class CellTerminalNetwork {
             packetId++,
             Side.CLIENT
         );
+
+        // Client -> Server: Set priority on a storage block
+        INSTANCE.registerMessage(
+            PacketSetPriority.Handler.class,
+            PacketSetPriority.class,
+            packetId++,
+            Side.SERVER
+        );
+
+        // Server -> Client: Priority applied confirmation (green highlight)
+        INSTANCE.registerMessage(
+            PacketPriorityApplied.Handler.class,
+            PacketPriorityApplied.class,
+            packetId++,
+            Side.CLIENT
+        );
+
+        // Client -> Server: Add upgrade to a cell
+        INSTANCE.registerMessage(
+            PacketUpgradeCell.Handler.class,
+            PacketUpgradeCell.class,
+            packetId++,
+            Side.SERVER
+        );
+
+        // Client -> Server: Set Priority Wand stored priority
+        INSTANCE.registerMessage(
+            PacketSetWandPriority.Handler.class,
+            PacketSetWandPriority.class,
+            packetId++,
+            Side.SERVER
+        );
     }
 }

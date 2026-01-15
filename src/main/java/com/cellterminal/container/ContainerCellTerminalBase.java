@@ -19,7 +19,9 @@ import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
 import appeng.api.AEApi;
+import appeng.api.config.Upgrades;
 import appeng.api.implementations.IUpgradeableHost;
+import appeng.api.implementations.items.IUpgradeModule;
 import appeng.api.implementations.tiles.IChestOrDrive;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
@@ -28,6 +30,7 @@ import appeng.api.parts.IPart;
 import appeng.api.storage.ICellHandler;
 import appeng.api.storage.ICellInventory;
 import appeng.api.storage.ICellInventoryHandler;
+import appeng.api.storage.ICellWorkbenchItem;
 import appeng.api.storage.IStorageChannel;
 import appeng.api.storage.channels.IFluidStorageChannel;
 import appeng.api.storage.channels.IItemStorageChannel;
@@ -35,6 +38,7 @@ import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IItemList;
 import appeng.container.AEBaseContainer;
+import appeng.helpers.IPriorityHost;
 import appeng.tile.storage.TileChest;
 import appeng.tile.storage.TileDrive;
 import appeng.util.Platform;
@@ -180,6 +184,9 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         }
         storageData.setString("name", name);
 
+        // Get priority from IPriorityHost
+        if (te instanceof IPriorityHost) storageData.setInteger("priority", ((IPriorityHost) te).getPriority());
+
         // Get block item for rendering
         ItemStack blockItem = getBlockItem(te);
         if (!blockItem.isEmpty()) {
@@ -298,6 +305,56 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
             count++;
         }
         cellData.setTag("contents", contentsList);
+
+        // Get upgrade information
+        populateCellUpgrades(cellData, cellInv);
+    }
+
+    /**
+     * Populate upgrade information for a cell.
+     */
+    protected void populateCellUpgrades(NBTTagCompound cellData, ICellInventory<?> cellInv) {
+        IItemHandler upgradesInv = cellInv.getUpgradesInventory();
+        if (upgradesInv == null) return;
+
+        NBTTagList upgradeList = new NBTTagList();
+        boolean hasSticky = false;
+        boolean hasFuzzy = false;
+        boolean hasInverter = false;
+
+        for (int i = 0; i < upgradesInv.getSlots(); i++) {
+            ItemStack upgrade = upgradesInv.getStackInSlot(i);
+            if (upgrade.isEmpty()) continue;
+
+            NBTTagCompound upgradeNbt = new NBTTagCompound();
+            upgrade.writeToNBT(upgradeNbt);
+            upgradeList.appendTag(upgradeNbt);
+
+            // Check upgrade type
+            if (upgrade.getItem() instanceof IUpgradeModule) {
+                Upgrades upgradeType = ((IUpgradeModule) upgrade.getItem()).getType(upgrade);
+                if (upgradeType != null) {
+                    switch (upgradeType) {
+                        case STICKY:
+                            hasSticky = true;
+                            break;
+                        case FUZZY:
+                            hasFuzzy = true;
+                            break;
+                        case INVERTER:
+                            hasInverter = true;
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+        }
+
+        cellData.setTag("upgrades", upgradeList);
+        cellData.setBoolean("hasSticky", hasSticky);
+        cellData.setBoolean("hasFuzzy", hasFuzzy);
+        cellData.setBoolean("hasInverter", hasInverter);
     }
 
     protected void populateCellDataFromFluidCell(NBTTagCompound cellData, ICellInventoryHandler<IAEFluidStack> cellInvHandler, IStorageChannel<IAEFluidStack> channel) {
@@ -348,6 +405,9 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
             }
         }
         cellData.setTag("contents", contentsList);
+
+        // Get upgrade information
+        populateCellUpgrades(cellData, cellInv);
     }
 
     protected IItemHandler getCellInventory(IChestOrDrive storage) {
@@ -595,6 +655,123 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
         // Trigger refresh to send updated data to client
         this.needsFullRefresh = true;
+    }
+
+    /**
+     * Handle priority change requests from client.
+     */
+    public void handleSetPriority(long storageId, int priority) {
+        StorageTracker tracker = this.byId.get(storageId);
+        if (tracker == null) return;
+
+        if (!(tracker.tile instanceof IPriorityHost)) return;
+
+        IPriorityHost priorityHost = (IPriorityHost) tracker.tile;
+        priorityHost.setPriority(priority);
+        tracker.tile.markDirty();
+
+        // Trigger refresh to send updated data to client
+        this.needsFullRefresh = true;
+    }
+
+    /**
+     * Handle upgrade cell requests from client.
+     * Takes the upgrade from the player's held item or a specific inventory slot and inserts it into the cell.
+     * @param player The player holding the upgrade
+     * @param storageId The storage containing the cell
+     * @param cellSlot The slot of the cell in the storage
+     * @param shiftClick If true, find first visible cell that doesn't have this upgrade
+     * @param fromSlot Inventory slot to take upgrade from (-1 = cursor)
+     */
+    public void handleUpgradeCell(EntityPlayer player, long storageId, int cellSlot, boolean shiftClick, int fromSlot) {
+        ItemStack upgradeStack;
+
+        if (fromSlot >= 0) {
+            // Take upgrade from inventory slot
+            upgradeStack = player.inventory.getStackInSlot(fromSlot);
+        } else {
+            // Take upgrade from cursor
+            upgradeStack = player.inventory.getItemStack();
+        }
+
+        if (upgradeStack.isEmpty()) return;
+
+        // Check if held item is an upgrade
+        if (!(upgradeStack.getItem() instanceof IUpgradeModule)) return;
+
+        IUpgradeModule upgradeModule = (IUpgradeModule) upgradeStack.getItem();
+        Upgrades upgradeType = upgradeModule.getType(upgradeStack);
+        if (upgradeType == null) return;
+
+        StorageTracker tracker = this.byId.get(storageId);
+        if (tracker == null) return;
+
+        IItemHandler cellInventory = getCellInventory(tracker.storage);
+        if (cellInventory == null) return;
+
+        // Try to upgrade the specified cell
+        // (Client determines the target cell for both regular and shift-click)
+        ItemStack cellStack = cellInventory.getStackInSlot(cellSlot);
+        if (cellStack.isEmpty()) return;
+
+        if (tryInsertUpgradeIntoCell(cellStack, upgradeStack, upgradeType)) {
+            // Mark tile as dirty
+            tracker.tile.markDirty();
+
+            // Force refresh
+            forceCellHandlerRefresh(tracker, cellSlot);
+
+            // Update player's inventory
+            if (fromSlot >= 0) {
+                player.inventory.markDirty();
+            } else {
+                ((EntityPlayerMP) player).updateHeldItem();
+            }
+
+            // Trigger refresh to send updated data to client
+            this.needsFullRefresh = true;
+        }
+    }
+
+    /**
+     * Handle upgrade cell requests (legacy signature for compatibility).
+     */
+    public void handleUpgradeCell(EntityPlayer player, long storageId, int cellSlot, boolean shiftClick) {
+        handleUpgradeCell(player, storageId, cellSlot, shiftClick, -1);
+    }
+
+    /**
+     * Try to insert an upgrade into a cell.
+     * @param cellStack The cell ItemStack (will be modified in place)
+     * @param upgradeStack The upgrade to insert (will have count decremented)
+     * @param upgradeType The type of upgrade
+     * @return true if the upgrade was inserted
+     */
+    private boolean tryInsertUpgradeIntoCell(ItemStack cellStack, ItemStack upgradeStack, Upgrades upgradeType) {
+        // Cell must implement ICellWorkbenchItem to support upgrades
+        if (!(cellStack.getItem() instanceof ICellWorkbenchItem)) return false;
+
+        ICellWorkbenchItem cellItem = (ICellWorkbenchItem) cellStack.getItem();
+        if (!cellItem.isEditable(cellStack)) return false;
+
+        IItemHandler upgradesInv = cellItem.getUpgradesInventory(cellStack);
+        if (upgradesInv == null) return false;
+
+        // Try to insert the upgrade
+        ItemStack toInsert = upgradeStack.copy();
+        toInsert.setCount(1);
+
+        for (int slot = 0; slot < upgradesInv.getSlots(); slot++) {
+            ItemStack remainder = upgradesInv.insertItem(slot, toInsert, false);
+            if (remainder.isEmpty()) {
+                // Successfully inserted - decrement held stack
+                upgradeStack.shrink(1);
+
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

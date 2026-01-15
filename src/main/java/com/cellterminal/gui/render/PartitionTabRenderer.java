@@ -50,10 +50,15 @@ public class PartitionTabRenderer extends CellTerminalRenderer {
             boolean isHovered = relMouseX >= 4 && relMouseX < 185
                 && relMouseY >= y && relMouseY < y + ROW_HEIGHT;
 
-            // Draw hover background
-            if (isHovered && (line instanceof CellContentRow || line instanceof EmptySlotInfo)) {
-                ctx.hoveredLineIndex = lineIndex;
-                Gui.drawRect(GUI_INDENT, y - 1, 180, y + ROW_HEIGHT - 1, 0x50CCCCCC);
+            // Track hover state based on line type
+            if (isHovered) {
+                if (line instanceof CellContentRow || line instanceof EmptySlotInfo) {
+                    ctx.hoveredLineIndex = lineIndex;
+                    Gui.drawRect(GUI_INDENT, y - 1, 180, y + ROW_HEIGHT - 1, 0x50CCCCCC);
+                } else if (line instanceof StorageInfo) {
+                    ctx.hoveredStorageLine = (StorageInfo) line;
+                    ctx.hoveredLineIndex = lineIndex;
+                }
             }
 
             // Draw separator line above storage entries
@@ -70,7 +75,7 @@ public class PartitionTabRenderer extends CellTerminalRenderer {
             boolean hasContentBelow = (lineIndex < totalLines - 1) && !isLastInGroup;
 
             if (line instanceof StorageInfo) {
-                drawStorageLineSimple((StorageInfo) line, y, partitionLines, lineIndex);
+                drawStorageLineSimple((StorageInfo) line, y, partitionLines, lineIndex, ctx);
             } else if (line instanceof CellContentRow) {
                 CellContentRow row = (CellContentRow) line;
                 drawCellPartitionLine(row.getCell(), row.getStartIndex(), row.isFirstRow(),
@@ -89,7 +94,10 @@ public class PartitionTabRenderer extends CellTerminalRenderer {
         }
     }
 
-    private void drawStorageLineSimple(StorageInfo storage, int y, List<Object> lines, int lineIndex) {
+    private void drawStorageLineSimple(StorageInfo storage, int y, List<Object> lines, int lineIndex, RenderContext ctx) {
+        // Track this storage for priority field rendering
+        ctx.visibleStorages.add(new RenderContext.VisibleStorageEntry(storage, y));
+
         // Draw vertical tree line connecting to cells below (only if there are cells following)
         boolean hasCellsFollowing = lineIndex + 1 < lines.size()
             && (lines.get(lineIndex + 1) instanceof CellContentRow || lines.get(lineIndex + 1) instanceof EmptySlotInfo);
@@ -102,9 +110,9 @@ public class PartitionTabRenderer extends CellTerminalRenderer {
         // Draw block icon
         renderItemStack(storage.getBlockItem(), GUI_INDENT, y);
 
-        // Draw name and location
+        // Draw name
         String name = storage.getName();
-        if (name.length() > 20) name = name.substring(0, 18) + "...";
+        if (name.length() > 12) name = name.substring(0, 10) + "...";
         fontRenderer.drawString(name, GUI_INDENT + 20, y + 1, 0x404040);
 
         String location = storage.getLocationString();
@@ -125,6 +133,10 @@ public class PartitionTabRenderer extends CellTerminalRenderer {
             drawTreeLines(lineX, y, true, isFirstInGroup, isLastInGroup,
                 visibleTop, visibleBottom, isFirstVisibleRow, isLastVisibleRow,
                 hasContentAbove, hasContentBelow);
+
+            // Draw upgrade icons to the left of the cell slot
+            int upgradeX = 4;
+            drawCellUpgradeIcons(cell, upgradeX, y);
 
             // Draw cell slot background
             drawSlotBackground(CELL_INDENT, y);

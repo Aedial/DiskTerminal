@@ -205,3 +205,18 @@ item.nae2.material.cell_part.2097152k.name=§d2097152k§r ME Storage Component
 # High-Density Tooltips
 tooltip.cellterminal.high_density_cell.info=High-Density: ~2.1B per Byte
 tooltip.cellterminal.high_density_component.info=High-Density storage component
+
+# Priority Wand
+item.cellterminal.priority_wand.name=Priority Wand
+item.cellterminal.priority_wand.stored=Stored Priority: %d
+item.cellterminal.priority_wand.tip1=Shift-Right Click: Set wand priority
+item.cellterminal.priority_wand.tip2=Right Click on Block: Apply stored priority
+item.cellterminal.priority_wand.tip3=Off-hand: Auto-apply on block placement
+
+# Priority Wand GUI
+gui.cellterminal.priority_wand.title=Priority Wand
+
+# Priority
+gui.cellterminal.priority.title=Priority
+gui.cellterminal.priority.tooltip=Click to set priority
+cellterminal.priority.applied=Priority set to %d at [%d, %d, %d]
