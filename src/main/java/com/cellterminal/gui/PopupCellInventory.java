@@ -233,7 +233,7 @@ public class PopupCellInventory extends Gui {
         if (stack.isEmpty()) return false;
 
         for (ItemStack partItem : partition) {
-            if (ItemStack.areItemsEqual(stack, partItem)) return true;
+            if (ItemStack.areItemStacksEqual(stack, partItem)) return true;
         }
 
         return false;

@@ -1361,7 +1361,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
     protected int findItemInConfigWithLimit(IItemHandler inv, ItemStack stack, int limit) {
         for (int i = 0; i < inv.getSlots() && i < limit; i++) {
             ItemStack configStack = inv.getStackInSlot(i);
-            if (ItemStack.areItemsEqual(configStack, stack)) return i;
+            if (ItemStack.areItemStacksEqual(configStack, stack)) return i;
         }
 
         return -1;
@@ -1739,7 +1739,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
     protected int findItemInConfig(IItemHandler inv, ItemStack stack) {
         for (int i = 0; i < inv.getSlots(); i++) {
             ItemStack configStack = inv.getStackInSlot(i);
-            if (ItemStack.areItemsEqual(configStack, stack)) return i;
+            if (ItemStack.areItemStacksEqual(configStack, stack)) return i;
         }
 
         return -1;

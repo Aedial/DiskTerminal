@@ -263,12 +263,14 @@ public abstract class CellTerminalRenderer {
 
     /**
      * Check if an item is in the partition list.
+     * Uses areItemStacksEqual to also compare NBT (important for essentia items
+     * where the aspect type is stored in NBT).
      */
     protected boolean isInPartition(ItemStack stack, List<ItemStack> partition) {
         if (stack.isEmpty()) return false;
 
         for (ItemStack partItem : partition) {
-            if (ItemStack.areItemsEqual(stack, partItem)) return true;
+            if (ItemStack.areItemStacksEqual(stack, partItem)) return true;
         }
 
         return false;
