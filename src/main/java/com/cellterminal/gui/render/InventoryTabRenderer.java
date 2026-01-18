@@ -49,19 +49,24 @@ public class InventoryTabRenderer extends CellTerminalRenderer {
 
             // Track hover state based on line type
             if (isHovered) {
-                if (line instanceof CellContentRow || line instanceof EmptySlotInfo) {
+                if (line instanceof CellContentRow) {
+                    ctx.hoveredLineIndex = lineIndex;
+                    // Also set hoveredCellCell for double-click storage lookup
+                    ctx.hoveredCellCell = ((CellContentRow) line).getCell();
+                    Gui.drawRect(GUI_INDENT, y - 1, 180, y + ROW_HEIGHT - 1, 0x50CCCCCC);
+                } else if (line instanceof EmptySlotInfo) {
                     ctx.hoveredLineIndex = lineIndex;
                     Gui.drawRect(GUI_INDENT, y - 1, 180, y + ROW_HEIGHT - 1, 0x50CCCCCC);
                 } else if (line instanceof StorageInfo) {
                     ctx.hoveredStorageLine = (StorageInfo) line;
                     ctx.hoveredLineIndex = lineIndex;
+                    // Draw hover highlight for storage header
+                    Gui.drawRect(GUI_INDENT, y, 180, y + ROW_HEIGHT, 0x30FFFFFF);
                 }
             }
 
             // Draw separator line above storage entries
-            if (line instanceof StorageInfo && i > 0) {
-                Gui.drawRect(GUI_INDENT, y - 1, 180, y, 0xFF606060);
-            }
+            if (line instanceof StorageInfo && i > 0) Gui.drawRect(GUI_INDENT, y - 1, 180, y, 0xFF606060);
 
             // Tree line parameters
             boolean isFirstInGroup = isFirstInStorageGroup(inventoryLines, lineIndex);
@@ -128,11 +133,35 @@ public class InventoryTabRenderer extends CellTerminalRenderer {
         if (isFirstRow) {
             drawTreeLines(lineX, y, true, isFirstInGroup, isLastInGroup,
                 visibleTop, visibleBottom, isFirstVisibleRow, isLastVisibleRow,
-                hasContentAbove, hasContentBelow);
+                hasContentAbove, hasContentBelow, false);
+
+            // TODO: should we push the slot a bit right to place the button better?
+            // Draw partition-all button on tree line (green dot)
+            int buttonX = lineX - 5;
+            int buttonY = y + 4;
+            int buttonSize = 8;
+
+            boolean partitionAllHovered = mouseX >= buttonX && mouseX < buttonX + buttonSize
+                && mouseY >= buttonY && mouseY < buttonY + buttonSize;
+
+            // Draw background that covers tree line area first
+            Gui.drawRect(buttonX - 1, buttonY - 1, buttonX + buttonSize + 1, buttonY + buttonSize + 1, 0xFF8B8B8B);
+
+            // Draw small button with green dot
+            int btnColor = partitionAllHovered ? 0xFF707070 : 0xFF8B8B8B;
+            Gui.drawRect(buttonX, buttonY, buttonX + buttonSize, buttonY + buttonSize, btnColor);
+            Gui.drawRect(buttonX, buttonY, buttonX + buttonSize, buttonY + 1, 0xFFFFFFFF);
+            Gui.drawRect(buttonX, buttonY, buttonX + 1, buttonY + buttonSize, 0xFFFFFFFF);
+            Gui.drawRect(buttonX, buttonY + buttonSize - 1, buttonX + buttonSize, buttonY + buttonSize, 0xFF555555);
+            Gui.drawRect(buttonX + buttonSize - 1, buttonY, buttonX + buttonSize, buttonY + buttonSize, 0xFF555555);
+
+            // Draw green dot inside button
+            Gui.drawRect(buttonX + 1, buttonY + 1, buttonX + buttonSize - 1, buttonY + buttonSize - 1, 0xFF33CC33);
+
+            if (partitionAllHovered) ctx.hoveredPartitionAllButtonCell = cell;
 
             // Draw upgrade icons to the left of the cell slot
-            int upgradeX = 4;
-            drawCellUpgradeIcons(cell, upgradeX, y);
+            drawCellUpgradeIcons(cell, 3, y);
 
             // Draw cell slot background
             drawSlotBackground(CELL_INDENT, y);
@@ -162,7 +191,7 @@ public class InventoryTabRenderer extends CellTerminalRenderer {
             if (!isLastInGroup) {
                 drawTreeLines(lineX, y, false, isFirstInGroup, false,
                     visibleTop, visibleBottom, isFirstVisibleRow, isLastVisibleRow,
-                    hasContentAbove, hasContentBelow);
+                    hasContentAbove, hasContentBelow, false);
             }
         }
 
@@ -226,7 +255,7 @@ public class InventoryTabRenderer extends CellTerminalRenderer {
         int lineX = GUI_INDENT + 7;
         drawTreeLines(lineX, y, true, isFirstInGroup, isLastInGroup,
             visibleTop, visibleBottom, isFirstVisibleRow, isLastVisibleRow,
-            hasContentAbove, hasContentBelow);
+            hasContentAbove, hasContentBelow, false);
 
         // Draw empty slot with proper slot background
         drawSlotBackground(CELL_INDENT, y);

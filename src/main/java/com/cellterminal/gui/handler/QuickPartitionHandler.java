@@ -161,10 +161,10 @@ public class QuickPartitionHandler {
     /**
      * Holds information about a hovered ingredient, preserving its original type.
      */
-    private static class HoveredIngredient {
-        final ItemStack stack;
-        final Object originalIngredient;
-        final PartitionType inferredType;
+    public static class HoveredIngredient {
+        public final ItemStack stack;
+        public final Object originalIngredient;
+        public final PartitionType inferredType;
 
         HoveredIngredient(ItemStack stack, Object originalIngredient, PartitionType inferredType) {
             this.stack = stack;
@@ -179,7 +179,7 @@ public class QuickPartitionHandler {
      * Preserves original ingredient type for proper cell type inference.
      */
     @Nullable
-    private static HoveredIngredient getHoveredIngredient() {
+    public static HoveredIngredient getHoveredIngredient() {
         Minecraft mc = Minecraft.getMinecraft();
 
         // Check player inventory slots first (always item type)

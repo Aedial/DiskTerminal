@@ -29,6 +29,7 @@ public abstract class CellTerminalRenderer {
     protected static final int GUI_INDENT = 22;
     protected static final int CELL_INDENT = GUI_INDENT + 12;
     protected static final int SLOTS_PER_ROW = 8;
+    protected static final int SLOTS_PER_ROW_BUS = 9;
 
     protected final FontRenderer fontRenderer;
     protected final RenderItem itemRender;
@@ -150,7 +151,7 @@ public abstract class CellTerminalRenderer {
         if (upgrades.isEmpty()) return 0;
 
         int iconX = x;
-        int iconY = y + 1; // Align with top of cell icon
+        int iconY = y; // Align with top of cell icon
 
         for (ItemStack upgrade : upgrades) {
             renderSmallItemStack(upgrade, iconX, iconY);
@@ -211,24 +212,34 @@ public abstract class CellTerminalRenderer {
      * @param isLastVisibleRow Whether this is the last visible row
      * @param hasContentAbove Whether there's content above that's scrolled out
      * @param hasContentBelow Whether there's content below that's scrolled out
+     * @param allBranches Whether to draw a horizontal branch for every row (not just first)
      */
     protected void drawTreeLines(int lineX, int y, boolean isFirstRow, boolean isFirstInGroup,
             boolean isLastInGroup, int visibleTop, int visibleBottom,
             boolean isFirstVisibleRow, boolean isLastVisibleRow,
-            boolean hasContentAbove, boolean hasContentBelow) {
+            boolean hasContentAbove, boolean hasContentBelow,
+            boolean allBranches) {
 
         int lineTop;
         if (isFirstRow) {
             if (isFirstInGroup) {
-                lineTop = isFirstVisibleRow ? visibleTop : y - ROW_HEIGHT + 9;
+                // First row in group (right after header) - extend up to connect with header's segment
+                lineTop = y - 3;
             } else if (isFirstVisibleRow && hasContentAbove) {
+                // First visible row with content above scrolled out -
+                // clamp to visibleTop to avoid leaking above GUI
                 lineTop = visibleTop;
             } else {
-                lineTop = y - ROW_HEIGHT + 9;
+                // Connect to row above but don't extend too high (avoid overlapping buttons/icons)
+                lineTop = y - 4;
             }
         } else {
-            lineTop = isFirstVisibleRow && hasContentAbove ? visibleTop : y - ROW_HEIGHT + 9;
+            // Connect to row above with minimal overlap
+            lineTop = isFirstVisibleRow && hasContentAbove ? visibleTop : y - 4;
         }
+
+        // Clamp lineTop to never go above visibleTop to prevent leak above GUI
+        if (lineTop < visibleTop) lineTop = visibleTop;
 
         int lineBottom;
         if (isLastInGroup) {
@@ -242,8 +253,12 @@ public abstract class CellTerminalRenderer {
         // Vertical line
         Gui.drawRect(lineX, lineTop, lineX + 1, lineBottom, 0xFF808080);
 
-        // Horizontal branch (only on first row)
-        if (isFirstRow) Gui.drawRect(lineX, y + 8, lineX + 10, y + 9, 0xFF808080);
+        // Horizontal branch (only on first row unless all branches are enabled)
+        if (allBranches) {
+            Gui.drawRect(lineX, y + 8, lineX + 10, y + 9, 0xFF808080);
+        } else if (isFirstRow) {
+            Gui.drawRect(lineX, y + 8, lineX + 10, y + 9, 0xFF808080);
+        }
     }
 
     /**

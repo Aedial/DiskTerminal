@@ -95,7 +95,7 @@ public class StorageInfo {
     }
 
     public String getLocationString() {
-        return String.format("[%d, %d, %d] (DIM %d)", pos.getX(), pos.getY(), pos.getZ(), dimension);
+        return I18n.format("gui.cellterminal.location_format", pos.getX(), pos.getY(), pos.getZ(), dimension);
     }
 
     public int getTotalCellCount() {

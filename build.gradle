@@ -102,8 +102,6 @@ if (cfProjectId) {
                 optionalDependency 'jei'
                 // Optional: Thaumic Energistics (for Essentia cell support)
                 optionalDependency 'thaumic-energistics'
-                // Optional: NAE2 (for larger compacting cell tiers)
-                optionalDependency 'nae2'
             }
         }
 

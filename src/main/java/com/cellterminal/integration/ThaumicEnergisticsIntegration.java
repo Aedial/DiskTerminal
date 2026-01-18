@@ -207,6 +207,11 @@ public class ThaumicEnergisticsIntegration {
     @Optional.Method(modid = MODID)
     private static ItemStack tryConvertEssentiaContainerToAspectInternal(ItemStack itemStack) {
         try {
+            // If already an ItemDummyAspect, return as-is
+            if (itemStack.getItem() instanceof thaumicenergistics.item.ItemDummyAspect) {
+                return itemStack;
+            }
+
             // Check if item is an essentia container (phials, jars, crystals, etc.)
             if (!(itemStack.getItem() instanceof thaumcraft.api.aspects.IEssentiaContainerItem)) {
                 return ItemStack.EMPTY;
@@ -334,5 +339,324 @@ public class ThaumicEnergisticsIntegration {
 
             return ItemStack.EMPTY;
         }
+    }
+
+    /**
+     * Get the PartEssentiaStorageBus class for grid machine iteration.
+     * Returns null if Thaumic Energistics is not loaded.
+     */
+    public static Class<?> getEssentiaStorageBusClass() {
+        if (!isModLoaded()) return null;
+
+        return getEssentiaStorageBusClassInternal();
+    }
+
+    @Optional.Method(modid = MODID)
+    private static Class<?> getEssentiaStorageBusClassInternal() {
+        try {
+            return thaumicenergistics.part.PartEssentiaStorageBus.class;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Create NBT data for an essentia storage bus.
+     * Returns null if not an essentia storage bus or if Thaumic Energistics is not loaded.
+     *
+     * @param machine The grid machine (should be a PartEssentiaStorageBus)
+     * @param busId The unique bus ID
+     * @return NBT data for the storage bus, or null if not supported
+     */
+    public static NBTTagCompound tryCreateEssentiaStorageBusData(Object machine, long busId) {
+        if (!isModLoaded()) return null;
+
+        return tryCreateEssentiaStorageBusDataInternal(machine, busId);
+    }
+
+    @Optional.Method(modid = MODID)
+    private static NBTTagCompound tryCreateEssentiaStorageBusDataInternal(Object machine, long busId) {
+        try {
+            if (!(machine instanceof thaumicenergistics.part.PartEssentiaStorageBus)) return null;
+
+            thaumicenergistics.part.PartEssentiaStorageBus bus =
+                (thaumicenergistics.part.PartEssentiaStorageBus) machine;
+
+            net.minecraft.tileentity.TileEntity hostTile = bus.getTile();
+            if (hostTile == null) return null;
+
+            NBTTagCompound busData = new NBTTagCompound();
+            busData.setLong("id", busId);
+            busData.setLong("pos", hostTile.getPos().toLong());
+            busData.setInteger("dim", hostTile.getWorld().provider.getDimension());
+            busData.setInteger("side", bus.side.ordinal());
+            busData.setInteger("priority", bus.getPriority());
+            busData.setBoolean("isEssentia", true);
+
+            // Essentia storage buses don't have the same upgrade types as item storage buses
+            // They use speed upgrades only
+            int capacityUpgrades = 0;  // Essentia buses don't have capacity upgrades
+            busData.setInteger("capacityUpgrades", capacityUpgrades);
+
+            // Access restriction - essentia buses always allow read/write
+            busData.setInteger("access", 3);  // READ_WRITE
+
+            // Connected inventory info - check for IAspectContainer
+            net.minecraft.tileentity.TileEntity targetTile = hostTile.getWorld().getTileEntity(
+                hostTile.getPos().offset(bus.side.getFacing()));
+
+            if (targetTile != null) {
+                // Get the block as icon
+                net.minecraft.block.state.IBlockState state = hostTile.getWorld().getBlockState(
+                    hostTile.getPos().offset(bus.side.getFacing()));
+                ItemStack blockStack = new ItemStack(state.getBlock(), 1, state.getBlock().getMetaFromState(state));
+
+                if (!blockStack.isEmpty()) {
+                    busData.setString("connectedName", blockStack.getDisplayName());
+
+                    NBTTagCompound iconNbt = new NBTTagCompound();
+                    blockStack.writeToNBT(iconNbt);
+                    busData.setTag("connectedIcon", iconNbt);
+                }
+            }
+
+            // Get config (partition) from essentia filter
+            thaumicenergistics.util.EssentiaFilter config = bus.getConfig();
+            if (config != null) {
+                NBTTagList partitionList = new NBTTagList();
+                int slotIndex = 0;
+
+                for (thaumcraft.api.aspects.Aspect aspect : config) {
+                    NBTTagCompound partNbt = new NBTTagCompound();
+                    partNbt.setInteger("slot", slotIndex);
+
+                    if (aspect != null) {
+                        // Convert aspect to DummyAspect item for display
+                        IStorageChannel<thaumicenergistics.api.storage.IAEEssentiaStack> essentiaChannel =
+                            AEApi.instance().storage().getStorageChannel(
+                                thaumicenergistics.api.storage.IEssentiaStorageChannel.class);
+
+                        if (essentiaChannel != null) {
+                            thaumicenergistics.api.storage.IAEEssentiaStack aeStack =
+                                essentiaChannel.createStack(aspect);
+
+                            if (aeStack != null) {
+                                ItemStack itemRep = aeStack.asItemStackRepresentation();
+                                if (!itemRep.isEmpty()) itemRep.writeToNBT(partNbt);
+                            }
+                        }
+                    }
+
+                    partitionList.appendTag(partNbt);
+                    slotIndex++;
+                }
+
+                busData.setTag("partition", partitionList);
+            }
+
+            // Get contents from connected IAspectContainer
+            if (targetTile instanceof thaumcraft.api.aspects.IAspectContainer) {
+                thaumcraft.api.aspects.IAspectContainer container =
+                    (thaumcraft.api.aspects.IAspectContainer) targetTile;
+                thaumcraft.api.aspects.AspectList aspects = container.getAspects();
+
+                NBTTagList contentsList = new NBTTagList();
+
+                if (aspects != null) {
+                    int count = 0;
+                    IStorageChannel<thaumicenergistics.api.storage.IAEEssentiaStack> essentiaChannel =
+                        AEApi.instance().storage().getStorageChannel(
+                            thaumicenergistics.api.storage.IEssentiaStorageChannel.class);
+
+                    for (thaumcraft.api.aspects.Aspect aspect : aspects.getAspects()) {
+                        if (count >= 63 || aspect == null) break;
+
+                        int amount = aspects.getAmount(aspect);
+                        if (amount <= 0) continue;
+
+                        if (essentiaChannel != null) {
+                            thaumicenergistics.api.storage.IAEEssentiaStack aeStack =
+                                essentiaChannel.createStack(aspect);
+
+                            if (aeStack != null) {
+                                ItemStack itemRep = aeStack.asItemStackRepresentation();
+                                if (!itemRep.isEmpty()) {
+                                    NBTTagCompound stackNbt = new NBTTagCompound();
+                                    itemRep.writeToNBT(stackNbt);
+                                    stackNbt.setLong("Cnt", amount);
+                                    contentsList.appendTag(stackNbt);
+                                    count++;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                busData.setTag("contents", contentsList);
+            }
+
+            // Upgrades - get from the upgrades inventory
+            NBTTagList upgradeList = new NBTTagList();
+            net.minecraftforge.items.IItemHandler upgradeInv = bus.getInventoryByName("upgrades");
+            if (upgradeInv != null) {
+                for (int i = 0; i < upgradeInv.getSlots(); i++) {
+                    ItemStack upgradeStack = upgradeInv.getStackInSlot(i);
+                    if (!upgradeStack.isEmpty()) {
+                        NBTTagCompound upgradeNbt = new NBTTagCompound();
+                        upgradeStack.writeToNBT(upgradeNbt);
+                        upgradeList.appendTag(upgradeNbt);
+                    }
+                }
+            }
+
+            busData.setTag("upgrades", upgradeList);
+
+            return busData;
+        } catch (Exception e) {
+            CellTerminal.LOGGER.debug("Failed to create essentia storage bus data: " + e.getMessage());
+
+            return null;
+        }
+    }
+
+    /**
+     * Handle partition action for essentia storage buses.
+     * This method dispatches to the internal handler if Thaumic Energistics is loaded.
+     */
+    public static void handleEssentiaStorageBusPartition(Object storageBus,
+                                                          com.cellterminal.network.PacketStorageBusPartitionAction.Action action,
+                                                          int partitionSlot,
+                                                          ItemStack itemStack) {
+        if (!isModLoaded()) return;
+
+        handleEssentiaStorageBusPartitionInternal(storageBus, action, partitionSlot, itemStack);
+    }
+
+    @Optional.Method(modid = MODID)
+    private static void handleEssentiaStorageBusPartitionInternal(Object storageBus,
+                                                                   com.cellterminal.network.PacketStorageBusPartitionAction.Action action,
+                                                                   int partitionSlot,
+                                                                   ItemStack itemStack) {
+        try {
+            if (!(storageBus instanceof thaumicenergistics.part.PartEssentiaStorageBus)) return;
+
+            thaumicenergistics.part.PartEssentiaStorageBus bus =
+                (thaumicenergistics.part.PartEssentiaStorageBus) storageBus;
+
+            thaumicenergistics.util.EssentiaFilter config = bus.getConfig();
+            if (config == null) return;
+
+            // Convert ItemStack to Aspect if it's an essentia representation
+            thaumcraft.api.aspects.Aspect aspectFromItem = null;
+            // Try to get aspect from DummyAspect item or filled phial/jar
+            if (!itemStack.isEmpty()) aspectFromItem = getAspectFromItem(itemStack);
+
+            switch (action) {
+                case ADD_ITEM:
+                    if (partitionSlot >= 0 && aspectFromItem != null) config.setAspect(aspectFromItem, partitionSlot);
+                    break;
+
+                case REMOVE_ITEM:
+                    if (partitionSlot >= 0) config.setAspect(null, partitionSlot);
+                    break;
+
+                case TOGGLE_ITEM:
+                    if (aspectFromItem != null) {
+                        int existingSlot = findAspectInConfig(config, aspectFromItem);
+                        if (existingSlot >= 0) {
+                            config.setAspect(null, existingSlot);
+                        } else {
+                            int emptySlot = findEmptyAspectSlot(config);
+                            if (emptySlot >= 0) config.setAspect(aspectFromItem, emptySlot);
+                        }
+                    }
+                    break;
+
+                case SET_ALL_FROM_CONTENTS:
+                case PARTITION_ALL:
+                    // Clear all aspects first
+                    clearAspectConfig(config);
+                    // Get contents from connected IAspectContainer
+                    net.minecraft.tileentity.TileEntity hostTile = bus.getTile();
+                    if (hostTile != null && hostTile.getWorld() != null) {
+                        net.minecraft.tileentity.TileEntity targetTile = hostTile.getWorld().getTileEntity(
+                            hostTile.getPos().offset(bus.side.getFacing()));
+                        if (targetTile instanceof thaumcraft.api.aspects.IAspectContainer) {
+                            thaumcraft.api.aspects.IAspectContainer container =
+                                (thaumcraft.api.aspects.IAspectContainer) targetTile;
+                            thaumcraft.api.aspects.AspectList aspects = container.getAspects();
+                            if (aspects != null) {
+                                for (thaumcraft.api.aspects.Aspect aspect : aspects.getAspects()) {
+                                    if (aspect == null) continue;
+                                    int amount = aspects.getAmount(aspect);
+                                    if (amount <= 0) continue;
+                                    // Check if we have room
+                                    int emptySlot = findEmptyAspectSlot(config);
+                                    if (emptySlot < 0) break;
+                                    config.setAspect(aspect, emptySlot);
+                                }
+                            }
+                        }
+                    }
+                    break;
+
+                case CLEAR_ALL:
+                    clearAspectConfig(config);
+                    break;
+            }
+        } catch (Exception e) {
+            CellTerminal.LOGGER.debug("Failed to handle essentia storage bus partition: " + e.getMessage());
+        }
+    }
+
+    @Optional.Method(modid = MODID)
+    private static thaumcraft.api.aspects.Aspect getAspectFromItem(ItemStack stack) {
+        // Try DummyAspect item first (Thaumic Energistics representation)
+        if (stack.getItem() instanceof thaumicenergistics.item.ItemDummyAspect) {
+            thaumicenergistics.item.ItemDummyAspect dummyItem =
+                (thaumicenergistics.item.ItemDummyAspect) stack.getItem();
+
+            return dummyItem.getAspect(stack);
+        }
+
+        // Try phials and jars from Thaumcraft
+        if (stack.getItem() instanceof thaumcraft.common.items.consumables.ItemPhial) {
+            thaumcraft.common.items.consumables.ItemPhial phial =
+                (thaumcraft.common.items.consumables.ItemPhial) stack.getItem();
+            thaumcraft.api.aspects.AspectList aspects = phial.getAspects(stack);
+            if (aspects != null && aspects.getAspects().length > 0) {
+                return aspects.getAspects()[0];
+            }
+        }
+
+        return null;
+    }
+
+    @Optional.Method(modid = MODID)
+    private static int findAspectInConfig(thaumicenergistics.util.EssentiaFilter config, thaumcraft.api.aspects.Aspect aspect) {
+        int slot = 0;
+        for (thaumcraft.api.aspects.Aspect a : config) {
+            if (a != null && a.equals(aspect)) return slot;
+            slot++;
+        }
+
+        return -1;
+    }
+
+    @Optional.Method(modid = MODID)
+    private static int findEmptyAspectSlot(thaumicenergistics.util.EssentiaFilter config) {
+        int slot = 0;
+        for (thaumcraft.api.aspects.Aspect a : config) {
+            if (a == null) return slot;
+            slot++;
+        }
+
+        return -1;
+    }
+
+    @Optional.Method(modid = MODID)
+    private static void clearAspectConfig(thaumicenergistics.util.EssentiaFilter config) {
+        int slot = 0;
+        for (thaumcraft.api.aspects.Aspect a : config) config.setAspect(null, slot++);
     }
 }

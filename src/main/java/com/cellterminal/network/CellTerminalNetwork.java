@@ -81,14 +81,6 @@ public class CellTerminalNetwork {
             Side.SERVER
         );
 
-        // Server -> Client: Priority applied confirmation (green highlight)
-        INSTANCE.registerMessage(
-            PacketPriorityApplied.Handler.class,
-            PacketPriorityApplied.class,
-            packetId++,
-            Side.CLIENT
-        );
-
         // Client -> Server: Add upgrade to a cell
         INSTANCE.registerMessage(
             PacketUpgradeCell.Handler.class,
@@ -97,10 +89,34 @@ public class CellTerminalNetwork {
             Side.SERVER
         );
 
-        // Client -> Server: Set Priority Wand stored priority
+        // Client -> Server: Tab change notification (for storage bus polling)
         INSTANCE.registerMessage(
-            PacketSetWandPriority.Handler.class,
-            PacketSetWandPriority.class,
+            PacketTabChange.Handler.class,
+            PacketTabChange.class,
+            packetId++,
+            Side.SERVER
+        );
+
+        // Client -> Server: Storage bus partition modification actions
+        INSTANCE.registerMessage(
+            PacketStorageBusPartitionAction.Handler.class,
+            PacketStorageBusPartitionAction.class,
+            packetId++,
+            Side.SERVER
+        );
+
+        // Client -> Server: Storage bus IO mode toggle
+        INSTANCE.registerMessage(
+            PacketStorageBusIOMode.Handler.class,
+            PacketStorageBusIOMode.class,
+            packetId++,
+            Side.SERVER
+        );
+
+        // Client -> Server: Add upgrade to a storage bus
+        INSTANCE.registerMessage(
+            PacketUpgradeStorageBus.Handler.class,
+            PacketUpgradeStorageBus.class,
             packetId++,
             Side.SERVER
         );
