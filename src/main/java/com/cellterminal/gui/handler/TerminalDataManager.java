@@ -17,6 +17,8 @@ import com.cellterminal.client.CellContentRow;
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.EmptySlotInfo;
 import com.cellterminal.client.SearchFilterMode;
+import com.cellterminal.client.StorageBusContentRow;
+import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.client.StorageInfo;
 
 
@@ -26,12 +28,16 @@ import com.cellterminal.client.StorageInfo;
 public class TerminalDataManager {
 
     private static final int SLOTS_PER_ROW = 8;
+    private static final int SLOTS_PER_ROW_BUS = 9;
     private static final int MAX_PARTITION_SLOTS = 63;
 
     private final Map<Long, StorageInfo> storageMap = new LinkedHashMap<>();
+    private final Map<Long, StorageBusInfo> storageBusMap = new LinkedHashMap<>();
     private final List<Object> lines = new ArrayList<>();
     private final List<Object> inventoryLines = new ArrayList<>();
     private final List<Object> partitionLines = new ArrayList<>();
+    private final List<Object> storageBusInventoryLines = new ArrayList<>();
+    private final List<Object> storageBusPartitionLines = new ArrayList<>();
 
     private BlockPos terminalPos = BlockPos.ORIGIN;
     private int terminalDimension = 0;
@@ -44,6 +50,10 @@ public class TerminalDataManager {
         return storageMap;
     }
 
+    public Map<Long, StorageBusInfo> getStorageBusMap() {
+        return storageBusMap;
+    }
+
     public List<Object> getLines() {
         return lines;
     }
@@ -54,6 +64,14 @@ public class TerminalDataManager {
 
     public List<Object> getPartitionLines() {
         return partitionLines;
+    }
+
+    public List<Object> getStorageBusInventoryLines() {
+        return storageBusInventoryLines;
+    }
+
+    public List<Object> getStorageBusPartitionLines() {
+        return storageBusPartitionLines;
     }
 
     public BlockPos getTerminalPos() {
@@ -70,15 +88,30 @@ public class TerminalDataManager {
             this.terminalDimension = data.getInteger("terminalDim");
         }
 
-        if (!data.hasKey("storages")) return;
+        boolean hasStorages = data.hasKey("storages");
+        boolean hasStorageBuses = data.hasKey("storageBuses");
+        if (!hasStorages && !hasStorageBuses) return;
 
-        this.storageMap.clear();
-        NBTTagList storageList = data.getTagList("storages", Constants.NBT.TAG_COMPOUND);
+        if (hasStorages) {
+            this.storageMap.clear();
+            NBTTagList storageList = data.getTagList("storages", Constants.NBT.TAG_COMPOUND);
 
-        for (int i = 0; i < storageList.tagCount(); i++) {
-            NBTTagCompound storageNbt = storageList.getCompoundTagAt(i);
-            StorageInfo storage = new StorageInfo(storageNbt);
-            this.storageMap.put(storage.getId(), storage);
+            for (int i = 0; i < storageList.tagCount(); i++) {
+                NBTTagCompound storageNbt = storageList.getCompoundTagAt(i);
+                StorageInfo storage = new StorageInfo(storageNbt);
+                this.storageMap.put(storage.getId(), storage);
+            }
+        }
+
+        if (hasStorageBuses) {
+            this.storageBusMap.clear();
+            NBTTagList busList = data.getTagList("storageBuses", Constants.NBT.TAG_COMPOUND);
+
+            for (int i = 0; i < busList.tagCount(); i++) {
+                NBTTagCompound busNbt = busList.getCompoundTagAt(i);
+                StorageBusInfo bus = new StorageBusInfo(busNbt);
+                this.storageBusMap.put(bus.getId(), bus);
+            }
         }
 
         rebuildLines();
@@ -97,7 +130,17 @@ public class TerminalDataManager {
         this.lines.clear();
         this.inventoryLines.clear();
         this.partitionLines.clear();
+        this.storageBusInventoryLines.clear();
+        this.storageBusPartitionLines.clear();
 
+        rebuildCellLines();
+        rebuildStorageBusLines();
+    }
+
+    /**
+     * Rebuild lines for cell storages (drives/chests).
+     */
+    private void rebuildCellLines() {
         List<StorageInfo> sortedStorages = new ArrayList<>(this.storageMap.values());
         sortedStorages.sort(createStorageComparator());
 
@@ -179,6 +222,125 @@ public class TerminalDataManager {
                 }
             }
         }
+    }
+
+    /**
+     * Rebuild lines for storage bus inventory and partition tabs.
+     * Storage buses are sorted by position then by facing.
+     * Each bus has a header row (StorageBusInfo) followed by content rows (StorageBusContentRow).
+     */
+    private void rebuildStorageBusLines() {
+        List<StorageBusInfo> sortedBuses = new ArrayList<>(this.storageBusMap.values());
+        sortedBuses.sort(createStorageBusComparator());
+
+        for (StorageBusInfo bus : sortedBuses) {
+            boolean matchesInventory = storageBusMatchesFilter(bus, true);
+            boolean matchesPartition = storageBusMatchesFilter(bus, false);
+
+            // Storage Bus Inventory tab - add header then content rows
+            if (matchesInventory) {
+                this.storageBusInventoryLines.add(bus);  // Header row
+                int contentCount = bus.getContents().size();
+                int contentRows = Math.max(1, (contentCount + SLOTS_PER_ROW_BUS - 1) / SLOTS_PER_ROW_BUS);
+                for (int row = 0; row < contentRows; row++) {
+                    this.storageBusInventoryLines.add(
+                        new StorageBusContentRow(bus, row * SLOTS_PER_ROW_BUS, row == 0));
+                }
+            }
+
+            // Storage Bus Partition tab - add header then content rows
+            if (matchesPartition) {
+                this.storageBusPartitionLines.add(bus);  // Header row
+                int availableSlots = bus.getAvailableConfigSlots();
+                int highestSlot = getHighestNonEmptyStorageBusPartitionSlot(bus);
+
+                // Calculate rows to show:
+                // - Always show at least 1 row
+                // - Show the row containing the highest non-empty slot
+                // - Show an extra empty row only if the last slot of the current row is filled
+                int partitionRows;
+                if (highestSlot < 0) {
+                    partitionRows = 1;  // Nothing filled, show 1 row
+                } else {
+                    int currentRow = highestSlot / SLOTS_PER_ROW_BUS;
+                    partitionRows = currentRow + 1;
+
+                    // Add extra row if last slot of current row is filled and more space available
+                    int lastSlotOfCurrentRow = (currentRow + 1) * SLOTS_PER_ROW_BUS - 1;
+                    if (highestSlot == lastSlotOfCurrentRow && lastSlotOfCurrentRow < availableSlots - 1) {
+                        partitionRows++;
+                    }
+                }
+
+                partitionRows = Math.min(partitionRows, (availableSlots + SLOTS_PER_ROW_BUS - 1) / SLOTS_PER_ROW_BUS);
+
+                for (int row = 0; row < partitionRows; row++) {
+                    this.storageBusPartitionLines.add(
+                        new StorageBusContentRow(bus, row * SLOTS_PER_ROW_BUS, row == 0));
+                }
+            }
+        }
+    }
+
+    /**
+     * Check if a storage bus matches the search filter.
+     * @param bus The storage bus to check
+     * @param checkInventory true to check inventory contents, false to check partition
+     * @return true if the bus matches the filter or if filter is empty
+     */
+    private boolean storageBusMatchesFilter(StorageBusInfo bus, boolean checkInventory) {
+        if (searchFilter.isEmpty()) return true;
+
+        List<ItemStack> itemsToCheck = checkInventory ? bus.getContents() : bus.getPartition();
+
+        for (ItemStack stack : itemsToCheck) {
+            if (stack.isEmpty()) return false;
+
+            // Check localized display name
+            String displayName = stack.getDisplayName().toLowerCase(Locale.ROOT);
+            if (displayName.contains(searchFilter)) return true;
+
+            // Check registry name (internal ID)
+            if (stack.getItem().getRegistryName() != null) {
+                String registryName = stack.getItem().getRegistryName().toString().toLowerCase(Locale.ROOT);
+                if (registryName.contains(searchFilter)) return true;
+            }
+        }
+
+        return false;
+    }
+
+    private int getHighestNonEmptyStorageBusPartitionSlot(StorageBusInfo bus) {
+        List<ItemStack> partition = bus.getPartition();
+        int highest = -1;
+
+        for (int i = 0; i < partition.size(); i++) {
+            if (!partition.get(i).isEmpty()) highest = i;
+        }
+
+        return highest;
+    }
+
+    private Comparator<StorageBusInfo> createStorageBusComparator() {
+        return (a, b) -> {
+            boolean aInDim = a.getDimension() == terminalDimension;
+            boolean bInDim = b.getDimension() == terminalDimension;
+
+            if (aInDim != bInDim) return aInDim ? -1 : 1;
+
+            if (a.getDimension() != b.getDimension()) {
+                return Integer.compare(a.getDimension(), b.getDimension());
+            }
+
+            double distA = terminalPos.distanceSq(a.getPos());
+            double distB = terminalPos.distanceSq(b.getPos());
+
+            int distCompare = Double.compare(distA, distB);
+            if (distCompare != 0) return distCompare;
+
+            // Same position - sort by facing index
+            return Integer.compare(a.getSide().ordinal(), b.getSide().ordinal());
+        };
     }
 
     /**
@@ -270,6 +432,10 @@ public class TerminalDataManager {
                 return inventoryLines.size();
             case 2:
                 return partitionLines.size();
+            case 3:
+                return storageBusInventoryLines.size();
+            case 4:
+                return storageBusPartitionLines.size();
             default:
                 return lines.size();
         }

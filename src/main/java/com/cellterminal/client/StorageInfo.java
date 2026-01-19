@@ -22,6 +22,7 @@ public class StorageInfo {
     private final String name;
     private final ItemStack blockItem;
     private final int slotCount;
+    private final int priority;
     private final List<CellInfo> cells = new ArrayList<>();
     private boolean expanded = true;
 
@@ -32,6 +33,7 @@ public class StorageInfo {
         this.name = nbt.getString("name");
         this.blockItem = nbt.hasKey("blockItem") ? new ItemStack(nbt.getCompoundTag("blockItem")) : ItemStack.EMPTY;
         this.slotCount = nbt.getInteger("slotCount");
+        this.priority = nbt.getInteger("priority");
 
         if (nbt.hasKey("cells")) {
             NBTTagList cellList = nbt.getTagList("cells", Constants.NBT.TAG_COMPOUND);
@@ -72,6 +74,10 @@ public class StorageInfo {
         return slotCount;
     }
 
+    public int getPriority() {
+        return priority;
+    }
+
     public List<CellInfo> getCells() {
         return cells;
     }
@@ -89,7 +95,7 @@ public class StorageInfo {
     }
 
     public String getLocationString() {
-        return String.format("[%d, %d, %d] (DIM %d)", pos.getX(), pos.getY(), pos.getZ(), dimension);
+        return I18n.format("gui.cellterminal.location_format", pos.getX(), pos.getY(), pos.getZ(), dimension);
     }
 
     public int getTotalCellCount() {

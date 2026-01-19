@@ -1,34 +1,12 @@
 # Items
 item.cellterminal.cell_terminal.name=Cell Terminal
 item.cellterminal.wireless_cell_terminal.name=Wireless Cell Terminal
-
-# Compacting Cells
-item.cellterminal.compacting_cell.1k.name=1k Compacting Storage Cell
-item.cellterminal.compacting_cell.4k.name=4k Compacting Storage Cell
-item.cellterminal.compacting_cell.16k.name=16k Compacting Storage Cell
-item.cellterminal.compacting_cell.64k.name=64k Compacting Storage Cell
-
-# Dense Compacting Cells (NAE2)
-item.cellterminal.dense_compacting_cell.256k.name=256k Compacting Storage Cell
-item.cellterminal.dense_compacting_cell.1m.name=1M Compacting Storage Cell
-item.cellterminal.dense_compacting_cell.4m.name=4M Compacting Storage Cell
-item.cellterminal.dense_compacting_cell.16m.name=16M Compacting Storage Cell
-
-# Compacting Components
-item.cellterminal.compacting_component.1k.name=1k Compacting Storage Component
-item.cellterminal.compacting_component.4k.name=4k Compacting Storage Component
-item.cellterminal.compacting_component.16k.name=16k Compacting Storage Component
-item.cellterminal.compacting_component.64k.name=64k Compacting Storage Component
-
-# Dense Compacting Components (NAE2)
-item.cellterminal.dense_compacting_component.256k.name=256k Compacting Storage Component
-item.cellterminal.dense_compacting_component.1m.name=1M Compacting Storage Component
-item.cellterminal.dense_compacting_component.4m.name=4M Compacting Storage Component
-item.cellterminal.dense_compacting_component.16m.name=16M Compacting Storage Component
+item.cellterminal.cell_terminal.tooltip=§bFor all your partitioning needs!
 
 # GUI
 gui.cellterminal.cell_terminal.title=Cell Terminal
 gui.cellterminal.wireless_cell_terminal.title=Wireless Cell Terminal
+gui.cellterminal.location_format=[%d, %d, %d] (DIM %d)
 gui.cellterminal.search=Search...
 gui.cellterminal.no_drives=No drives found in network
 gui.cellterminal.cell_empty=Empty cell
@@ -38,14 +16,19 @@ gui.cellterminal.partition=Partition
 gui.cellterminal.contents=Contents
 gui.cellterminal.click_to_edit=Click to edit
 gui.cellterminal.double_click_add=Double-click to add to partition
+gui.cellterminal.priority.tooltip=Set storage priority (higher priority used first)
 
 # Panel tabs
 gui.cellterminal.tab.terminal=Terminal
 gui.cellterminal.tab.inventory=Inventory
 gui.cellterminal.tab.partition=Partition
+gui.cellterminal.tab.storage_bus_inventory=Bus Contents
+gui.cellterminal.tab.storage_bus_partition=Bus Filters
 gui.cellterminal.tab.terminal.tooltip=Cell Overview
 gui.cellterminal.tab.inventory.tooltip=View Cell Contents
 gui.cellterminal.tab.partition.tooltip=Edit Cell Partitions
+gui.cellterminal.tab.storage_bus_inventory.tooltip=View Storage Bus Contents
+gui.cellterminal.tab.storage_bus_partition.tooltip=Edit Storage Bus Filters
 
 # Terminal style button
 gui.cellterminal.terminal_style=Terminal Style
@@ -94,12 +77,24 @@ cellterminal.error.essentia_cell_fluid=Cannot add fluids to an essentia cell par
 cellterminal.error.no_empty_slot=No empty slot in storage
 cellterminal.error.different_dimension=Cannot highlight block in different dimension
 
+# Storage bus error messages
+cellterminal.error.item_bus_fluid=Cannot add fluids to an item storage bus filter. Use an Item Storage Bus.
+cellterminal.error.fluid_bus_item=Cannot add items to a fluid storage bus filter. Use buckets or fluid containers.
+cellterminal.error.essentia_bus_item=Cannot add items to an essentia storage bus filter. Use filled phials.
+cellterminal.error.essentia_bus_fluid=Cannot add fluids to an essentia storage bus filter.
+cellterminal.error.essentia_bus_failed=Failed to configure essentia storage bus filter.
+cellterminal.error.mixed_bus_selection=Cannot select storage buses of different types together.
+
+# Storage bus IO mode tooltip
+gui.cellterminal.storagebus.iomode.unsupported=IO Mode (no effect on this bus type)
+
 # Keybindings
 key.cellterminal.category=Cell Terminal
 key.cellterminal.quick_partition_auto.desc=Quick Partition (Auto Type)
 key.cellterminal.quick_partition_item.desc=Quick Partition (Item Cell)
 key.cellterminal.quick_partition_fluid.desc=Quick Partition (Fluid Cell)
 key.cellterminal.quick_partition_essentia.desc=Quick Partition (Essentia Cell)
+key.cellterminal.add_to_storage_bus.desc=Add to Storage Bus
 
 # Quick partition messages
 cellterminal.quick_partition.no_item=No item under cursor
@@ -111,13 +106,35 @@ cellterminal.quick_partition.success=Partitioned %s into %s
 cellterminal.quick_partition.essentia_unavailable=Essentia cells require Thaumic Energistics mod
 cellterminal.quick_partition.wrong_tab=Quick partition only works in the Partition tab
 
+# Storage bus keybind messages
+cellterminal.storage_bus.no_selection=No storage bus selected. Click on a storage bus header to select it.
+cellterminal.storage_bus.no_item=No item under cursor
+cellterminal.storage_bus.partition_full=Storage bus filter is full
+cellterminal.storage_bus.invalid_item=Invalid item for this storage bus type
+
+# Storage bus button tooltips
+gui.cellterminal.storagebus.clear=Clear All Filters
+gui.cellterminal.storagebus.iomode.current=IO Mode: %s
+gui.cellterminal.storagebus.iomode.none=No Access
+gui.cellterminal.storagebus.iomode.read=Extract Only
+gui.cellterminal.storagebus.iomode.write=Insert Only
+gui.cellterminal.storagebus.iomode.readwrite=Extract/Insert
+gui.cellterminal.storagebus.partitionall=Set All Contents to Filter
+gui.cellterminal.storage_bus.name=Storage Bus
+gui.cellterminal.storage_bus.air=Air
+
+# Cell partition button tooltips
+gui.cellterminal.cell.partitionall=Set All Contents to Partition
+gui.cellterminal.cell.clearpartition=Clear All Partitions
+
 # Controls help (bottom left widget)
 gui.cellterminal.controls.title=§nControls§r
 gui.cellterminal.controls.jei_drag=Drag from JEI to add.
-gui.cellterminal.controls.key_auto=%s: Partition (auto)
-gui.cellterminal.controls.key_item=%s: Partition (item)
-gui.cellterminal.controls.key_fluid=%s: Partition (fluid)
-gui.cellterminal.controls.key_essentia=%s: Partition (essentia)
+gui.cellterminal.controls.click_to_remove=Click to remove from slot.
+gui.cellterminal.controls.key_auto=§b%s§r: Partition (auto)
+gui.cellterminal.controls.key_item=§b%s§r: Partition (item)
+gui.cellterminal.controls.key_fluid=§b%s§r: Partition (fluid)
+gui.cellterminal.controls.key_essentia=§b%s§r: Partition (essentia)
 gui.cellterminal.controls.key_not_set=(not set)
 gui.cellterminal.controls.auto_warning=§cAuto mode may misattribute items! Use with caution.§r
 gui.cellterminal.controls.essentia_warning=§dEssentia cells require Thaumic Energistics mod.§r
@@ -125,17 +142,7 @@ gui.cellterminal.controls.double_click_storage=Double-click on the storage entry
 gui.cellterminal.controls.double_click_storage_cell=Double-click on storage/cell entry to highlight in-world.
 gui.cellterminal.controls.click_partition_toggle=Click slot: toggle partition.
 gui.cellterminal.controls.partition_indicator=§aP§r = slot is partitioned.
+gui.cellterminal.controls.filter_indicator=§aP§r = slot is filtered.
 gui.cellterminal.controls.keybind_targets=Keybinds partition the 1st cell with no partition.
-
-# Compacting Cell Tooltips
-tooltip.cellterminal.compacting_cell.not_partitioned=Partition required to use
-tooltip.cellterminal.compacting_cell.stores_one_type=Stores one item type with compression
-tooltip.cellterminal.compacting_cell.insert_to_set_compression=Insert items to set compression chain
-tooltip.cellterminal.compacting_cell.converts_up=Compresses to: %s
-tooltip.cellterminal.compacting_cell.converts_down=Decompresses to: %s
-tooltip.cellterminal.compacting_cell.no_compression=No compression available for this item
-
-# Void Card
-item.cellterminal.void_card.name=Void Overflow Card
-tooltip.cellterminal.void_card.desc=Voids overflow items when cell is full
-tooltip.cellterminal.void_card.use=Use in Compacting Storage Cells
+gui.cellterminal.controls.storage_bus_add_key=Click on Storage Bus header(s) to select, then press §b%s§r to add the item under the cursor to the bus filter.
+gui.cellterminal.controls.storage_bus_capacity=Available slots depend on Capacity Card upgrades.

@@ -29,6 +29,7 @@ public abstract class CellTerminalRenderer {
     protected static final int GUI_INDENT = 22;
     protected static final int CELL_INDENT = GUI_INDENT + 12;
     protected static final int SLOTS_PER_ROW = 8;
+    protected static final int SLOTS_PER_ROW_BUS = 9;
 
     protected final FontRenderer fontRenderer;
     protected final RenderItem itemRender;
@@ -115,6 +116,52 @@ public abstract class CellTerminalRenderer {
     }
 
     /**
+     * Render a small (8x8) item icon at the given position.
+     */
+    protected void renderSmallItemStack(ItemStack stack, int x, int y) {
+        if (stack.isEmpty()) return;
+
+        GlStateManager.pushMatrix();
+        GlStateManager.translate(x, y, 0);
+        GlStateManager.scale(0.5f, 0.5f, 1.0f);
+
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        RenderHelper.enableGUIStandardItemLighting();
+        itemRender.renderItemIntoGUI(stack, 0, 0);
+        RenderHelper.disableStandardItemLighting();
+        GlStateManager.disableLighting();
+
+        GlStateManager.popMatrix();
+
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.enableBlend();
+        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+    }
+
+    /**
+     * Draw upgrade icons for a cell.
+     * Icons are drawn at the left side of the cell entry, using small 8x8 icons.
+     * @param cell The cell info
+     * @param x The x position to start drawing (left edge)
+     * @param y The y position of the row
+     * @return The width consumed by upgrade icons
+     */
+    protected int drawCellUpgradeIcons(CellInfo cell, int x, int y) {
+        List<ItemStack> upgrades = cell.getUpgrades();
+        if (upgrades.isEmpty()) return 0;
+
+        int iconX = x;
+        int iconY = y; // Align with top of cell icon
+
+        for (ItemStack upgrade : upgrades) {
+            renderSmallItemStack(upgrade, iconX, iconY);
+            iconX += 9; // 8px icon + 1px spacing
+        }
+
+        return iconX - x;
+    }
+
+    /**
      * Check if the line at the given index is the first in its storage group.
      */
     protected boolean isFirstInStorageGroup(List<Object> lines, int index) {
@@ -165,24 +212,34 @@ public abstract class CellTerminalRenderer {
      * @param isLastVisibleRow Whether this is the last visible row
      * @param hasContentAbove Whether there's content above that's scrolled out
      * @param hasContentBelow Whether there's content below that's scrolled out
+     * @param allBranches Whether to draw a horizontal branch for every row (not just first)
      */
     protected void drawTreeLines(int lineX, int y, boolean isFirstRow, boolean isFirstInGroup,
             boolean isLastInGroup, int visibleTop, int visibleBottom,
             boolean isFirstVisibleRow, boolean isLastVisibleRow,
-            boolean hasContentAbove, boolean hasContentBelow) {
+            boolean hasContentAbove, boolean hasContentBelow,
+            boolean allBranches) {
 
         int lineTop;
         if (isFirstRow) {
             if (isFirstInGroup) {
-                lineTop = isFirstVisibleRow ? visibleTop : y - ROW_HEIGHT + 9;
+                // First row in group (right after header) - extend up to connect with header's segment
+                lineTop = y - 3;
             } else if (isFirstVisibleRow && hasContentAbove) {
+                // First visible row with content above scrolled out -
+                // clamp to visibleTop to avoid leaking above GUI
                 lineTop = visibleTop;
             } else {
-                lineTop = y - ROW_HEIGHT + 9;
+                // Connect to row above but don't extend too high (avoid overlapping buttons/icons)
+                lineTop = y - 4;
             }
         } else {
-            lineTop = isFirstVisibleRow && hasContentAbove ? visibleTop : y - ROW_HEIGHT + 9;
+            // Connect to row above with minimal overlap
+            lineTop = isFirstVisibleRow && hasContentAbove ? visibleTop : y - 4;
         }
+
+        // Clamp lineTop to never go above visibleTop to prevent leak above GUI
+        if (lineTop < visibleTop) lineTop = visibleTop;
 
         int lineBottom;
         if (isLastInGroup) {
@@ -196,18 +253,24 @@ public abstract class CellTerminalRenderer {
         // Vertical line
         Gui.drawRect(lineX, lineTop, lineX + 1, lineBottom, 0xFF808080);
 
-        // Horizontal branch (only on first row)
-        if (isFirstRow) Gui.drawRect(lineX, y + 8, lineX + 10, y + 9, 0xFF808080);
+        // Horizontal branch (only on first row unless all branches are enabled)
+        if (allBranches) {
+            Gui.drawRect(lineX, y + 8, lineX + 10, y + 9, 0xFF808080);
+        } else if (isFirstRow) {
+            Gui.drawRect(lineX, y + 8, lineX + 10, y + 9, 0xFF808080);
+        }
     }
 
     /**
      * Check if an item is in the partition list.
+     * Uses areItemStacksEqual to also compare NBT (important for essentia items
+     * where the aspect type is stored in NBT).
      */
     protected boolean isInPartition(ItemStack stack, List<ItemStack> partition) {
         if (stack.isEmpty()) return false;
 
         for (ItemStack partItem : partition) {
-            if (ItemStack.areItemsEqual(stack, partItem)) return true;
+            if (ItemStack.areItemStacksEqual(stack, partItem)) return true;
         }
 
         return false;

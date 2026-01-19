@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import org.lwjgl.opengl.GL11;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
@@ -14,8 +16,6 @@ import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-
-import org.lwjgl.opengl.GL11;
 
 
 /**
@@ -50,17 +50,23 @@ public class BlockHighlightRenderer {
 
     @SubscribeEvent
     public void onRenderWorldLast(RenderWorldLastEvent event) {
-        if (highlightedBlocks.isEmpty()) return;
+        boolean hasStandardHighlights = !highlightedBlocks.isEmpty();
+
+        if (!hasStandardHighlights) return;
 
         long now = System.currentTimeMillis();
 
-        // Remove expired highlights
-        Iterator<Map.Entry<BlockPos, Long>> iter = highlightedBlocks.entrySet().iterator();
-        while (iter.hasNext()) {
-            if (iter.next().getValue() < now) iter.remove();
+        // Remove expired standard highlights
+        if (hasStandardHighlights) {
+            Iterator<Map.Entry<BlockPos, Long>> iter = highlightedBlocks.entrySet().iterator();
+            while (iter.hasNext()) {
+                if (iter.next().getValue() < now) iter.remove();
+            }
+
+            hasStandardHighlights = !highlightedBlocks.isEmpty();
         }
 
-        if (highlightedBlocks.isEmpty()) return;
+        if (!hasStandardHighlights) return;
 
         EntityPlayer player = Minecraft.getMinecraft().player;
         double playerX = player.lastTickPosX + (player.posX - player.lastTickPosX) * event.getPartialTicks();
@@ -84,9 +90,7 @@ public class BlockHighlightRenderer {
 
             // Calculate alpha for pulsing effect and fade-out
             long remaining = expireTime - now;
-            float pulseAlpha = 0.5f + 0.3f * (float) Math.sin(now / 1000.0);
-            float fadeAlpha = Math.min(1.0f, remaining / 1000.0f);
-            float alpha = pulseAlpha * fadeAlpha;
+            float alpha = 0.7f + 0.3f * (float) Math.sin(now / 500.0);
 
             renderBlockOutline(pos, 0.0f, 1.0f, 0.5f, alpha);
         }

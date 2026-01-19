@@ -2,6 +2,7 @@ package com.cellterminal.items;
 
 import java.util.List;
 
+import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
@@ -106,6 +107,8 @@ public class ItemWirelessCellTerminal extends AEBasePoweredItem implements IWire
     @Override
     public void addCheckedInformation(ItemStack stack, World world, List<String> lines, ITooltipFlag advancedTooltips) {
         super.addCheckedInformation(stack, world, lines, advancedTooltips);
+
+        lines.add(I18n.format("item.cellterminal.cell_terminal.tooltip"));
 
         if (stack.hasTagCompound()) {
             NBTTagCompound tag = Platform.openNbtData(stack);

@@ -53,6 +53,16 @@ public enum KeyBindings {
         KeyConflictContext.GUI,
         Keyboard.KEY_NONE,
         "key.cellterminal.category"
+    )),
+
+    /**
+     * Add hovered item to the selected storage bus partition (Tab 5).
+     */
+    ADD_TO_STORAGE_BUS(new KeyBinding(
+        "key.cellterminal.add_to_storage_bus.desc",
+        KeyConflictContext.GUI,
+        Keyboard.KEY_NONE,
+        "key.cellterminal.category"
     ));
 
     private final KeyBinding keyBinding;

@@ -6,7 +6,9 @@ import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextComponentTranslation;
+import net.minecraft.util.text.TextFormatting;
 
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.CellTerminalClientConfig;
@@ -28,6 +30,7 @@ public class TerminalClickHandler {
     public static final int TAB_TERMINAL = 0;
     public static final int TAB_INVENTORY = 1;
     public static final int TAB_PARTITION = 2;
+    public static final int TABS_COUNT = 5;
 
     // Layout constants
     private static final int TAB_WIDTH = 22;
@@ -43,9 +46,9 @@ public class TerminalClickHandler {
     private long lastClickTime = 0;
     private int lastClickedLineIndex = -1;
 
-    // Double-click tracking (Tabs 2/3)
+    // Double-click tracking (Tabs 2/3) - uses line index for reliability
     private long lastClickTimeTab23 = 0;
-    private long lastClickedStorageIdTab23 = -1;
+    private int lastClickedLineIndexTab23 = -1;
 
     // Callback interface for GUI interactions
     public interface Callback {
@@ -61,7 +64,7 @@ public class TerminalClickHandler {
     public boolean handleTabClick(int mouseX, int mouseY, int guiLeft, int guiTop, int currentTab, Callback callback) {
         int tabY = guiTop + TAB_Y_OFFSET;
 
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < TABS_COUNT; i++) {
             int tabX = guiLeft + 4 + (i * (TAB_WIDTH + 2));
 
             if (mouseX >= tabX && mouseX < tabX + TAB_WIDTH
@@ -143,6 +146,7 @@ public class TerminalClickHandler {
     public void handleCellTabClick(int currentTab, CellInfo hoveredCellCell, int hoveredContentSlotIndex,
             CellInfo hoveredPartitionCell, int hoveredPartitionSlotIndex,
             StorageInfo hoveredCellStorage, int hoveredCellSlotIndex,
+            StorageInfo hoveredStorageLine, int hoveredLineIndex,
             Map<Long, StorageInfo> storageMap, int terminalDimension, Callback callback) {
 
         // Check for double-click to highlight block (on storage entries or cells)
@@ -150,6 +154,8 @@ public class TerminalClickHandler {
         StorageInfo clickedStorage = hoveredCellStorage;
 
         // Determine which storage was clicked (either directly or via cell/content)
+        if (clickedStorage == null && hoveredStorageLine != null) clickedStorage = hoveredStorageLine;
+
         if (clickedStorage == null && hoveredCellCell != null) {
             clickedStorage = storageMap.get(hoveredCellCell.getParentStorageId());
         }
@@ -158,18 +164,17 @@ public class TerminalClickHandler {
             clickedStorage = storageMap.get(hoveredPartitionCell.getParentStorageId());
         }
 
-        // FIXME: the double-click doesn't work for tab 2/3 storage entries
-        long currentStorageId = clickedStorage != null ? clickedStorage.getId() : -1;
-        if (currentStorageId >= 0 && currentStorageId == lastClickedStorageIdTab23
+        // Use line index for double-click detection (more reliable than storage ID)
+        if (hoveredLineIndex >= 0 && hoveredLineIndex == lastClickedLineIndexTab23
                 && now - lastClickTimeTab23 < 400) {
             // Double-click detected - highlight the storage
-            handleDoubleClickTab23(clickedStorage, terminalDimension);
-            lastClickedStorageIdTab23 = -1;
+            if (clickedStorage != null) handleDoubleClickTab23(clickedStorage, terminalDimension);
+            lastClickedLineIndexTab23 = -1;
 
             return;
         }
 
-        lastClickedStorageIdTab23 = currentStorageId;
+        lastClickedLineIndexTab23 = hoveredLineIndex;
         lastClickTimeTab23 = now;
 
         // Tab 2 (Inventory): Check if clicking on a content item to toggle partition
@@ -245,6 +250,13 @@ public class TerminalClickHandler {
         CellTerminalNetwork.INSTANCE.sendToServer(
             new PacketHighlightBlock(storage.getPos(), storage.getDimension())
         );
+
+        // Send green chat message with block name and coordinates
+        String blockName = storage.getName();
+        String coords = String.format("[%d, %d, %d]",
+            storage.getPos().getX(), storage.getPos().getY(), storage.getPos().getZ());
+        String message = TextFormatting.GREEN + blockName + " - " + coords;
+        Minecraft.getMinecraft().player.sendMessage(new TextComponentString(message));
     }
 
     private void handleCellClick(CellInfo cell, int relX, int relY, int row, int mouseX, int mouseY, Callback callback) {

@@ -72,5 +72,53 @@ public class CellTerminalNetwork {
             packetId++,
             Side.CLIENT
         );
+
+        // Client -> Server: Set priority on a storage block
+        INSTANCE.registerMessage(
+            PacketSetPriority.Handler.class,
+            PacketSetPriority.class,
+            packetId++,
+            Side.SERVER
+        );
+
+        // Client -> Server: Add upgrade to a cell
+        INSTANCE.registerMessage(
+            PacketUpgradeCell.Handler.class,
+            PacketUpgradeCell.class,
+            packetId++,
+            Side.SERVER
+        );
+
+        // Client -> Server: Tab change notification (for storage bus polling)
+        INSTANCE.registerMessage(
+            PacketTabChange.Handler.class,
+            PacketTabChange.class,
+            packetId++,
+            Side.SERVER
+        );
+
+        // Client -> Server: Storage bus partition modification actions
+        INSTANCE.registerMessage(
+            PacketStorageBusPartitionAction.Handler.class,
+            PacketStorageBusPartitionAction.class,
+            packetId++,
+            Side.SERVER
+        );
+
+        // Client -> Server: Storage bus IO mode toggle
+        INSTANCE.registerMessage(
+            PacketStorageBusIOMode.Handler.class,
+            PacketStorageBusIOMode.class,
+            packetId++,
+            Side.SERVER
+        );
+
+        // Client -> Server: Add upgrade to a storage bus
+        INSTANCE.registerMessage(
+            PacketUpgradeStorageBus.Handler.class,
+            PacketUpgradeStorageBus.class,
+            packetId++,
+            Side.SERVER
+        );
     }
 }

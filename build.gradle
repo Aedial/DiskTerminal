@@ -14,7 +14,7 @@ buildscript {
 
 apply plugin: 'net.minecraftforge.gradle.forge'
 
-version = "0.3.2"
+version = "0.4.1"
 group = "com.cellterminal"
 archivesBaseName = "cell-terminal"
 
@@ -102,8 +102,6 @@ if (cfProjectId) {
                 optionalDependency 'jei'
                 // Optional: Thaumic Energistics (for Essentia cell support)
                 optionalDependency 'thaumic-energistics'
-                // Optional: NAE2 (for larger compacting cell tiers)
-                optionalDependency 'nae2'
             }
         }
 
