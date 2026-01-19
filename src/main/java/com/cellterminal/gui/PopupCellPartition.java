@@ -11,6 +11,7 @@ import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
+import net.minecraft.client.resources.I18n;
 import net.minecraft.enchantment.EnchantmentData;
 import net.minecraft.item.ItemEnchantedBook;
 import net.minecraft.item.ItemStack;
@@ -68,9 +69,9 @@ public class PopupCellPartition extends Gui {
 
         // Calculate width based on title, slots, or hint, whichever is wider
         Minecraft mc = Minecraft.getMinecraft();
-        String partitionSuffix = net.minecraft.client.resources.I18n.format("gui.cellterminal.popup.partition_suffix");
+        String partitionSuffix = I18n.format("gui.cellterminal.popup.partition_suffix");
         String title = cell.getDisplayName() + partitionSuffix;
-        String hint = net.minecraft.client.resources.I18n.format("gui.cellterminal.hint.partition");
+        String hint = I18n.format("gui.cellterminal.hint.partition");
         int titleWidth = mc.fontRenderer.getStringWidth(title) + PADDING * 2;
         int hintWidth = mc.fontRenderer.getStringWidth(hint) + PADDING * 2;
         int slotsWidth = SLOTS_PER_ROW * SLOT_SIZE + PADDING * 2;
