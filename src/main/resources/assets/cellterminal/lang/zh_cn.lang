@@ -146,7 +146,3 @@ gui.cellterminal.controls.filter_indicator=§aP§r = 槽位已过滤。
 gui.cellterminal.controls.keybind_targets=绑定按键会为第一个未分区的元件设置分区。
 gui.cellterminal.controls.storage_bus_add_key=点击存储总线的顶部区域以选中，然后按§b%s§r以将光标处物品添加到该总线的过滤项中。
 gui.cellterminal.controls.storage_bus_capacity=可用槽位数取决于安装的容量卡升级。
-# Void Card
-item.cellterminal.void_card.name=溢出销毁卡
-tooltip.cellterminal.void_card.desc=在元件已满时销毁溢出的物品
-tooltip.cellterminal.void_card.use=用于压缩存储元件
