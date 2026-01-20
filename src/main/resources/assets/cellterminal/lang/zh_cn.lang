@@ -6,6 +6,7 @@ item.cellterminal.cell_terminal.tooltip=§b满足你的所有分区需求！
 # GUI
 gui.cellterminal.cell_terminal.title=元件终端
 gui.cellterminal.wireless_cell_terminal.title=无线元件终端
+gui.cellterminal.highlighted=[%d, %d, %d] - 已高亮%s
 gui.cellterminal.location_format=[%d, %d, %d] （维度ID：%d）
 gui.cellterminal.search=搜索……
 gui.cellterminal.no_drives=网络中未找到驱动器
@@ -15,15 +16,9 @@ gui.cellterminal.types_used=%d / %d 类型
 gui.cellterminal.partition=分区
 gui.cellterminal.contents=内容
 gui.cellterminal.click_to_edit=点击以编辑
-gui.cellterminal.double_click_add=双击以添加到分区
-gui.cellterminal.priority.tooltip=设置存储优先级（高优先级设备会被优先存入）
+gui.cellterminal.priority.tooltip=设置存储优先级（高优先级=优先存入，最后使用）
 
 # Panel tabs
-gui.cellterminal.tab.terminal=终端
-gui.cellterminal.tab.inventory=库存
-gui.cellterminal.tab.partition=分区
-gui.cellterminal.tab.storage_bus_inventory=总线内容
-gui.cellterminal.tab.storage_bus_partition=总线过滤项
 gui.cellterminal.tab.terminal.tooltip=元件总览
 gui.cellterminal.tab.inventory.tooltip=查看元件内容
 gui.cellterminal.tab.partition.tooltip=编辑元件分区
@@ -54,18 +49,12 @@ config.cellterminal.gui.searchMode=搜索模式
 config.cellterminal.gui.searchMode.tooltip=搜索过滤模式：INVENTORY（库存），PARTITION（分区），或MIXED（混合）
 
 # Panel hints
-gui.cellterminal.hint.terminal=点击以移除，从JEI中拖拽以添加
-gui.cellterminal.hint.inventory=点击物品栏物品以分区
 gui.cellterminal.hint.partition=点击以移除，从JEI中拖拽以添加
-gui.cellterminal.no_cell_selected=未选中元件
-gui.cellterminal.no_storage=未发现存储设备
-gui.cellterminal.no_partition=无分区
-gui.cellterminal.slot_empty=空
 
 # Popup titles and buttons
 gui.cellterminal.popup.partition_suffix= - 分区
 gui.cellterminal.popup.contents_suffix= - 内容
-gui.cellterminal.set_all_partition=添加全部到分区
+gui.cellterminal.set_all_partition=设置到分区
 gui.cellterminal.partition_indicator=P
 gui.cellterminal.eject_cell=弹出元件
 
@@ -78,11 +67,10 @@ cellterminal.error.no_empty_slot=存储空间无空余槽位
 cellterminal.error.different_dimension=无法高亮显示其他维度的方块
 
 # Storage bus error messages
-cellterminal.error.item_bus_fluid=无法将流体添加到物品存储总线的过滤项。使用物品。Cannot add fluids to an item storage bus filter. Use an Item Storage Bus.
-cellterminal.error.fluid_bus_item=无法将物品添加到流体存储总线的过滤项。使用桶或流体容器。
-cellterminal.error.essentia_bus_item=无法将物品添加到源质存储总线的过滤项。使用装有源质的安瓿。
+cellterminal.error.item_bus_fluid=无法将流体添加到物品存储总线的过滤项。
+cellterminal.error.fluid_bus_item=无法将物品添加到流体存储总线的过滤项。使用桶或其他流体容器。
+cellterminal.error.essentia_bus_item=无法将物品添加到源质存储总线的过滤项。使用装有源质的安瓿或罐子。
 cellterminal.error.essentia_bus_fluid=无法将流体添加到源质存储总线的过滤项。
-cellterminal.error.essentia_bus_failed=源质存储总线过滤项配置失败。
 cellterminal.error.mixed_bus_selection=无法同时选中不同类型的存储总线。
 
 # Storage bus IO mode tooltip
@@ -113,22 +101,21 @@ cellterminal.storage_bus.partition_full=存储总线过滤项已满
 cellterminal.storage_bus.invalid_item=物品对该类型存储总线无效
 
 # Storage bus button tooltips
-gui.cellterminal.storagebus.clear=清除所有过滤项
+gui.cellterminal.storagebus.clear=清空过滤项
 gui.cellterminal.storagebus.iomode.current=IO模式：%s
 gui.cellterminal.storagebus.iomode.none=无权限
 gui.cellterminal.storagebus.iomode.read=仅取出
 gui.cellterminal.storagebus.iomode.write=仅存入
 gui.cellterminal.storagebus.iomode.readwrite=取出/存入
-gui.cellterminal.storagebus.partitionall=设置所有内容至过滤项
+gui.cellterminal.storagebus.partitionall=设置内容至过滤项
 gui.cellterminal.storage_bus.name=存储总线
 gui.cellterminal.storage_bus.air=空气
 
 # Cell partition button tooltips
-gui.cellterminal.cell.partitionall=设置所有内容至分区
-gui.cellterminal.cell.clearpartition=清除所有分区
+gui.cellterminal.cell.partitionall=设置内容至分区
+gui.cellterminal.cell.clearpartition=清空分区
 
 # Controls help (bottom left widget)
-gui.cellterminal.controls.title=§n控制§r
 gui.cellterminal.controls.jei_drag=从JEI中拖拽以添加。
 gui.cellterminal.controls.click_to_remove=点击以从槽位移除。
 gui.cellterminal.controls.key_auto=§b%s§r：分区（自动）
