@@ -17,6 +17,8 @@ import com.cellterminal.client.CellContentRow;
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.EmptySlotInfo;
 import com.cellterminal.client.StorageInfo;
+import com.cellterminal.gui.FluidStackUtil;
+import com.cellterminal.gui.GuiConstants;
 
 
 /**
@@ -25,9 +27,9 @@ import com.cellterminal.client.StorageInfo;
  */
 public abstract class CellTerminalRenderer {
 
-    protected static final int ROW_HEIGHT = 18;
-    protected static final int GUI_INDENT = 22;
-    protected static final int CELL_INDENT = GUI_INDENT + 12;
+    protected static final int ROW_HEIGHT = GuiConstants.ROW_HEIGHT;
+    protected static final int GUI_INDENT = GuiConstants.GUI_INDENT;
+    protected static final int CELL_INDENT = GuiConstants.CELL_INDENT;
     protected static final int SLOTS_PER_ROW = 8;
     protected static final int SLOTS_PER_ROW_BUS = 9;
 
@@ -43,24 +45,25 @@ public abstract class CellTerminalRenderer {
      * Draw a standard slot background.
      */
     protected void drawSlotBackground(int x, int y) {
-        Gui.drawRect(x, y, x + 16, y + 16, 0xFF8B8B8B);
-        Gui.drawRect(x, y, x + 15, y + 1, 0xFF373737);
-        Gui.drawRect(x, y, x + 1, y + 15, 0xFF373737);
-        Gui.drawRect(x + 1, y + 15, x + 16, y + 16, 0xFFFFFFFF);
-        Gui.drawRect(x + 15, y + 1, x + 16, y + 15, 0xFFFFFFFF);
+        int size = GuiConstants.MINI_SLOT_SIZE;
+        Gui.drawRect(x, y, x + size, y + size, GuiConstants.COLOR_SLOT_BACKGROUND);
+        Gui.drawRect(x, y, x + size - 1, y + 1, GuiConstants.COLOR_SLOT_BORDER_DARK);
+        Gui.drawRect(x, y, x + 1, y + size - 1, GuiConstants.COLOR_SLOT_BORDER_DARK);
+        Gui.drawRect(x + 1, y + size - 1, x + size, y + size, GuiConstants.COLOR_SLOT_BORDER_LIGHT);
+        Gui.drawRect(x + size - 1, y + 1, x + size, y + size - 1, GuiConstants.COLOR_SLOT_BORDER_LIGHT);
     }
 
     /**
      * Draw a button with 3D effect.
      */
     protected void drawButton(int x, int y, int size, String label, boolean hovered) {
-        int btnColor = hovered ? 0xFF707070 : 0xFF8B8B8B;
+        int btnColor = hovered ? GuiConstants.COLOR_BUTTON_HOVER : GuiConstants.COLOR_BUTTON_NORMAL;
         Gui.drawRect(x, y, x + size, y + size, btnColor);
-        Gui.drawRect(x, y, x + size, y + 1, 0xFFFFFFFF);
-        Gui.drawRect(x, y, x + 1, y + size, 0xFFFFFFFF);
-        Gui.drawRect(x, y + size - 1, x + size, y + size, 0xFF555555);
-        Gui.drawRect(x + size - 1, y, x + size, y + size, 0xFF555555);
-        fontRenderer.drawString(label, x + 4, y + 3, 0x404040);
+        Gui.drawRect(x, y, x + size, y + 1, GuiConstants.COLOR_SLOT_BORDER_LIGHT);
+        Gui.drawRect(x, y, x + 1, y + size, GuiConstants.COLOR_SLOT_BORDER_LIGHT);
+        Gui.drawRect(x, y + size - 1, x + size, y + size, GuiConstants.COLOR_BUTTON_SHADOW);
+        Gui.drawRect(x + size - 1, y, x + size, y + size, GuiConstants.COLOR_BUTTON_SHADOW);
+        fontRenderer.drawString(label, x + 4, y + 3, GuiConstants.COLOR_TEXT_NORMAL);
     }
 
     /**
@@ -263,16 +266,11 @@ public abstract class CellTerminalRenderer {
 
     /**
      * Check if an item is in the partition list.
-     * Uses areItemStacksEqual to also compare NBT (important for essentia items
+     * Uses fluid-aware comparison for fluid items (compares by fluid type only).
+     * Uses areItemStacksEqual for other items (important for essentia items
      * where the aspect type is stored in NBT).
      */
     protected boolean isInPartition(ItemStack stack, List<ItemStack> partition) {
-        if (stack.isEmpty()) return false;
-
-        for (ItemStack partItem : partition) {
-            if (ItemStack.areItemStacksEqual(stack, partItem)) return true;
-        }
-
-        return false;
+        return FluidStackUtil.isInPartition(stack, partition);
     }
 }

@@ -6,13 +6,11 @@ import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextComponentTranslation;
-import net.minecraft.util.text.TextFormatting;
 
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.CellTerminalClientConfig;
 import com.cellterminal.client.StorageInfo;
+import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketEjectCell;
 import com.cellterminal.network.PacketHighlightBlock;
@@ -240,9 +238,7 @@ public class TerminalClickHandler {
 
     private void highlightStorage(StorageInfo storage) {
         if (storage.getDimension() != Minecraft.getMinecraft().player.dimension) {
-            Minecraft.getMinecraft().player.sendMessage(
-                new TextComponentTranslation("cellterminal.error.different_dimension")
-            );
+            MessageHelper.error("cellterminal.error.different_dimension");
 
             return;
         }
@@ -252,11 +248,8 @@ public class TerminalClickHandler {
         );
 
         // Send green chat message with block name and coordinates
-        String blockName = storage.getName();
-        String coords = String.format("[%d, %d, %d]",
-            storage.getPos().getX(), storage.getPos().getY(), storage.getPos().getZ());
-        String message = TextFormatting.GREEN + blockName + " - " + coords;
-        Minecraft.getMinecraft().player.sendMessage(new TextComponentString(message));
+        MessageHelper.success("gui.cellterminal.highlighted",
+            storage.getPos().getX(), storage.getPos().getY(), storage.getPos().getZ(), storage.getName());
     }
 
     private void handleCellClick(CellInfo cell, int relX, int relY, int row, int mouseX, int mouseY, Callback callback) {

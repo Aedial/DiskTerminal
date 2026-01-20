@@ -7,8 +7,15 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Keep a Changelog: https://keepachangelog.com/en/1.1.0/
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
+## [0.4.2] - 2026-01-20
+### Added
+- Add better user feedback on user messages (errors, success)
 
-## [0.4.1] - 2026-01-20
+### Fixed
+- Fix fluid parition detection failing in some cases due to fluid amount differences
+
+
+## [0.4.1] - 2026-01-19
 ### Fixed
 - Fix Essentia partitioning not recognizing NBT differences, causing issues when partitioning multiple essentia types
 

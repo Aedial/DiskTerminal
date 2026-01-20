@@ -11,10 +11,10 @@ import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
+import net.minecraft.client.resources.I18n;
 import net.minecraft.enchantment.EnchantmentData;
 import net.minecraft.item.ItemEnchantedBook;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidUtil;
 
@@ -26,6 +26,7 @@ import appeng.api.storage.data.IAEFluidStack;
 import mezz.jei.api.gui.IGhostIngredientHandler;
 
 import com.cellterminal.client.CellInfo;
+import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 
 
@@ -68,9 +69,9 @@ public class PopupCellPartition extends Gui {
 
         // Calculate width based on title, slots, or hint, whichever is wider
         Minecraft mc = Minecraft.getMinecraft();
-        String partitionSuffix = net.minecraft.client.resources.I18n.format("gui.cellterminal.popup.partition_suffix");
+        String partitionSuffix = I18n.format("gui.cellterminal.popup.partition_suffix");
         String title = cell.getDisplayName() + partitionSuffix;
-        String hint = net.minecraft.client.resources.I18n.format("gui.cellterminal.hint.partition");
+        String hint = I18n.format("gui.cellterminal.hint.partition");
         int titleWidth = mc.fontRenderer.getStringWidth(title) + PADDING * 2;
         int hintWidth = mc.fontRenderer.getStringWidth(hint) + PADDING * 2;
         int slotsWidth = SLOTS_PER_ROW * SLOT_SIZE + PADDING * 2;
@@ -230,9 +231,7 @@ public class PopupCellPartition extends Gui {
                 if (!essentiaRep.isEmpty()) return essentiaRep;
 
                 // If it's not an essentia container, reject it
-                Minecraft.getMinecraft().player.sendMessage(
-                    new TextComponentTranslation("cellterminal.error.essentia_cell_item")
-                );
+                MessageHelper.error("cellterminal.error.essentia_cell_item");
 
                 return ItemStack.EMPTY;
             }
@@ -242,9 +241,7 @@ public class PopupCellPartition extends Gui {
                 FluidStack contained = FluidUtil.getFluidContained(itemStack);
 
                 if (contained == null) {
-                    Minecraft.getMinecraft().player.sendMessage(
-                        new TextComponentTranslation("cellterminal.error.fluid_cell_item")
-                    );
+                    MessageHelper.error("cellterminal.error.fluid_cell_item");
 
                     return ItemStack.EMPTY;
                 }
@@ -263,17 +260,13 @@ public class PopupCellPartition extends Gui {
         // FluidStack - from JEI fluid entries
         if (ingredient instanceof FluidStack) {
             if (cell.isEssentia()) {
-                Minecraft.getMinecraft().player.sendMessage(
-                    new TextComponentTranslation("cellterminal.error.essentia_cell_fluid")
-                );
+                MessageHelper.error("cellterminal.error.essentia_cell_fluid");
 
                 return ItemStack.EMPTY;
             }
 
             if (!cell.isFluid()) {
-                Minecraft.getMinecraft().player.sendMessage(
-                    new TextComponentTranslation("cellterminal.error.item_cell_fluid")
-                );
+                MessageHelper.error("cellterminal.error.item_cell_fluid");
 
                 return ItemStack.EMPTY;
             }
@@ -290,9 +283,7 @@ public class PopupCellPartition extends Gui {
         // EnchantmentData - JEI's deprecated hack for enchanted books (removed in 1.13+)
         if (ingredient instanceof EnchantmentData) {
             if (cell.isFluid() || cell.isEssentia()) {
-                Minecraft.getMinecraft().player.sendMessage(
-                    new TextComponentTranslation(cell.isFluid() ? "cellterminal.error.fluid_cell_item" : "cellterminal.error.essentia_cell_item")
-                );
+                MessageHelper.error(cell.isFluid() ? "cellterminal.error.fluid_cell_item" : "cellterminal.error.essentia_cell_item");
 
                 return ItemStack.EMPTY;
             }

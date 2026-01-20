@@ -4,11 +4,9 @@ import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.enchantment.EnchantmentData;
 import net.minecraft.item.ItemEnchantedBook;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidUtil;
 
@@ -22,6 +20,7 @@ import mezz.jei.api.gui.IGhostIngredientHandler;
 import com.cellterminal.CellTerminal;
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.StorageBusInfo;
+import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.gui.PopupCellPartition;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 
@@ -95,9 +94,7 @@ public class JeiGhostHandler {
                 if (!essentiaRep.isEmpty()) return essentiaRep;
 
                 // If it's not an essentia container, reject it
-                Minecraft.getMinecraft().player.sendMessage(
-                    new TextComponentTranslation("cellterminal.error.essentia_cell_item")
-                );
+                MessageHelper.error("cellterminal.error.essentia_cell_item");
 
                 return ItemStack.EMPTY;
             }
@@ -106,9 +103,7 @@ public class JeiGhostHandler {
                 FluidStack contained = FluidUtil.getFluidContained(itemStack);
 
                 if (contained == null) {
-                    Minecraft.getMinecraft().player.sendMessage(
-                        new TextComponentTranslation("cellterminal.error.fluid_cell_item")
-                    );
+                    MessageHelper.error("cellterminal.error.fluid_cell_item");
 
                     return ItemStack.EMPTY;
                 }
@@ -127,17 +122,13 @@ public class JeiGhostHandler {
 
         if (ingredient instanceof FluidStack) {
             if (isEssentiaCell) {
-                Minecraft.getMinecraft().player.sendMessage(
-                    new TextComponentTranslation("cellterminal.error.essentia_cell_fluid")
-                );
+                MessageHelper.error("cellterminal.error.essentia_cell_fluid");
 
                 return ItemStack.EMPTY;
             }
 
             if (!isFluidCell) {
-                Minecraft.getMinecraft().player.sendMessage(
-                    new TextComponentTranslation("cellterminal.error.item_cell_fluid")
-                );
+                MessageHelper.error("cellterminal.error.item_cell_fluid");
 
                 return ItemStack.EMPTY;
             }
@@ -154,9 +145,7 @@ public class JeiGhostHandler {
 
         if (ingredient instanceof EnchantmentData) {
             if (isFluidCell || isEssentiaCell) {
-                Minecraft.getMinecraft().player.sendMessage(
-                    new TextComponentTranslation(isFluidCell ? "cellterminal.error.fluid_cell_item" : "cellterminal.error.essentia_cell_item")
-                );
+                MessageHelper.error(isFluidCell ? "cellterminal.error.fluid_cell_item" : "cellterminal.error.essentia_cell_item");
 
                 return ItemStack.EMPTY;
             }
@@ -186,9 +175,7 @@ public class JeiGhostHandler {
                 if (!essentiaRep.isEmpty()) return essentiaRep;
 
                 // If it's not an essentia container, reject it
-                Minecraft.getMinecraft().player.sendMessage(
-                    new TextComponentTranslation("cellterminal.error.essentia_bus_item")
-                );
+                MessageHelper.error("cellterminal.error.essentia_bus_item");
 
                 return ItemStack.EMPTY;
             }
@@ -197,9 +184,7 @@ public class JeiGhostHandler {
                 FluidStack contained = FluidUtil.getFluidContained(itemStack);
 
                 if (contained == null) {
-                    Minecraft.getMinecraft().player.sendMessage(
-                        new TextComponentTranslation("cellterminal.error.fluid_bus_item")
-                    );
+                    MessageHelper.error("cellterminal.error.fluid_bus_item");
 
                     return ItemStack.EMPTY;
                 }
@@ -219,17 +204,13 @@ public class JeiGhostHandler {
 
         if (ingredient instanceof FluidStack) {
             if (isEssentiaBus) {
-                Minecraft.getMinecraft().player.sendMessage(
-                    new TextComponentTranslation("cellterminal.error.essentia_bus_fluid")
-                );
+                MessageHelper.error("cellterminal.error.essentia_bus_fluid");
 
                 return ItemStack.EMPTY;
             }
 
             if (!isFluidBus) {
-                Minecraft.getMinecraft().player.sendMessage(
-                    new TextComponentTranslation("cellterminal.error.item_bus_fluid")
-                );
+                MessageHelper.error("cellterminal.error.item_bus_fluid");
 
                 return ItemStack.EMPTY;
             }

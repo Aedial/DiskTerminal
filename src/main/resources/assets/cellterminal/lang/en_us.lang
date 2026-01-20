@@ -6,6 +6,7 @@ item.cellterminal.cell_terminal.tooltip=§bFor all your partitioning needs!
 # GUI
 gui.cellterminal.cell_terminal.title=Cell Terminal
 gui.cellterminal.wireless_cell_terminal.title=Wireless Cell Terminal
+gui.cellterminal.highlighted=[%d, %d, %d] - Highlighted %s
 gui.cellterminal.location_format=[%d, %d, %d] (DIM %d)
 gui.cellterminal.search=Search...
 gui.cellterminal.no_drives=No drives found in network
@@ -15,15 +16,9 @@ gui.cellterminal.types_used=%d / %d types
 gui.cellterminal.partition=Partition
 gui.cellterminal.contents=Contents
 gui.cellterminal.click_to_edit=Click to edit
-gui.cellterminal.double_click_add=Double-click to add to partition
-gui.cellterminal.priority.tooltip=Set storage priority (higher priority used first)
+gui.cellterminal.priority.tooltip=Set storage priority (higher priority = inserted first, used last)
 
 # Panel tabs
-gui.cellterminal.tab.terminal=Terminal
-gui.cellterminal.tab.inventory=Inventory
-gui.cellterminal.tab.partition=Partition
-gui.cellterminal.tab.storage_bus_inventory=Bus Contents
-gui.cellterminal.tab.storage_bus_partition=Bus Filters
 gui.cellterminal.tab.terminal.tooltip=Cell Overview
 gui.cellterminal.tab.inventory.tooltip=View Cell Contents
 gui.cellterminal.tab.partition.tooltip=Edit Cell Partitions
@@ -54,18 +49,12 @@ config.cellterminal.gui.searchMode=Search Mode
 config.cellterminal.gui.searchMode.tooltip=Search filter mode: INVENTORY, PARTITION, or MIXED
 
 # Panel hints
-gui.cellterminal.hint.terminal=Click to remove, drag from JEI to add
-gui.cellterminal.hint.inventory=Click inventory item to partition
 gui.cellterminal.hint.partition=Click to remove, drag from JEI to add
-gui.cellterminal.no_cell_selected=No cell selected
-gui.cellterminal.no_storage=No storage devices found
-gui.cellterminal.no_partition=No partition
-gui.cellterminal.slot_empty=Empty
 
 # Popup titles and buttons
 gui.cellterminal.popup.partition_suffix= - Partition
 gui.cellterminal.popup.contents_suffix= - Contents
-gui.cellterminal.set_all_partition=Set All to Partition
+gui.cellterminal.set_all_partition=Set to Partition
 gui.cellterminal.partition_indicator=P
 gui.cellterminal.eject_cell=Eject cell
 
@@ -78,11 +67,10 @@ cellterminal.error.no_empty_slot=No empty slot in storage
 cellterminal.error.different_dimension=Cannot highlight block in different dimension
 
 # Storage bus error messages
-cellterminal.error.item_bus_fluid=Cannot add fluids to an item storage bus filter. Use an Item Storage Bus.
-cellterminal.error.fluid_bus_item=Cannot add items to a fluid storage bus filter. Use buckets or fluid containers.
-cellterminal.error.essentia_bus_item=Cannot add items to an essentia storage bus filter. Use filled phials.
+cellterminal.error.item_bus_fluid=Cannot add fluids to an item storage bus filter.
+cellterminal.error.fluid_bus_item=Cannot add items to a fluid storage bus filter. Use buckets or other fluid containers.
+cellterminal.error.essentia_bus_item=Cannot add items to an essentia storage bus filter. Use filled phials or jars.
 cellterminal.error.essentia_bus_fluid=Cannot add fluids to an essentia storage bus filter.
-cellterminal.error.essentia_bus_failed=Failed to configure essentia storage bus filter.
 cellterminal.error.mixed_bus_selection=Cannot select storage buses of different types together.
 
 # Storage bus IO mode tooltip
@@ -113,22 +101,21 @@ cellterminal.storage_bus.partition_full=Storage bus filter is full
 cellterminal.storage_bus.invalid_item=Invalid item for this storage bus type
 
 # Storage bus button tooltips
-gui.cellterminal.storagebus.clear=Clear All Filters
+gui.cellterminal.storagebus.clear=Clear Filters
 gui.cellterminal.storagebus.iomode.current=IO Mode: %s
 gui.cellterminal.storagebus.iomode.none=No Access
 gui.cellterminal.storagebus.iomode.read=Extract Only
 gui.cellterminal.storagebus.iomode.write=Insert Only
 gui.cellterminal.storagebus.iomode.readwrite=Extract/Insert
-gui.cellterminal.storagebus.partitionall=Set All Contents to Filter
+gui.cellterminal.storagebus.partitionall=Set Contents to Filter
 gui.cellterminal.storage_bus.name=Storage Bus
 gui.cellterminal.storage_bus.air=Air
 
 # Cell partition button tooltips
-gui.cellterminal.cell.partitionall=Set All Contents to Partition
-gui.cellterminal.cell.clearpartition=Clear All Partitions
+gui.cellterminal.cell.partitionall=Set Contents to Partition
+gui.cellterminal.cell.clearpartition=Clear Partitions
 
 # Controls help (bottom left widget)
-gui.cellterminal.controls.title=§nControls§r
 gui.cellterminal.controls.jei_drag=Drag from JEI to add.
 gui.cellterminal.controls.click_to_remove=Click to remove from slot.
 gui.cellterminal.controls.key_auto=§b%s§r: Partition (auto)
