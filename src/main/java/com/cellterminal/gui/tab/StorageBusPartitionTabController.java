@@ -9,7 +9,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.text.TextComponentString;
 
 import net.minecraftforge.fluids.FluidStack;
 
@@ -19,6 +18,7 @@ import com.cellterminal.client.KeyBindings;
 import com.cellterminal.client.SearchFilterMode;
 import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.gui.handler.QuickPartitionHandler;
+import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketStorageBusPartitionAction;
@@ -99,9 +99,7 @@ public class StorageBusPartitionTabController implements ITabController {
                                                          Map<Long, StorageBusInfo> storageBusMap) {
         if (selectedBusIds.isEmpty()) {
             if (Minecraft.getMinecraft().player != null) {
-                Minecraft.getMinecraft().player.sendMessage(
-                    new TextComponentString(I18n.format("cellterminal.storage_bus.no_selection"))
-                );
+                MessageHelper.warning("cellterminal.storage_bus.no_selection");
             }
 
             return true;
@@ -122,9 +120,7 @@ public class StorageBusPartitionTabController implements ITabController {
 
         if (stack.isEmpty()) {
             if (Minecraft.getMinecraft().player != null) {
-                Minecraft.getMinecraft().player.sendMessage(
-                    new TextComponentString(I18n.format("cellterminal.storage_bus.no_item"))
-                );
+                MessageHelper.warning("cellterminal.storage_bus.no_item");
             }
 
             return true;
@@ -198,18 +194,12 @@ public class StorageBusPartitionTabController implements ITabController {
         if (successCount == 0 && Minecraft.getMinecraft().player != null) {
             // Show appropriate error message based on what failed
             if (invalidItemCount > 0 && noSlotCount == 0) {
-                Minecraft.getMinecraft().player.sendMessage(
-                    new TextComponentString(I18n.format("cellterminal.storage_bus.invalid_item"))
-                );
+                MessageHelper.error("cellterminal.storage_bus.invalid_item");
             } else if (noSlotCount > 0 && invalidItemCount == 0) {
-                Minecraft.getMinecraft().player.sendMessage(
-                    new TextComponentString(I18n.format("cellterminal.storage_bus.partition_full"))
-                );
+                MessageHelper.error("cellterminal.storage_bus.partition_full");
             } else {
                 // Mixed: some were invalid, some were full
-                Minecraft.getMinecraft().player.sendMessage(
-                    new TextComponentString(I18n.format("cellterminal.storage_bus.partition_full"))
-                );
+                MessageHelper.error("cellterminal.storage_bus.partition_full");
             }
         }
 

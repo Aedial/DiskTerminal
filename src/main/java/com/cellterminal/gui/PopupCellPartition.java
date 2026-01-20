@@ -15,7 +15,6 @@ import net.minecraft.client.resources.I18n;
 import net.minecraft.enchantment.EnchantmentData;
 import net.minecraft.item.ItemEnchantedBook;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidUtil;
 
@@ -27,6 +26,7 @@ import appeng.api.storage.data.IAEFluidStack;
 import mezz.jei.api.gui.IGhostIngredientHandler;
 
 import com.cellterminal.client.CellInfo;
+import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 
 
@@ -231,9 +231,7 @@ public class PopupCellPartition extends Gui {
                 if (!essentiaRep.isEmpty()) return essentiaRep;
 
                 // If it's not an essentia container, reject it
-                Minecraft.getMinecraft().player.sendMessage(
-                    new TextComponentTranslation("cellterminal.error.essentia_cell_item")
-                );
+                MessageHelper.error("cellterminal.error.essentia_cell_item");
 
                 return ItemStack.EMPTY;
             }
@@ -243,9 +241,7 @@ public class PopupCellPartition extends Gui {
                 FluidStack contained = FluidUtil.getFluidContained(itemStack);
 
                 if (contained == null) {
-                    Minecraft.getMinecraft().player.sendMessage(
-                        new TextComponentTranslation("cellterminal.error.fluid_cell_item")
-                    );
+                    MessageHelper.error("cellterminal.error.fluid_cell_item");
 
                     return ItemStack.EMPTY;
                 }
@@ -264,17 +260,13 @@ public class PopupCellPartition extends Gui {
         // FluidStack - from JEI fluid entries
         if (ingredient instanceof FluidStack) {
             if (cell.isEssentia()) {
-                Minecraft.getMinecraft().player.sendMessage(
-                    new TextComponentTranslation("cellterminal.error.essentia_cell_fluid")
-                );
+                MessageHelper.error("cellterminal.error.essentia_cell_fluid");
 
                 return ItemStack.EMPTY;
             }
 
             if (!cell.isFluid()) {
-                Minecraft.getMinecraft().player.sendMessage(
-                    new TextComponentTranslation("cellterminal.error.item_cell_fluid")
-                );
+                MessageHelper.error("cellterminal.error.item_cell_fluid");
 
                 return ItemStack.EMPTY;
             }
@@ -291,9 +283,7 @@ public class PopupCellPartition extends Gui {
         // EnchantmentData - JEI's deprecated hack for enchanted books (removed in 1.13+)
         if (ingredient instanceof EnchantmentData) {
             if (cell.isFluid() || cell.isEssentia()) {
-                Minecraft.getMinecraft().player.sendMessage(
-                    new TextComponentTranslation(cell.isFluid() ? "cellterminal.error.fluid_cell_item" : "cellterminal.error.essentia_cell_item")
-                );
+                MessageHelper.error(cell.isFluid() ? "cellterminal.error.fluid_cell_item" : "cellterminal.error.essentia_cell_item");
 
                 return ItemStack.EMPTY;
             }

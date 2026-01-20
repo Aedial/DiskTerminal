@@ -48,6 +48,7 @@ import com.cellterminal.gui.handler.TerminalClickHandler;
 import com.cellterminal.gui.handler.TerminalDataManager;
 import com.cellterminal.gui.handler.TooltipHandler;
 import com.cellterminal.gui.handler.UpgradeClickHandler;
+import com.cellterminal.gui.overlay.OverlayMessageRenderer;
 import com.cellterminal.gui.render.InventoryTabRenderer;
 import com.cellterminal.gui.render.PartitionTabRenderer;
 import com.cellterminal.gui.render.RenderContext;
@@ -372,6 +373,9 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         }
 
         drawTooltips(mouseX, mouseY);
+
+        // Render overlay messages last (on top of everything)
+        OverlayMessageRenderer.render();
     }
 
     protected void drawTooltips(int mouseX, int mouseY) {

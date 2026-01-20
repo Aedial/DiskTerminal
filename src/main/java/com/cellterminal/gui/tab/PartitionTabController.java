@@ -3,13 +3,12 @@ package com.cellterminal.gui.tab;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.I18n;
-import net.minecraft.util.text.TextComponentString;
 
 import com.cellterminal.client.KeyBindings;
 import com.cellterminal.client.SearchFilterMode;
 import com.cellterminal.gui.handler.QuickPartitionHandler;
+import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 
 
@@ -124,9 +123,11 @@ public class PartitionTabController implements ITabController {
         QuickPartitionHandler.QuickPartitionResult result = QuickPartitionHandler.attemptQuickPartition(
             type, context.getPartitionLines(), context.getStorageMap());
 
-        // Display result message
-        if (Minecraft.getMinecraft().player != null) {
-            Minecraft.getMinecraft().player.sendMessage(new TextComponentString(result.message));
+        // Display result message with appropriate color
+        if (result.success) {
+            MessageHelper.successRaw(result.message);
+        } else {
+            MessageHelper.errorRaw(result.message);
         }
 
         // Scroll to the cell if successful

@@ -6,6 +6,7 @@ item.cellterminal.cell_terminal.tooltip=§bFor all your partitioning needs!
 # GUI
 gui.cellterminal.cell_terminal.title=Cell Terminal
 gui.cellterminal.wireless_cell_terminal.title=Wireless Cell Terminal
+gui.cellterminal.highlighted=[%d, %d, %d] - Highlighted %s
 gui.cellterminal.location_format=[%d, %d, %d] (DIM %d)
 gui.cellterminal.search=Search...
 gui.cellterminal.no_drives=No drives found in network

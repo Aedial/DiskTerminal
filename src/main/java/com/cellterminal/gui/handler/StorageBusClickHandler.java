@@ -5,13 +5,13 @@ import java.util.Set;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.text.TextComponentTranslation;
 
 import net.minecraftforge.fluids.FluidStack;
 
 import appeng.fluids.items.FluidDummyItem;
 
 import com.cellterminal.client.StorageBusInfo;
+import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketHighlightBlock;
@@ -204,8 +204,7 @@ public class StorageBusClickHandler {
                     && (ctx.hoveredStorageBus.isEssentia() == existingBus.isEssentia());
 
                 if (!sameType) {
-                    Minecraft.getMinecraft().player.sendMessage(
-                        new TextComponentTranslation("cellterminal.error.mixed_bus_selection"));
+                    MessageHelper.error("cellterminal.error.mixed_bus_selection");
 
                     return true;
                 }
@@ -253,8 +252,7 @@ public class StorageBusClickHandler {
             if (!(heldStack.getItem() instanceof FluidDummyItem)) {
                 FluidStack fluid = net.minecraftforge.fluids.FluidUtil.getFluidContained(heldStack);
                 if (fluid == null) {
-                    Minecraft.getMinecraft().player.sendMessage(
-                        new TextComponentTranslation("cellterminal.error.fluid_bus_item"));
+                    MessageHelper.error("cellterminal.error.fluid_bus_item");
 
                     return true;
                 }
@@ -262,8 +260,7 @@ public class StorageBusClickHandler {
         } else if (ctx.hoveredStorageBus.isEssentia()) {
             ItemStack essentiaRep = ThaumicEnergisticsIntegration.tryConvertEssentiaContainerToAspect(heldStack);
             if (essentiaRep.isEmpty()) {
-                Minecraft.getMinecraft().player.sendMessage(
-                    new TextComponentTranslation("cellterminal.error.essentia_bus_item"));
+                MessageHelper.error("cellterminal.error.essentia_bus_item");
 
                 return true;
             }
