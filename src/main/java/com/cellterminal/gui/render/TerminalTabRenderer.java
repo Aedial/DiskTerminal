@@ -8,6 +8,7 @@ import net.minecraft.client.renderer.RenderItem;
 
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.StorageInfo;
+import com.cellterminal.gui.GuiConstants;
 
 
 /**
@@ -16,12 +17,6 @@ import com.cellterminal.client.StorageInfo;
  * Each cell shows name, usage bar, and action buttons (Eject, Inventory, Partition).
  */
 public class TerminalTabRenderer extends CellTerminalRenderer {
-
-    // Button dimensions
-    private static final int BUTTON_SIZE = 14;
-    private static final int BUTTON_EJECT_X = 135;
-    private static final int BUTTON_INVENTORY_X = 150;
-    private static final int BUTTON_PARTITION_X = 165;
 
     public TerminalTabRenderer(FontRenderer fontRenderer, RenderItem itemRender) {
         super(fontRenderer, itemRender);
@@ -38,16 +33,16 @@ public class TerminalTabRenderer extends CellTerminalRenderer {
      */
     public void draw(List<Object> lines, int currentScroll, int rowsVisible,
                      int relMouseX, int relMouseY, RenderContext ctx) {
-        int y = 18;
-        int visibleTop = 18;
-        int visibleBottom = 18 + rowsVisible * ROW_HEIGHT;
+        int y = GuiConstants.CONTENT_START_Y;
+        int visibleTop = GuiConstants.CONTENT_START_Y;
+        int visibleBottom = GuiConstants.CONTENT_START_Y + rowsVisible * ROW_HEIGHT;
         int totalLines = lines.size();
 
         for (int i = 0; i < rowsVisible && currentScroll + i < totalLines; i++) {
             Object line = lines.get(currentScroll + i);
             int lineIndex = currentScroll + i;
 
-            boolean isHovered = relMouseX >= 4 && relMouseX < 185
+            boolean isHovered = relMouseX >= GuiConstants.HOVER_LEFT_EDGE && relMouseX < GuiConstants.HOVER_RIGHT_EDGE
                 && relMouseY >= y && relMouseY < y + ROW_HEIGHT;
 
             // Track hover state based on line type
@@ -58,7 +53,7 @@ public class TerminalTabRenderer extends CellTerminalRenderer {
                     ctx.hoveredCellStorage = ctx.storageMap.get(((CellInfo) line).getParentStorageId());
                     ctx.hoveredCellSlotIndex = ((CellInfo) line).getSlot();
                     // Draw hover background for cell lines
-                    Gui.drawRect(GUI_INDENT, y - 1, 180, y + ROW_HEIGHT - 1, 0x50CCCCCC);
+                    Gui.drawRect(GUI_INDENT, y - 1, GuiConstants.CONTENT_RIGHT_EDGE, y + ROW_HEIGHT - 1, GuiConstants.COLOR_ROW_HOVER);
                 } else if (line instanceof StorageInfo) {
                     ctx.hoveredStorageLine = (StorageInfo) line;
                     ctx.hoveredLineIndex = lineIndex;
@@ -67,7 +62,7 @@ public class TerminalTabRenderer extends CellTerminalRenderer {
 
             // Draw separator line above storage entries (except first one)
             if (line instanceof StorageInfo && i > 0) {
-                Gui.drawRect(GUI_INDENT, y - 1, 180, y, 0xFF606060);
+                Gui.drawRect(GUI_INDENT, y - 1, GuiConstants.CONTENT_RIGHT_EDGE, y, GuiConstants.COLOR_SEPARATOR);
             }
 
             // Tree line parameters
@@ -169,17 +164,20 @@ public class TerminalTabRenderer extends CellTerminalRenderer {
         }
 
         // Check button hover states
-        boolean ejectHovered = mouseX >= BUTTON_EJECT_X && mouseX < BUTTON_EJECT_X + BUTTON_SIZE
-            && mouseY >= y + 1 && mouseY < y + 1 + BUTTON_SIZE;
-        boolean invHovered = mouseX >= BUTTON_INVENTORY_X && mouseX < BUTTON_INVENTORY_X + BUTTON_SIZE
-            && mouseY >= y + 1 && mouseY < y + 1 + BUTTON_SIZE;
-        boolean partHovered = mouseX >= BUTTON_PARTITION_X && mouseX < BUTTON_PARTITION_X + BUTTON_SIZE
-            && mouseY >= y + 1 && mouseY < y + 1 + BUTTON_SIZE;
+        boolean ejectHovered = mouseX >= GuiConstants.BUTTON_EJECT_X
+            && mouseX < GuiConstants.BUTTON_EJECT_X + GuiConstants.BUTTON_SIZE
+            && mouseY >= y + 1 && mouseY < y + 1 + GuiConstants.BUTTON_SIZE;
+        boolean invHovered = mouseX >= GuiConstants.BUTTON_INVENTORY_X
+            && mouseX < GuiConstants.BUTTON_INVENTORY_X + GuiConstants.BUTTON_SIZE
+            && mouseY >= y + 1 && mouseY < y + 1 + GuiConstants.BUTTON_SIZE;
+        boolean partHovered = mouseX >= GuiConstants.BUTTON_PARTITION_X
+            && mouseX < GuiConstants.BUTTON_PARTITION_X + GuiConstants.BUTTON_SIZE
+            && mouseY >= y + 1 && mouseY < y + 1 + GuiConstants.BUTTON_SIZE;
 
         // Draw buttons
-        drawButton(BUTTON_EJECT_X, y + 1, BUTTON_SIZE, "E", ejectHovered);
-        drawButton(BUTTON_INVENTORY_X, y + 1, BUTTON_SIZE, "I", invHovered);
-        drawButton(BUTTON_PARTITION_X, y + 1, BUTTON_SIZE, "P", partHovered);
+        drawButton(GuiConstants.BUTTON_EJECT_X, y + 1, GuiConstants.BUTTON_SIZE, "E", ejectHovered);
+        drawButton(GuiConstants.BUTTON_INVENTORY_X, y + 1, GuiConstants.BUTTON_SIZE, "I", invHovered);
+        drawButton(GuiConstants.BUTTON_PARTITION_X, y + 1, GuiConstants.BUTTON_SIZE, "P", partHovered);
 
         // Track hover state
         if (ejectHovered) {

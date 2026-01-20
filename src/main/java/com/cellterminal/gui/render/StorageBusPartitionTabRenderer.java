@@ -4,311 +4,120 @@ import java.util.List;
 
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
-import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderItem;
-import net.minecraft.item.ItemStack;
 
 import com.cellterminal.client.StorageBusContentRow;
 import com.cellterminal.client.StorageBusInfo;
+import com.cellterminal.gui.GuiConstants;
+import com.cellterminal.gui.storagebus.StorageBusRenderer;
 
 
 /**
  * Renderer for the Storage Bus Partition tab (Tab 5).
  * Displays storage buses with a header row followed by partition rows in a tree structure.
  * Partition slots have an orange/amber tint and support JEI ghost ingredient drag-and-drop.
+ *
+ * This renderer delegates actual storage bus rendering to {@link StorageBusRenderer}.
+ * It handles the overall tab layout and line iteration.
+ *
+ * @see StorageBusRenderer
  */
-public class StorageBusPartitionTabRenderer extends CellTerminalRenderer {
+public class StorageBusPartitionTabRenderer {
+
+    private final StorageBusRenderer storageBusRenderer;
 
     public StorageBusPartitionTabRenderer(FontRenderer fontRenderer, RenderItem itemRender) {
-        super(fontRenderer, itemRender);
+        this.storageBusRenderer = new StorageBusRenderer(fontRenderer, itemRender);
     }
 
     /**
      * Draw the storage bus partition tab content.
+     *
+     * @param partitionLines List of line objects (StorageBusInfo, StorageBusContentRow)
+     * @param currentScroll Current scroll position
+     * @param rowsVisible Number of visible rows
+     * @param relMouseX Mouse X relative to GUI
+     * @param relMouseY Mouse Y relative to GUI
+     * @param absMouseX Absolute mouse X (for tooltips)
+     * @param absMouseY Absolute mouse Y (for tooltips)
+     * @param guiLeft GUI left position (for JEI ghost targets)
+     * @param guiTop GUI top position (for JEI ghost targets)
+     * @param ctx Render context for hover tracking
      */
     public void draw(List<Object> partitionLines, int currentScroll, int rowsVisible,
                      int relMouseX, int relMouseY, int absMouseX, int absMouseY,
                      int guiLeft, int guiTop, RenderContext ctx) {
-        int y = 18;
+
+        int y = GuiConstants.CONTENT_START_Y;
+        int visibleTop = GuiConstants.CONTENT_START_Y;
+        int visibleBottom = GuiConstants.CONTENT_START_Y + rowsVisible * GuiConstants.ROW_HEIGHT;
         int totalLines = partitionLines.size();
 
         for (int i = 0; i < rowsVisible && currentScroll + i < totalLines; i++) {
             Object line = partitionLines.get(currentScroll + i);
             int lineIndex = currentScroll + i;
 
-            boolean isHovered = relMouseX >= 4 && relMouseX < 185
-                && relMouseY >= y && relMouseY < y + ROW_HEIGHT;
+            boolean isHovered = relMouseX >= GuiConstants.HOVER_LEFT_EDGE && relMouseX < GuiConstants.HOVER_RIGHT_EDGE
+                && relMouseY >= y && relMouseY < y + GuiConstants.ROW_HEIGHT;
 
             if (line instanceof StorageBusInfo) {
-                // Header row
                 StorageBusInfo storageBus = (StorageBusInfo) line;
 
                 if (isHovered) ctx.hoveredLineIndex = lineIndex;
 
                 // Draw separator line above header (except for first)
-                if (lineIndex > 0) Gui.drawRect(GUI_INDENT, y - 1, 180, y, 0xFF606060);
+                if (lineIndex > 0) {
+                    Gui.drawRect(GuiConstants.GUI_INDENT, y - 1, GuiConstants.CONTENT_RIGHT_EDGE, y, GuiConstants.COLOR_SEPARATOR);
+                }
 
-                drawStorageBusHeader(storageBus, y, partitionLines, lineIndex,
+                storageBusRenderer.drawStorageBusPartitionHeader(storageBus, y, partitionLines, lineIndex,
                     relMouseX, relMouseY, absMouseX, absMouseY, guiLeft, guiTop, ctx);
-            } else if (line instanceof StorageBusContentRow) {
-                // Content row
-                StorageBusContentRow row = (StorageBusContentRow) line;
 
-                // Check if this bus is selected for background extension
+            } else if (line instanceof StorageBusContentRow) {
+                StorageBusContentRow row = (StorageBusContentRow) line;
+                StorageBusInfo storageBus = row.getStorageBus();
+
+                // Draw selection background if this bus is selected
                 boolean isSelected = ctx.selectedStorageBusIds != null
-                    && ctx.selectedStorageBusIds.contains(row.getStorageBus().getId());
+                    && ctx.selectedStorageBusIds.contains(storageBus.getId());
 
                 if (isSelected) {
-                    Gui.drawRect(GUI_INDENT, y, 180, y + ROW_HEIGHT, 0x405599DD);  // Light blue selection
+                    Gui.drawRect(GuiConstants.GUI_INDENT, y, GuiConstants.CONTENT_RIGHT_EDGE, y + GuiConstants.ROW_HEIGHT,
+                        GuiConstants.COLOR_SELECTION);
                 }
 
                 if (isHovered) {
                     ctx.hoveredLineIndex = lineIndex;
-                    Gui.drawRect(GUI_INDENT, y - 1, 180, y + ROW_HEIGHT - 1, 0x50CCCCCC);
+                    Gui.drawRect(GuiConstants.GUI_INDENT, y - 1, GuiConstants.CONTENT_RIGHT_EDGE, y + GuiConstants.ROW_HEIGHT - 1,
+                        GuiConstants.COLOR_ROW_HOVER);
                 }
 
-                boolean isFirstInGroup = isFirstContentRowOfStorageBus(partitionLines, lineIndex);
-                boolean isLastInGroup = isLastContentRowOfStorageBus(partitionLines, lineIndex);
-                boolean isFirstVisibleRow = (i == 0);
-                boolean isLastVisibleRow = (i == rowsVisible - 1) || (currentScroll + i == totalLines - 1);
-                boolean hasContentAbove = hasContentRowAbove(partitionLines, lineIndex);
-                boolean hasContentBelow = hasContentRowBelow(partitionLines, lineIndex);
+                LineContext lineCtx = buildLineContext(partitionLines, lineIndex, i, rowsVisible, totalLines);
 
-                drawStorageBusPartitionLine(row.getStorageBus(), row.getStartIndex(),
+                storageBusRenderer.drawStorageBusPartitionLine(
+                    storageBus, row.getStartIndex(),
                     y, relMouseX, relMouseY, absMouseX, absMouseY,
-                    isFirstInGroup, isLastInGroup,
-                    isFirstVisibleRow, isLastVisibleRow, hasContentAbove, hasContentBelow,
+                    lineCtx.isFirstInGroup, lineCtx.isLastInGroup, visibleTop, visibleBottom,
+                    lineCtx.isFirstVisibleRow, lineCtx.isLastVisibleRow,
+                    lineCtx.hasContentAbove, lineCtx.hasContentBelow,
                     guiLeft, guiTop, ctx);
             }
 
-            y += ROW_HEIGHT;
+            y += GuiConstants.ROW_HEIGHT;
         }
     }
 
-    /**
-     * Draw a storage bus header row.
-     */
-    private void drawStorageBusHeader(StorageBusInfo storageBus, int y,
-                                       List<Object> lines, int lineIndex,
-                                       int mouseX, int mouseY, int absMouseX, int absMouseY,
-                                       int guiLeft, int guiTop, RenderContext ctx) {
-        // Track this storage bus for priority field rendering
-        ctx.visibleStorageBuses.add(new RenderContext.VisibleStorageBusEntry(storageBus, y));
+    private LineContext buildLineContext(List<Object> lines, int lineIndex, int visibleIndex,
+                                          int rowsVisible, int totalLines) {
+        LineContext ctx = new LineContext();
+        ctx.isFirstInGroup = isFirstContentRowOfStorageBus(lines, lineIndex);
+        ctx.isLastInGroup = isLastContentRowOfStorageBus(lines, lineIndex);
+        ctx.isFirstVisibleRow = (visibleIndex == 0);
+        ctx.isLastVisibleRow = (visibleIndex == rowsVisible - 1) || (lineIndex == totalLines - 1);
+        ctx.hasContentAbove = hasContentRowAbove(lines, lineIndex);
+        ctx.hasContentBelow = hasContentRowBelow(lines, lineIndex);
 
-        // Check if this storage bus is selected
-        boolean isSelected = ctx.selectedStorageBusIds != null
-            && ctx.selectedStorageBusIds.contains(storageBus.getId());
-
-        // Draw selection background (covers header) - light blue
-        if (isSelected) Gui.drawRect(GUI_INDENT, y, 180, y + ROW_HEIGHT, 0x405599DD);
-
-        // Draw vertical tree line connecting to content rows below
-        boolean hasContentFollowing = lineIndex + 1 < lines.size()
-            && lines.get(lineIndex + 1) instanceof StorageBusContentRow;
-
-        if (hasContentFollowing) {
-            int lineX = GUI_INDENT + 7;
-            Gui.drawRect(lineX, y + ROW_HEIGHT - 1, lineX + 1, y + ROW_HEIGHT, 0xFF808080);
-        }
-
-        // Draw connected inventory icon (not the storage bus icon)
-        // Only show icon if there's a connected inventory
-        ItemStack connectedIcon = storageBus.getConnectedInventoryIcon();
-        if (!connectedIcon.isEmpty()) renderItemStack(connectedIcon, GUI_INDENT, y);
-
-        // Draw name and location (shortened to fit)
-        String name = storageBus.getLocalizedName();
-        if (name.length() > 18) name = name.substring(0, 16) + "...";
-        int nameColor = isSelected ? 0x204080 : 0x404040;  // Blue-ish when selected
-        fontRenderer.drawString(name, GUI_INDENT + 20, y + 1, nameColor);
-
-        String location = storageBus.getLocationString();
-        if (location.length() > 30) location = location.substring(0, 28) + "...";
-        fontRenderer.drawString(location, GUI_INDENT + 20, y + 9, 0x808080);
-
-        // Draw IO Mode button on the right side of header
-        int buttonX = 172;
-        int headerRightBound = buttonX;  // Reserve space for IO mode button
-
-        int buttonY = y;
-        int buttonSize = 8;
-
-        boolean ioModeHovered = mouseX >= buttonX && mouseX < buttonX + buttonSize
-            && mouseY >= buttonY && mouseY < buttonY + buttonSize;
-
-        // Draw background for button
-        // Gui.drawRect(buttonX - 1, buttonY - 1, buttonX + buttonSize + 1, buttonY + buttonSize + 1, 0xFF8B8B8B);
-
-        // Draw small button (grayed out if not supported)
-        int btnColor;
-        if (storageBus.supportsIOMode()) {
-            btnColor = ioModeHovered ? 0xFF707070 : 0xFF8B8B8B;
-        } else {
-            // Essentia bus - grayed out appearance
-            btnColor = ioModeHovered ? 0xFF606060 : 0xFF707070;
-        }
-
-        Gui.drawRect(buttonX, buttonY, buttonX + buttonSize, buttonY + buttonSize, btnColor);
-        Gui.drawRect(buttonX, buttonY, buttonX + buttonSize, buttonY + 1, 0xFF555555);
-        Gui.drawRect(buttonX, buttonY, buttonX + 1, buttonY + buttonSize, 0xFF555555);
-        Gui.drawRect(buttonX, buttonY + buttonSize - 1, buttonX + buttonSize, buttonY + buttonSize, 0xFF555555);
-        Gui.drawRect(buttonX + buttonSize - 1, buttonY, buttonX + buttonSize, buttonY + buttonSize, 0xFF555555);
-
-        // Draw colored dot based on access mode
-        drawIOModeDot(buttonX + 1, buttonY + 1, 6, storageBus.getAccessRestriction());
-
-        if (ioModeHovered) ctx.hoveredIOModeButtonStorageBus = storageBus;
-
-        // Header itself is hoverable for selection (excluding IO mode button area)
-        boolean headerHovered = mouseX >= GUI_INDENT && mouseX < headerRightBound
-            && mouseY >= y && mouseY < y + ROW_HEIGHT;
-
-        if (headerHovered) {
-            // Draw hover highlight
-            Gui.drawRect(GUI_INDENT, y, headerRightBound, y + ROW_HEIGHT, 0x30FFFFFF);
-            ctx.hoveredStorageBus = storageBus;
-            ctx.hoveredContentStack = ItemStack.EMPTY;
-            ctx.hoveredContentX = absMouseX;
-            ctx.hoveredContentY = absMouseY;
-        }
-
-        // Draw upgrade icons on header row (aligned with header, not first content row)
-        drawStorageBusUpgradeIcons(storageBus, 3, y - 1);
-    }
-
-    /**
-     * Draw a storage bus partition line (partition items).
-     * All 9 slots are grouped together without a separate side indicator.
-     */
-    private void drawStorageBusPartitionLine(StorageBusInfo storageBus, int startIndex,
-            int y, int mouseX, int mouseY, int absMouseX, int absMouseY,
-            boolean isFirstInGroup, boolean isLastInGroup,
-            boolean isFirstVisibleRow, boolean isLastVisibleRow,
-            boolean hasContentAbove, boolean hasContentBelow,
-            int guiLeft, int guiTop, RenderContext ctx) {
-
-        int lineX = GUI_INDENT + 7;
-        int visibleTop = 18;
-        int visibleBottom = 18 + ctx.rowsVisible * ROW_HEIGHT;
-
-        // Get available config slots based on capacity upgrades
-        int availableSlots = storageBus.getAvailableConfigSlots();
-
-        // Draw tree lines - connect all rows, not just the first
-        drawTreeLines(lineX, y, isFirstInGroup, isFirstInGroup, isLastInGroup,
-            visibleTop, visibleBottom, isFirstVisibleRow, isLastVisibleRow,
-            hasContentAbove, hasContentBelow, true);
-
-        // Draw clear-partition button on tree line for first row (red dot)
-        if (isFirstInGroup) {
-            // Draw clear-partition button on tree line (red dot)
-            int buttonX = lineX - 3;
-            int buttonY = y + 4;
-            int buttonSize = 8;
-
-            boolean clearHovered = mouseX >= buttonX && mouseX < buttonX + buttonSize
-                && mouseY >= buttonY && mouseY < buttonY + buttonSize;
-
-            // Draw background that covers tree line area first
-            Gui.drawRect(buttonX - 1, buttonY - 1, buttonX + buttonSize + 1, buttonY + buttonSize + 1, 0xFF8B8B8B);
-
-            // Draw small button with red dot
-            int btnColor = clearHovered ? 0xFF707070 : 0xFF8B8B8B;
-            Gui.drawRect(buttonX, buttonY, buttonX + buttonSize, buttonY + buttonSize, btnColor);
-            Gui.drawRect(buttonX, buttonY, buttonX + buttonSize, buttonY + 1, 0xFFFFFFFF);
-            Gui.drawRect(buttonX, buttonY, buttonX + 1, buttonY + buttonSize, 0xFFFFFFFF);
-            Gui.drawRect(buttonX, buttonY + buttonSize - 1, buttonX + buttonSize, buttonY + buttonSize, 0xFF555555);
-            Gui.drawRect(buttonX + buttonSize - 1, buttonY, buttonX + buttonSize, buttonY + buttonSize, 0xFF555555);
-
-            // Draw red dot inside button
-            Gui.drawRect(buttonX + 1, buttonY + 1, buttonX + buttonSize - 1, buttonY + buttonSize - 1, 0xFFCC3333);
-
-            if (clearHovered) ctx.hoveredClearButtonStorageBus = storageBus;
-        }
-
-        // Draw partition item slots - all 9 slots grouped together
-        // Starting at CELL_INDENT, no separate side indicator slot
-        List<ItemStack> partitions = storageBus.getPartition();
-        int slotStartX = CELL_INDENT;
-
-        for (int i = 0; i < SLOTS_PER_ROW_BUS; i++) {
-            int partitionIndex = startIndex + i;
-
-            // Stop if we've reached the available config slots for this storage bus
-            if (partitionIndex >= availableSlots) break;
-
-            int slotX = slotStartX + (i * 16) + 4;
-            int slotY = y;
-
-            // Draw partition slot background (orange/amber tint)
-            drawPartitionSlotBackground(slotX, slotY);
-
-            // Track slot position for JEI ghost ingredients
-            int absSlotX = guiLeft + slotX;
-            int absSlotY = guiTop + slotY;
-            ctx.storageBusPartitionSlotTargets.add(new RenderContext.StorageBusPartitionSlotTarget(
-                storageBus, partitionIndex, absSlotX, absSlotY, 16, 16));
-
-            boolean slotHovered = mouseX >= slotX && mouseX < slotX + 16
-                    && mouseY >= slotY && mouseY < slotY + 16;
-
-            if (partitionIndex < partitions.size() && !partitions.get(partitionIndex).isEmpty()) {
-                ItemStack stack = partitions.get(partitionIndex);
-                renderItemStack(stack, slotX, slotY);
-
-                if (slotHovered) {
-                    Gui.drawRect(slotX + 1, slotY + 1, slotX + 15, slotY + 15, 0x80FFFFFF);
-                    ctx.hoveredContentStack = stack;
-                    ctx.hoveredContentX = absMouseX;
-                    ctx.hoveredContentY = absMouseY;
-                    ctx.hoveredStorageBusPartitionSlot = partitionIndex;
-                    ctx.hoveredStorageBus = storageBus;
-                }
-            } else if (slotHovered) {
-                // Empty slot hover
-                Gui.drawRect(slotX + 1, slotY + 1, slotX + 15, slotY + 15, 0x40FFFFFF);
-                ctx.hoveredStorageBusPartitionSlot = partitionIndex;
-                ctx.hoveredStorageBus = storageBus;
-            }
-        }
-    }
-
-    /**
-     * Draw a partition slot background with orange/amber tint.
-     */
-    private void drawPartitionSlotBackground(int x, int y) {
-        Gui.drawRect(x, y, x + 16, y + 16, 0xFF9B8B7B);
-        Gui.drawRect(x, y, x + 15, y + 1, 0xFF473737);
-        Gui.drawRect(x, y, x + 1, y + 15, 0xFF473737);
-        Gui.drawRect(x + 1, y + 15, x + 16, y + 16, 0xFFFFEEDD);
-        Gui.drawRect(x + 15, y + 1, x + 16, y + 15, 0xFFFFEEDD);
-    }
-
-    /**
-     * Draw upgrade icons for a storage bus.
-     * Icons are drawn in 2 columns starting from left, similar to cell upgrades.
-     * @param storageBus The storage bus info
-     * @param x The x position to start drawing (left edge)
-     * @param y The y position of the row
-     */
-    private void drawStorageBusUpgradeIcons(StorageBusInfo storageBus, int x, int y) {
-        List<ItemStack> upgrades = storageBus.getUpgrades();
-        if (upgrades.isEmpty()) return;
-
-        int iconSize = 8;
-        int spacing = 1;
-        int cols = 2;
-
-        for (int i = 0; i < Math.min(upgrades.size(), 5); i++) {
-            ItemStack upgrade = upgrades.get(i);
-            if (!upgrade.isEmpty()) {
-                int col = i % cols;
-                int row = i / cols;
-                int iconX = x + col * (iconSize + spacing);
-                int iconY = y + 1 + row * (iconSize + spacing);
-                renderSmallItemStack(upgrade, iconX, iconY);
-            }
-        }
+        return ctx;
     }
 
     /**
@@ -318,9 +127,7 @@ public class StorageBusPartitionTabRenderer extends CellTerminalRenderer {
         if (!(lines.get(lineIndex) instanceof StorageBusContentRow)) return false;
         if (lineIndex == 0) return true;
 
-        Object prev = lines.get(lineIndex - 1);
-
-        return prev instanceof StorageBusInfo;
+        return lines.get(lineIndex - 1) instanceof StorageBusInfo;
     }
 
     /**
@@ -330,9 +137,7 @@ public class StorageBusPartitionTabRenderer extends CellTerminalRenderer {
         if (!(lines.get(lineIndex) instanceof StorageBusContentRow)) return false;
         if (lineIndex >= lines.size() - 1) return true;
 
-        Object next = lines.get(lineIndex + 1);
-
-        return next instanceof StorageBusInfo;
+        return lines.get(lineIndex + 1) instanceof StorageBusInfo;
     }
 
     /**
@@ -341,9 +146,7 @@ public class StorageBusPartitionTabRenderer extends CellTerminalRenderer {
     private boolean hasContentRowAbove(List<Object> lines, int lineIndex) {
         if (lineIndex == 0) return false;
 
-        Object prev = lines.get(lineIndex - 1);
-
-        return prev instanceof StorageBusContentRow;
+        return lines.get(lineIndex - 1) instanceof StorageBusContentRow;
     }
 
     /**
@@ -352,57 +155,18 @@ public class StorageBusPartitionTabRenderer extends CellTerminalRenderer {
     private boolean hasContentRowBelow(List<Object> lines, int lineIndex) {
         if (lineIndex >= lines.size() - 1) return false;
 
-        Object next = lines.get(lineIndex + 1);
-
-        return next instanceof StorageBusContentRow;
+        return lines.get(lineIndex + 1) instanceof StorageBusContentRow;
     }
 
-    // IO Mode dot colors
-    private static final int COLOR_BLUE_EXTRACT = 0xFF4466FF;  // Blue for extract/read only
-    private static final int COLOR_ORANGE_INSERT = 0xFFFF9933; // Orange for insert/write only
-    private static final int COLOR_GREY_NONE = 0xFF555555;     // Grey for no access
-
     /**
-     * Draw a colored dot indicating IO mode.
-     * 0 = NO_ACCESS (grey)
-     * 1 = READ (blue, extract only)
-     * 2 = WRITE (orange, insert only)
-     * 3 = READ_WRITE (mixed diagonal)
+     * Context for line rendering parameters.
      */
-    private void drawIOModeDot(int x, int y, int size, int accessMode) {
-        int color1, color2;
-
-        switch (accessMode) {
-            case 1: // READ - extract only
-                color1 = COLOR_BLUE_EXTRACT;
-                color2 = COLOR_BLUE_EXTRACT;
-                break;
-            case 2: // WRITE - insert only
-                color1 = COLOR_ORANGE_INSERT;
-                color2 = COLOR_ORANGE_INSERT;
-                break;
-            case 3: // READ_WRITE - both
-                color1 = COLOR_BLUE_EXTRACT;
-                color2 = COLOR_ORANGE_INSERT;
-                break;
-            default: // NO_ACCESS
-                color1 = COLOR_GREY_NONE;
-                color2 = COLOR_GREY_NONE;
-                break;
-        }
-
-        // For mixed mode, draw diagonal split
-        if (accessMode == 3) {
-            for (int py = 0; py < size; py++) {
-                for (int px = 0; px < size; px++) {
-                    // Diagonal split: top-left is blue, bottom-right is orange
-                    int color = (px + py < size) ? color1 : color2;
-                    Gui.drawRect(x + px, y + py, x + px + 1, y + py + 1, color);
-                }
-            }
-        } else {
-            // Solid color
-            Gui.drawRect(x, y, x + size, y + size, color1);
-        }
+    private static class LineContext {
+        boolean isFirstInGroup;
+        boolean isLastInGroup;
+        boolean isFirstVisibleRow;
+        boolean isLastVisibleRow;
+        boolean hasContentAbove;
+        boolean hasContentBelow;
     }
 }

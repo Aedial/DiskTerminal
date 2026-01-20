@@ -6,12 +6,12 @@ import java.util.Map;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.RenderItem;
-import net.minecraft.item.ItemStack;
 
 import com.cellterminal.client.CellContentRow;
-import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.EmptySlotInfo;
 import com.cellterminal.client.StorageInfo;
+import com.cellterminal.gui.GuiConstants;
+import com.cellterminal.gui.cells.CellRenderer;
 
 
 /**
@@ -22,267 +22,158 @@ import com.cellterminal.client.StorageInfo;
  *
  * <b>IMPORTANT:</b> This renderer should replicate the behavior of the
  * Partition Popup!
+ *
+ * This renderer delegates actual cell rendering to {@link CellRenderer}.
+ * It handles the overall tab layout and line iteration.
+ *
+ * @see CellRenderer
  */
-public class PartitionTabRenderer extends CellTerminalRenderer {
+public class PartitionTabRenderer {
 
-    private static final int MAX_PARTITION_SLOTS = 63;
+    private final CellRenderer cellRenderer;
 
     public PartitionTabRenderer(FontRenderer fontRenderer, RenderItem itemRender) {
-        super(fontRenderer, itemRender);
+        this.cellRenderer = new CellRenderer(fontRenderer, itemRender);
     }
 
     /**
      * Draw the partition tab content.
+     *
+     * @param partitionLines List of line objects (StorageInfo, CellContentRow, EmptySlotInfo)
+     * @param currentScroll Current scroll position
+     * @param rowsVisible Number of visible rows
+     * @param relMouseX Mouse X relative to GUI
+     * @param relMouseY Mouse Y relative to GUI
+     * @param absMouseX Absolute mouse X (for tooltips)
+     * @param absMouseY Absolute mouse Y (for tooltips)
+     * @param storageMap Map of storage IDs to StorageInfo
+     * @param guiLeft GUI left position (for JEI ghost targets)
+     * @param guiTop GUI top position (for JEI ghost targets)
+     * @param ctx Render context for hover tracking
      */
     public void draw(List<Object> partitionLines, int currentScroll, int rowsVisible,
                      int relMouseX, int relMouseY, int absMouseX, int absMouseY,
                      Map<Long, StorageInfo> storageMap, int guiLeft, int guiTop,
                      RenderContext ctx) {
-        int y = 18;
-        int visibleTop = 18;
-        int visibleBottom = 18 + rowsVisible * ROW_HEIGHT;
+
+        int y = GuiConstants.CONTENT_START_Y;
+        int visibleTop = GuiConstants.CONTENT_START_Y;
+        int visibleBottom = GuiConstants.CONTENT_START_Y + rowsVisible * GuiConstants.ROW_HEIGHT;
         int totalLines = partitionLines.size();
 
         for (int i = 0; i < rowsVisible && currentScroll + i < totalLines; i++) {
             Object line = partitionLines.get(currentScroll + i);
             int lineIndex = currentScroll + i;
 
-            boolean isHovered = relMouseX >= 4 && relMouseX < 185
-                && relMouseY >= y && relMouseY < y + ROW_HEIGHT;
+            boolean isHovered = relMouseX >= GuiConstants.HOVER_LEFT_EDGE && relMouseX < GuiConstants.HOVER_RIGHT_EDGE
+                && relMouseY >= y && relMouseY < y + GuiConstants.ROW_HEIGHT;
 
-            // Track hover state based on line type
+            // Draw hover highlight and track state
             if (isHovered) {
-                if (line instanceof CellContentRow) {
-                    ctx.hoveredLineIndex = lineIndex;
-                    // Also set hoveredPartitionCell for double-click storage lookup
-                    ctx.hoveredPartitionCell = ((CellContentRow) line).getCell();
-                    Gui.drawRect(GUI_INDENT, y - 1, 180, y + ROW_HEIGHT - 1, 0x50CCCCCC);
-                } else if (line instanceof EmptySlotInfo) {
-                    ctx.hoveredLineIndex = lineIndex;
-                    Gui.drawRect(GUI_INDENT, y - 1, 180, y + ROW_HEIGHT - 1, 0x50CCCCCC);
-                } else if (line instanceof StorageInfo) {
-                    ctx.hoveredStorageLine = (StorageInfo) line;
-                    ctx.hoveredLineIndex = lineIndex;
-                    // Draw hover highlight for storage header (for double-click feedback)
-                    Gui.drawRect(GUI_INDENT, y, 180, y + ROW_HEIGHT, 0x30FFFFFF);
-                }
+                handleLineHover(line, lineIndex, y, ctx);
             }
 
             // Draw separator line above storage entries
             if (line instanceof StorageInfo && i > 0) {
-                Gui.drawRect(GUI_INDENT, y - 1, 180, y, 0xFF606060);
+                Gui.drawRect(GuiConstants.GUI_INDENT, y - 1, GuiConstants.CONTENT_RIGHT_EDGE, y, GuiConstants.COLOR_SEPARATOR);
             }
 
-            // Tree line parameters
-            boolean isFirstInGroup = isFirstInStorageGroup(partitionLines, lineIndex);
-            boolean isLastInGroup = isLastInStorageGroup(partitionLines, lineIndex);
-            boolean isFirstVisibleRow = (i == 0);
-            boolean isLastVisibleRow = (i == rowsVisible - 1) || (currentScroll + i == totalLines - 1);
-            boolean hasContentAbove = (lineIndex > 0) && !isFirstInGroup;
-            boolean hasContentBelow = (lineIndex < totalLines - 1) && !isLastInGroup;
+            // Calculate tree line parameters
+            LineContext lineCtx = buildLineContext(partitionLines, lineIndex, i, rowsVisible, totalLines);
 
+            // Render the line
             if (line instanceof StorageInfo) {
-                drawStorageLineSimple((StorageInfo) line, y, partitionLines, lineIndex, ctx);
+                cellRenderer.drawStorageHeader((StorageInfo) line, y, partitionLines, lineIndex, ctx);
             } else if (line instanceof CellContentRow) {
                 CellContentRow row = (CellContentRow) line;
-                drawCellPartitionLine(row.getCell(), row.getStartIndex(), row.isFirstRow(),
+                cellRenderer.drawCellPartitionLine(
+                    row.getCell(), row.getStartIndex(), row.isFirstRow(),
                     y, relMouseX, relMouseY, absMouseX, absMouseY,
-                    isFirstInGroup, isLastInGroup, visibleTop, visibleBottom,
-                    isFirstVisibleRow, isLastVisibleRow, hasContentAbove, hasContentBelow,
+                    lineCtx.isFirstInGroup, lineCtx.isLastInGroup, visibleTop, visibleBottom,
+                    lineCtx.isFirstVisibleRow, lineCtx.isLastVisibleRow,
+                    lineCtx.hasContentAbove, lineCtx.hasContentBelow,
                     storageMap, guiLeft, guiTop, ctx);
             } else if (line instanceof EmptySlotInfo) {
-                drawEmptySlotLine((EmptySlotInfo) line, y, relMouseX, relMouseY,
-                    isFirstInGroup, isLastInGroup, visibleTop, visibleBottom,
-                    isFirstVisibleRow, isLastVisibleRow, hasContentAbove, hasContentBelow,
+                cellRenderer.drawEmptySlotLine(
+                    (EmptySlotInfo) line, y, relMouseX, relMouseY,
+                    lineCtx.isFirstInGroup, lineCtx.isLastInGroup, visibleTop, visibleBottom,
+                    lineCtx.isFirstVisibleRow, lineCtx.isLastVisibleRow,
+                    lineCtx.hasContentAbove, lineCtx.hasContentBelow,
                     storageMap, ctx);
             }
 
-            y += ROW_HEIGHT;
+            y += GuiConstants.ROW_HEIGHT;
         }
     }
 
-    private void drawStorageLineSimple(StorageInfo storage, int y, List<Object> lines, int lineIndex, RenderContext ctx) {
-        // Track this storage for priority field rendering
-        ctx.visibleStorages.add(new RenderContext.VisibleStorageEntry(storage, y));
-
-        // Draw vertical tree line connecting to cells below (only if there are cells following)
-        boolean hasCellsFollowing = lineIndex + 1 < lines.size()
-            && (lines.get(lineIndex + 1) instanceof CellContentRow || lines.get(lineIndex + 1) instanceof EmptySlotInfo);
-
-        if (hasCellsFollowing) {
-            int lineX = GUI_INDENT + 7;
-            Gui.drawRect(lineX, y + ROW_HEIGHT - 1, lineX + 1, y + ROW_HEIGHT, 0xFF808080);
+    private void handleLineHover(Object line, int lineIndex, int y, RenderContext ctx) {
+        if (line instanceof CellContentRow) {
+            ctx.hoveredLineIndex = lineIndex;
+            ctx.hoveredPartitionCell = ((CellContentRow) line).getCell();
+            Gui.drawRect(GuiConstants.GUI_INDENT, y - 1, GuiConstants.CONTENT_RIGHT_EDGE, y + GuiConstants.ROW_HEIGHT - 1, GuiConstants.COLOR_ROW_HOVER);
+        } else if (line instanceof EmptySlotInfo) {
+            ctx.hoveredLineIndex = lineIndex;
+            Gui.drawRect(GuiConstants.GUI_INDENT, y - 1, GuiConstants.CONTENT_RIGHT_EDGE, y + GuiConstants.ROW_HEIGHT - 1, GuiConstants.COLOR_ROW_HOVER);
+        } else if (line instanceof StorageInfo) {
+            ctx.hoveredStorageLine = (StorageInfo) line;
+            ctx.hoveredLineIndex = lineIndex;
+            Gui.drawRect(GuiConstants.GUI_INDENT, y, GuiConstants.CONTENT_RIGHT_EDGE, y + GuiConstants.ROW_HEIGHT, GuiConstants.COLOR_STORAGE_HEADER_HOVER);
         }
-
-        // Draw block icon
-        renderItemStack(storage.getBlockItem(), GUI_INDENT, y);
-
-        // Draw name
-        String name = storage.getName();
-        if (name.length() > 12) name = name.substring(0, 10) + "...";
-        fontRenderer.drawString(name, GUI_INDENT + 20, y + 1, 0x404040);
-
-        String location = storage.getLocationString();
-        fontRenderer.drawString(location, GUI_INDENT + 20, y + 9, 0x808080);
     }
 
-    private void drawCellPartitionLine(CellInfo cell, int startIndex, boolean isFirstRow,
-            int y, int mouseX, int mouseY, int absMouseX, int absMouseY,
-            boolean isFirstInGroup, boolean isLastInGroup, int visibleTop, int visibleBottom,
-            boolean isFirstVisibleRow, boolean isLastVisibleRow,
-            boolean hasContentAbove, boolean hasContentBelow,
-            Map<Long, StorageInfo> storageMap, int guiLeft, int guiTop,
-            RenderContext ctx) {
+    private LineContext buildLineContext(List<Object> lines, int lineIndex, int visibleIndex,
+                                          int rowsVisible, int totalLines) {
+        LineContext ctx = new LineContext();
+        ctx.isFirstInGroup = isFirstInStorageGroup(lines, lineIndex);
+        ctx.isLastInGroup = isLastInStorageGroup(lines, lineIndex);
+        ctx.isFirstVisibleRow = (visibleIndex == 0);
+        ctx.isLastVisibleRow = (visibleIndex == rowsVisible - 1) || (lineIndex == totalLines - 1);
+        ctx.hasContentAbove = (lineIndex > 0) && !ctx.isFirstInGroup;
+        ctx.hasContentBelow = (lineIndex < totalLines - 1) && !ctx.isLastInGroup;
 
-        int lineX = GUI_INDENT + 7;
-
-        if (isFirstRow) {
-            drawTreeLines(lineX, y, true, isFirstInGroup, isLastInGroup,
-                visibleTop, visibleBottom, isFirstVisibleRow, isLastVisibleRow,
-                hasContentAbove, hasContentBelow, false);
-
-            // TODO: should we push the slot a bit right to place the button better?
-            // Draw clear-partition button on tree line (red dot)
-            int buttonX = lineX - 5;
-            int buttonY = y + 4;
-            int buttonSize = 8;
-
-            boolean clearPartitionHovered = mouseX >= buttonX && mouseX < buttonX + buttonSize
-                && mouseY >= buttonY && mouseY < buttonY + buttonSize;
-
-            // Draw background that covers tree line area first
-            Gui.drawRect(buttonX - 1, buttonY - 1, buttonX + buttonSize + 1, buttonY + buttonSize + 1, 0xFF8B8B8B);
-
-            // Draw small button with red dot
-            int btnColor = clearPartitionHovered ? 0xFF707070 : 0xFF8B8B8B;
-            Gui.drawRect(buttonX, buttonY, buttonX + buttonSize, buttonY + buttonSize, btnColor);
-            Gui.drawRect(buttonX, buttonY, buttonX + buttonSize, buttonY + 1, 0xFFFFFFFF);
-            Gui.drawRect(buttonX, buttonY, buttonX + 1, buttonY + buttonSize, 0xFFFFFFFF);
-            Gui.drawRect(buttonX, buttonY + buttonSize - 1, buttonX + buttonSize, buttonY + buttonSize, 0xFF555555);
-            Gui.drawRect(buttonX + buttonSize - 1, buttonY, buttonX + buttonSize, buttonY + buttonSize, 0xFF555555);
-
-            // Draw red dot inside button
-            Gui.drawRect(buttonX + 1, buttonY + 1, buttonX + buttonSize - 1, buttonY + buttonSize - 1, 0xFFCC3333);
-
-            if (clearPartitionHovered) ctx.hoveredClearPartitionButtonCell = cell;
-
-            // Draw upgrade icons to the left of the cell slot
-            drawCellUpgradeIcons(cell, 3, y);
-
-            // Draw cell slot background
-            drawSlotBackground(CELL_INDENT, y);
-
-            // Check if mouse is over cell slot
-            boolean cellHovered = mouseX >= CELL_INDENT && mouseX < CELL_INDENT + 16
-                    && mouseY >= y && mouseY < y + 16;
-
-            if (cellHovered) {
-                Gui.drawRect(CELL_INDENT + 1, y + 1, CELL_INDENT + 15, y + 15, 0x80FFFFFF);
-                StorageInfo storage = storageMap.get(cell.getParentStorageId());
-                if (storage != null) {
-                    ctx.hoveredCellStorage = storage;
-                    ctx.hoveredCellCell = cell;
-                    ctx.hoveredCellSlotIndex = cell.getSlot();
-                    ctx.hoveredContentStack = cell.getCellItem();
-                    ctx.hoveredContentX = absMouseX;
-                    ctx.hoveredContentY = absMouseY;
-                }
-            }
-
-            // Draw cell icon
-            renderItemStack(cell.getCellItem(), CELL_INDENT, y);
-        } else {
-            // Continuation rows: only draw tree lines if there are MORE cells after this one
-            // If this cell is the last in the group, no tree lines for continuation rows
-            if (!isLastInGroup) {
-                drawTreeLines(lineX, y, false, isFirstInGroup, false,
-                    visibleTop, visibleBottom, isFirstVisibleRow, isLastVisibleRow,
-                    hasContentAbove, hasContentBelow, false);
-            }
-        }
-
-        // Draw partition item slots for this row
-        List<ItemStack> partitions = cell.getPartition();
-        int slotStartX = CELL_INDENT + 20;
-
-        for (int i = 0; i < SLOTS_PER_ROW; i++) {
-            int partitionIndex = startIndex + i;
-
-            // Stop if we've reached the maximum partition slots
-            if (partitionIndex >= MAX_PARTITION_SLOTS) break;
-
-            int slotX = slotStartX + (i * 16);
-            int slotY = y;
-
-            // Draw partition slot background (orange/amber tint)
-            drawPartitionSlotBackground(slotX, slotY);
-
-            // Track slot position for JEI ghost ingredients
-            int absSlotX = guiLeft + slotX;
-            int absSlotY = guiTop + slotY;
-            ctx.partitionSlotTargets.add(new RenderContext.PartitionSlotTarget(
-                cell, partitionIndex, absSlotX, absSlotY, 16, 16));
-
-            boolean slotHovered = mouseX >= slotX && mouseX < slotX + 16
-                    && mouseY >= slotY && mouseY < slotY + 16;
-
-            if (partitionIndex < partitions.size() && !partitions.get(partitionIndex).isEmpty()) {
-                ItemStack stack = partitions.get(partitionIndex);
-                renderItemStack(stack, slotX, slotY);
-
-                if (slotHovered) {
-                    Gui.drawRect(slotX + 1, slotY + 1, slotX + 15, slotY + 15, 0x80FFFFFF);
-                    ctx.hoveredContentStack = stack;
-                    ctx.hoveredContentX = absMouseX;
-                    ctx.hoveredContentY = absMouseY;
-                    ctx.hoveredPartitionSlotIndex = partitionIndex;
-                    ctx.hoveredPartitionCell = cell;
-                }
-            } else if (slotHovered) {
-                // Empty slot hover
-                Gui.drawRect(slotX + 1, slotY + 1, slotX + 15, slotY + 15, 0x40FFFFFF);
-                ctx.hoveredPartitionSlotIndex = partitionIndex;
-                ctx.hoveredPartitionCell = cell;
-            }
-        }
+        return ctx;
     }
 
     /**
-     * Draw a partition slot background with orange/amber tint.
+     * Check if the line at the given index is the first in its storage group.
      */
-    private void drawPartitionSlotBackground(int x, int y) {
-        Gui.drawRect(x, y, x + 16, y + 16, 0xFF9B8B7B);
-        Gui.drawRect(x, y, x + 15, y + 1, 0xFF473737);
-        Gui.drawRect(x, y, x + 1, y + 15, 0xFF473737);
-        Gui.drawRect(x + 1, y + 15, x + 16, y + 16, 0xFFFFEEDD);
-        Gui.drawRect(x + 15, y + 1, x + 16, y + 15, 0xFFFFEEDD);
+    private boolean isFirstInStorageGroup(List<Object> lines, int index) {
+        if (index <= 0) return true;
+
+        return lines.get(index - 1) instanceof StorageInfo;
     }
 
-    private void drawEmptySlotLine(EmptySlotInfo emptySlot, int y, int mouseX, int mouseY,
-            boolean isFirstInGroup, boolean isLastInGroup, int visibleTop, int visibleBottom,
-            boolean isFirstVisibleRow, boolean isLastVisibleRow,
-            boolean hasContentAbove, boolean hasContentBelow,
-            Map<Long, StorageInfo> storageMap, RenderContext ctx) {
+    /**
+     * Check if the line at the given index is the last in its storage group.
+     */
+    private boolean isLastInStorageGroup(List<Object> lines, int index) {
+        if (index >= lines.size() - 1) return true;
 
-        int lineX = GUI_INDENT + 7;
-        drawTreeLines(lineX, y, true, isFirstInGroup, isLastInGroup,
-            visibleTop, visibleBottom, isFirstVisibleRow, isLastVisibleRow,
-            hasContentAbove, hasContentBelow, false);
+        // Look ahead to find if there are any more cells after all rows of current cell
+        for (int i = index + 1; i < lines.size(); i++) {
+            Object line = lines.get(i);
+            if (line instanceof StorageInfo) return true;
 
-        // Draw empty slot with proper slot background
-        drawSlotBackground(CELL_INDENT, y);
-
-        // Check if mouse is over slot
-        boolean slotHovered = mouseX >= CELL_INDENT && mouseX < CELL_INDENT + 16
-                && mouseY >= y && mouseY < y + 16;
-
-        if (slotHovered) {
-            Gui.drawRect(CELL_INDENT + 1, y + 1, CELL_INDENT + 15, y + 15, 0x80FFFFFF);
-            StorageInfo storage = storageMap.get(emptySlot.getParentStorageId());
-            if (storage != null) {
-                ctx.hoveredCellStorage = storage;
-                ctx.hoveredCellSlotIndex = emptySlot.getSlot();
+            if (line instanceof CellContentRow) {
+                CellContentRow row = (CellContentRow) line;
+                if (row.isFirstRow()) return false;
+            } else if (line instanceof EmptySlotInfo) {
+                return false;
             }
         }
+
+        return true;
+    }
+
+    /**
+     * Context for line rendering parameters.
+     */
+    private static class LineContext {
+        boolean isFirstInGroup;
+        boolean isLastInGroup;
+        boolean isFirstVisibleRow;
+        boolean isLastVisibleRow;
+        boolean hasContentAbove;
+        boolean hasContentBelow;
     }
 }
