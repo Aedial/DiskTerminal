@@ -1,5 +1,6 @@
 package com.cellterminal.gui.handler;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -9,6 +10,9 @@ import net.minecraft.item.ItemStack;
 
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.StorageBusInfo;
+import com.cellterminal.gui.FilterPanelManager;
+import com.cellterminal.gui.GuiFilterButton;
+import com.cellterminal.gui.GuiSearchHelpButton;
 import com.cellterminal.gui.GuiSearchModeButton;
 import com.cellterminal.gui.GuiTerminalStyleButton;
 import com.cellterminal.gui.PopupCellInventory;
@@ -59,7 +63,14 @@ public class TooltipHandler {
         // Widget state
         public GuiTerminalStyleButton terminalStyleButton;
         public GuiSearchModeButton searchModeButton;
+        public GuiSearchHelpButton searchHelpButton;
         public PriorityFieldManager priorityFieldManager;
+        public FilterPanelManager filterPanelManager;
+
+        // Search error state
+        public boolean hasSearchError = false;
+        public String searchErrorMessage = null;
+        public int searchFieldX, searchFieldY, searchFieldWidth, searchFieldHeight;
     }
 
     /**
@@ -109,10 +120,40 @@ public class TooltipHandler {
             return;
         }
 
+        if (ctx.searchHelpButton != null && ctx.searchHelpButton.visible && ctx.searchHelpButton.isMouseOver()) {
+            renderer.drawHoveringText(ctx.searchHelpButton.getTooltip(), mouseX, mouseY);
+
+            return;
+        }
+
+        // Search error tooltip - show when hovering over search field with error
+        if (ctx.hasSearchError && ctx.searchErrorMessage != null) {
+            boolean hoveringSearchField = mouseX >= ctx.searchFieldX && mouseX < ctx.searchFieldX + ctx.searchFieldWidth
+                && mouseY >= ctx.searchFieldY && mouseY < ctx.searchFieldY + ctx.searchFieldHeight;
+            if (hoveringSearchField) {
+                List<String> errorTooltip = new ArrayList<>();
+                errorTooltip.add("§c" + I18n.format("gui.cellterminal.search_error"));
+                errorTooltip.add("§7" + ctx.searchErrorMessage);
+                renderer.drawHoveringText(errorTooltip, mouseX, mouseY);
+
+                return;
+            }
+        }
+
         if (ctx.priorityFieldManager != null && ctx.priorityFieldManager.isMouseOverField(mouseX, mouseY)) {
             renderer.drawHoveringText(Collections.singletonList(I18n.format("gui.cellterminal.priority.tooltip")), mouseX, mouseY);
 
             return;
+        }
+
+        // Filter button tooltips
+        if (ctx.filterPanelManager != null) {
+            GuiFilterButton hoveredFilter = ctx.filterPanelManager.getHoveredButton(mouseX, mouseY);
+            if (hoveredFilter != null) {
+                renderer.drawHoveringText(hoveredFilter.getTooltip(), mouseX, mouseY);
+
+                return;
+            }
         }
 
         // Storage bus button tooltips

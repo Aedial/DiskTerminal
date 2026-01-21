@@ -2,10 +2,13 @@ package com.cellterminal.gui.handler;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -13,7 +16,10 @@ import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.common.util.Constants;
 
+import com.cellterminal.client.AdvancedSearchParser;
 import com.cellterminal.client.CellContentRow;
+import com.cellterminal.client.CellFilter;
+import com.cellterminal.client.CellFilter.State;
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.EmptySlotInfo;
 import com.cellterminal.client.SearchFilterMode;
@@ -24,6 +30,10 @@ import com.cellterminal.client.StorageInfo;
 
 /**
  * Manages storage data and line building for Cell Terminal GUI.
+ *
+ * Filtering is "snapshot-based" - the list of visible items is only rebuilt when
+ * filters/search/tab explicitly change, not when data updates come from the server.
+ * This prevents items from disappearing in real-time as their contents change.
  */
 public class TerminalDataManager {
 
@@ -45,6 +55,23 @@ public class TerminalDataManager {
     // Current filter settings
     private String searchFilter = "";
     private SearchFilterMode searchMode = SearchFilterMode.MIXED;
+    private Map<CellFilter, State> activeFilters = new EnumMap<>(CellFilter.class);
+
+    // Advanced search matcher (cached for performance)
+    private AdvancedSearchParser.SearchMatcher advancedMatcher = null;
+    private boolean useAdvancedSearch = false;
+    private String advancedSearchError = null;
+
+    // Snapshot of visible cell keys (storageId:slot) when filters were last applied
+    // Format: "storageId:slot" for cells, "bus:busId" for storage buses
+    private final Set<String> visibleCellSnapshot = new HashSet<>();
+    private final Set<String> visibleCellSnapshotInventory = new HashSet<>();
+    private final Set<String> visibleCellSnapshotPartition = new HashSet<>();
+    private final Set<Long> visibleBusSnapshotInventory = new HashSet<>();
+    private final Set<Long> visibleBusSnapshotPartition = new HashSet<>();
+
+    // Track whether we have initial data (first update should always rebuild)
+    private boolean hasInitialData = false;
 
     public Map<Long, StorageInfo> getStorageMap() {
         return storageMap;
@@ -114,33 +141,123 @@ public class TerminalDataManager {
             }
         }
 
-        rebuildLines();
+        // On first data receive, do a full rebuild to initialize snapshots
+        // On subsequent updates, rebuild using the existing snapshot (non-realtime filtering)
+        if (!hasInitialData) {
+            hasInitialData = true;
+            rebuildLines();
+        } else {
+            rebuildLinesFromSnapshot();
+        }
     }
 
     /**
      * Set the search filter text and mode, then rebuild lines.
      */
     public void setSearchFilter(String filter, SearchFilterMode mode) {
-        this.searchFilter = filter.toLowerCase(Locale.ROOT).trim();
         this.searchMode = mode;
+
+        // Check for advanced search syntax
+        if (AdvancedSearchParser.isAdvancedQuery(filter)) {
+            AdvancedSearchParser.ParseResult result = AdvancedSearchParser.parse(filter);
+            if (result.isSuccess()) {
+                this.advancedMatcher = result.getMatcher();
+                this.useAdvancedSearch = true;
+                this.advancedSearchError = null;
+            } else {
+                this.advancedMatcher = null;
+                this.useAdvancedSearch = false;
+                this.advancedSearchError = result.getErrorMessage();
+            }
+            this.searchFilter = "";  // Don't use simple search when advanced is active
+        } else {
+            this.useAdvancedSearch = false;
+            this.advancedMatcher = null;
+            this.advancedSearchError = null;
+            this.searchFilter = filter.toLowerCase(Locale.ROOT).trim();
+        }
+
         rebuildLines();
     }
 
+    /**
+     * Check if there is an advanced search parse error.
+     */
+    public boolean hasAdvancedSearchError() {
+        return advancedSearchError != null && !advancedSearchError.isEmpty();
+    }
+
+    /**
+     * Get the advanced search error message.
+     */
+    public String getAdvancedSearchError() {
+        return advancedSearchError;
+    }
+
+    /**
+     * Set the active cell/storage bus filters and rebuild lines.
+     */
+    public void setActiveFilters(Map<CellFilter, State> filters) {
+        this.activeFilters.clear();
+        this.activeFilters.putAll(filters);
+        rebuildLines();
+    }
+
+    /**
+     * Update filters without rebuilding (call rebuildLines separately).
+     */
+    public void updateFiltersQuiet(Map<CellFilter, State> filters) {
+        this.activeFilters.clear();
+        this.activeFilters.putAll(filters);
+    }
+
+    /**
+     * Full rebuild of lines with filter evaluation.
+     * This updates the snapshots with which items pass current filters.
+     */
     public void rebuildLines() {
+        // Clear snapshots - we're re-evaluating filters
+        this.visibleCellSnapshot.clear();
+        this.visibleCellSnapshotInventory.clear();
+        this.visibleCellSnapshotPartition.clear();
+        this.visibleBusSnapshotInventory.clear();
+        this.visibleBusSnapshotPartition.clear();
+
         this.lines.clear();
         this.inventoryLines.clear();
         this.partitionLines.clear();
         this.storageBusInventoryLines.clear();
         this.storageBusPartitionLines.clear();
 
-        rebuildCellLines();
-        rebuildStorageBusLines();
+        rebuildCellLines(true);
+        rebuildStorageBusLines(true);
+    }
+
+    /**
+     * Rebuild lines using the existing snapshot (doesn't re-evaluate filters).
+     * Items that were visible before stay visible, even if they would no longer match filters.
+     * Items that weren't visible stay hidden, even if they would now match.
+     */
+    private void rebuildLinesFromSnapshot() {
+        this.lines.clear();
+        this.inventoryLines.clear();
+        this.partitionLines.clear();
+        this.storageBusInventoryLines.clear();
+        this.storageBusPartitionLines.clear();
+
+        rebuildCellLines(false);
+        rebuildStorageBusLines(false);
     }
 
     /**
      * Rebuild lines for cell storages (drives/chests).
      */
-    private void rebuildCellLines() {
+    /**
+     * Rebuild lines for cell storages (drives/chests).
+     * @param evaluateFilters If true, re-evaluate filters and update snapshots.
+     *                        If false, use existing snapshots to determine visibility.
+     */
+    private void rebuildCellLines(boolean evaluateFilters) {
         List<StorageInfo> sortedStorages = new ArrayList<>(this.storageMap.values());
         sortedStorages.sort(createStorageComparator());
 
@@ -157,16 +274,46 @@ public class TerminalDataManager {
 
             for (int slot = 0; slot < storage.getSlotCount(); slot++) {
                 CellInfo cell = storage.getCellAtSlot(slot);
+                String cellKey = storage.getId() + ":" + slot;
 
                 if (cell != null) {
                     cell.setParentStorageId(storage.getId());
 
-                    boolean matchesInventory = cellMatchesFilter(cell, true);
-                    boolean matchesPartition = cellMatchesFilter(cell, false);
-                    boolean matchesForTerminal = matchesCellForMode(matchesInventory, matchesPartition);
+                    boolean showInTerminal;
+                    boolean showInInventory;
+                    boolean showInPartition;
 
-                    // Terminal tab - uses current search mode
-                    if (matchesForTerminal) {
+                    if (evaluateFilters) {
+                        // Evaluate filters and update snapshots
+                        if (!cellMatchesCellFilters(cell)) {
+                            continue;
+                        }
+
+                        if (useAdvancedSearch && advancedMatcher != null) {
+                            showInTerminal = advancedMatcher.matchesCell(cell, storage, searchMode);
+                            showInInventory = advancedMatcher.matchesCell(cell, storage, SearchFilterMode.INVENTORY);
+                            showInPartition = advancedMatcher.matchesCell(cell, storage, SearchFilterMode.PARTITION);
+                        } else {
+                            boolean matchesInventory = cellMatchesSearchFilter(cell, true);
+                            boolean matchesPartition = cellMatchesSearchFilter(cell, false);
+                            showInTerminal = matchesCellForMode(matchesInventory, matchesPartition);
+                            showInInventory = matchesInventory;
+                            showInPartition = matchesPartition;
+                        }
+
+                        // Update snapshots
+                        if (showInTerminal) visibleCellSnapshot.add(cellKey);
+                        if (showInInventory) visibleCellSnapshotInventory.add(cellKey);
+                        if (showInPartition) visibleCellSnapshotPartition.add(cellKey);
+                    } else {
+                        // Use existing snapshots
+                        showInTerminal = visibleCellSnapshot.contains(cellKey);
+                        showInInventory = visibleCellSnapshotInventory.contains(cellKey);
+                        showInPartition = visibleCellSnapshotPartition.contains(cellKey);
+                    }
+
+                    // Terminal tab
+                    if (showInTerminal) {
                         if (!addedToLines) {
                             this.lines.add(linesStartIndex, storage);
                             addedToLines = true;
@@ -175,8 +322,8 @@ public class TerminalDataManager {
                         if (storage.isExpanded()) this.lines.add(cell);
                     }
 
-                    // Inventory tab - always uses inventory mode
-                    if (matchesInventory) {
+                    // Inventory tab
+                    if (showInInventory) {
                         if (!addedToInventoryLines) {
                             this.inventoryLines.add(inventoryLinesStartIndex, storage);
                             addedToInventoryLines = true;
@@ -189,8 +336,8 @@ public class TerminalDataManager {
                         }
                     }
 
-                    // Partition tab - always uses partition mode
-                    if (matchesPartition) {
+                    // Partition tab
+                    if (showInPartition) {
                         if (!addedToPartitionLines) {
                             this.partitionLines.add(partitionLinesStartIndex, storage);
                             addedToPartitionLines = true;
@@ -203,8 +350,8 @@ public class TerminalDataManager {
                         }
                     }
                 } else {
-                    // Empty slots - only show if no filter active
-                    if (searchFilter.isEmpty()) {
+                    // Empty slots - only show if no filter active (and only during filter evaluation)
+                    if (evaluateFilters && searchFilter.isEmpty() && !useAdvancedSearch) {
                         if (!addedToInventoryLines) {
                             this.inventoryLines.add(inventoryLinesStartIndex, storage);
                             addedToInventoryLines = true;
@@ -218,6 +365,31 @@ public class TerminalDataManager {
                         EmptySlotInfo emptySlot = new EmptySlotInfo(storage.getId(), slot);
                         this.inventoryLines.add(emptySlot);
                         this.partitionLines.add(emptySlot);
+
+                        // Track empty slots in snapshot for consistency
+                        visibleCellSnapshotInventory.add(cellKey);
+                        visibleCellSnapshotPartition.add(cellKey);
+                    } else if (!evaluateFilters) {
+                        // Show empty slots if they were in the snapshot
+                        if (visibleCellSnapshotInventory.contains(cellKey)) {
+                            if (!addedToInventoryLines) {
+                                this.inventoryLines.add(inventoryLinesStartIndex, storage);
+                                addedToInventoryLines = true;
+                            }
+
+                            EmptySlotInfo emptySlot = new EmptySlotInfo(storage.getId(), slot);
+                            this.inventoryLines.add(emptySlot);
+                        }
+
+                        if (visibleCellSnapshotPartition.contains(cellKey)) {
+                            if (!addedToPartitionLines) {
+                                this.partitionLines.add(partitionLinesStartIndex, storage);
+                                addedToPartitionLines = true;
+                            }
+
+                            EmptySlotInfo emptySlot = new EmptySlotInfo(storage.getId(), slot);
+                            this.partitionLines.add(emptySlot);
+                        }
                     }
                 }
             }
@@ -228,57 +400,91 @@ public class TerminalDataManager {
      * Rebuild lines for storage bus inventory and partition tabs.
      * Storage buses are sorted by position then by facing.
      * Each bus has a header row (StorageBusInfo) followed by content rows (StorageBusContentRow).
+     * @param evaluateFilters If true, re-evaluate filters and update snapshots.
+     *                        If false, use existing snapshots to determine visibility.
      */
-    private void rebuildStorageBusLines() {
+    private void rebuildStorageBusLines(boolean evaluateFilters) {
         List<StorageBusInfo> sortedBuses = new ArrayList<>(this.storageBusMap.values());
         sortedBuses.sort(createStorageBusComparator());
 
         for (StorageBusInfo bus : sortedBuses) {
-            boolean matchesInventory = storageBusMatchesFilter(bus, true);
-            boolean matchesPartition = storageBusMatchesFilter(bus, false);
+            long busId = bus.getId();
+            boolean showInInventory;
+            boolean showInPartition;
+
+            if (evaluateFilters) {
+                // First check storage bus type filters
+                if (!storageBusMatchesCellFilters(bus)) continue;
+
+                // Check advanced search first if active
+                if (useAdvancedSearch && advancedMatcher != null) {
+                    showInInventory = advancedMatcher.matchesStorageBus(bus, SearchFilterMode.INVENTORY);
+                    showInPartition = advancedMatcher.matchesStorageBus(bus, SearchFilterMode.PARTITION);
+                } else {
+                    showInInventory = storageBusMatchesSearchFilter(bus, true);
+                    showInPartition = storageBusMatchesSearchFilter(bus, false);
+                }
+
+                // Update snapshots
+                if (showInInventory) visibleBusSnapshotInventory.add(busId);
+                if (showInPartition) visibleBusSnapshotPartition.add(busId);
+            } else {
+                // Use existing snapshots
+                showInInventory = visibleBusSnapshotInventory.contains(busId);
+                showInPartition = visibleBusSnapshotPartition.contains(busId);
+            }
 
             // Storage Bus Inventory tab - add header then content rows
-            if (matchesInventory) {
-                this.storageBusInventoryLines.add(bus);  // Header row
-                int contentCount = bus.getContents().size();
-                int contentRows = Math.max(1, (contentCount + SLOTS_PER_ROW_BUS - 1) / SLOTS_PER_ROW_BUS);
-                for (int row = 0; row < contentRows; row++) {
-                    this.storageBusInventoryLines.add(
-                        new StorageBusContentRow(bus, row * SLOTS_PER_ROW_BUS, row == 0));
-                }
+            if (showInInventory) {
+                addStorageBusToInventoryLines(bus);
             }
 
             // Storage Bus Partition tab - add header then content rows
-            if (matchesPartition) {
-                this.storageBusPartitionLines.add(bus);  // Header row
-                int availableSlots = bus.getAvailableConfigSlots();
-                int highestSlot = getHighestNonEmptyStorageBusPartitionSlot(bus);
-
-                // Calculate rows to show:
-                // - Always show at least 1 row
-                // - Show the row containing the highest non-empty slot
-                // - Show an extra empty row only if the last slot of the current row is filled
-                int partitionRows;
-                if (highestSlot < 0) {
-                    partitionRows = 1;  // Nothing filled, show 1 row
-                } else {
-                    int currentRow = highestSlot / SLOTS_PER_ROW_BUS;
-                    partitionRows = currentRow + 1;
-
-                    // Add extra row if last slot of current row is filled and more space available
-                    int lastSlotOfCurrentRow = (currentRow + 1) * SLOTS_PER_ROW_BUS - 1;
-                    if (highestSlot == lastSlotOfCurrentRow && lastSlotOfCurrentRow < availableSlots - 1) {
-                        partitionRows++;
-                    }
-                }
-
-                partitionRows = Math.min(partitionRows, (availableSlots + SLOTS_PER_ROW_BUS - 1) / SLOTS_PER_ROW_BUS);
-
-                for (int row = 0; row < partitionRows; row++) {
-                    this.storageBusPartitionLines.add(
-                        new StorageBusContentRow(bus, row * SLOTS_PER_ROW_BUS, row == 0));
-                }
+            if (showInPartition) {
+                addStorageBusToPartitionLines(bus);
             }
+        }
+    }
+
+    /**
+     * Add a storage bus to the inventory lines (used by advanced search).
+     */
+    private void addStorageBusToInventoryLines(StorageBusInfo bus) {
+        this.storageBusInventoryLines.add(bus);  // Header row
+        int contentCount = bus.getContents().size();
+        int contentRows = Math.max(1, (contentCount + SLOTS_PER_ROW_BUS - 1) / SLOTS_PER_ROW_BUS);
+
+        for (int row = 0; row < contentRows; row++) {
+            this.storageBusInventoryLines.add(new StorageBusContentRow(bus, row * SLOTS_PER_ROW_BUS, row == 0));
+        }
+    }
+
+    /**
+     * Add a storage bus to the partition lines (used by advanced search).
+     */
+    private void addStorageBusToPartitionLines(StorageBusInfo bus) {
+        this.storageBusPartitionLines.add(bus);  // Header row
+        int availableSlots = bus.getAvailableConfigSlots();
+        int highestSlot = getHighestNonEmptyStorageBusPartitionSlot(bus);
+
+        int partitionRows;
+        if (highestSlot < 0) {
+            partitionRows = 1;
+        } else {
+            int currentRow = highestSlot / SLOTS_PER_ROW_BUS;
+            partitionRows = currentRow + 1;
+
+            int lastSlotOfCurrentRow = (currentRow + 1) * SLOTS_PER_ROW_BUS - 1;
+            if (highestSlot == lastSlotOfCurrentRow && lastSlotOfCurrentRow < availableSlots - 1) {
+                partitionRows++;
+            }
+        }
+
+        partitionRows = Math.min(partitionRows, (availableSlots + SLOTS_PER_ROW_BUS - 1) / SLOTS_PER_ROW_BUS);
+
+        for (int row = 0; row < partitionRows; row++) {
+            this.storageBusPartitionLines.add(
+                new StorageBusContentRow(bus, row * SLOTS_PER_ROW_BUS, row == 0));
         }
     }
 
@@ -288,7 +494,7 @@ public class TerminalDataManager {
      * @param checkInventory true to check inventory contents, false to check partition
      * @return true if the bus matches the filter or if filter is empty
      */
-    private boolean storageBusMatchesFilter(StorageBusInfo bus, boolean checkInventory) {
+    private boolean storageBusMatchesSearchFilter(StorageBusInfo bus, boolean checkInventory) {
         if (searchFilter.isEmpty()) return true;
 
         List<ItemStack> itemsToCheck = checkInventory ? bus.getContents() : bus.getPartition();
@@ -308,6 +514,53 @@ public class TerminalDataManager {
         }
 
         return false;
+    }
+
+    /**
+     * Check if a storage bus matches the cell type filters.
+     * @param bus The storage bus to check
+     * @return true if the bus passes all active filters
+     */
+    private boolean storageBusMatchesCellFilters(StorageBusInfo bus) {
+        // Item type filter
+        State itemState = activeFilters.getOrDefault(CellFilter.ITEM_CELLS, State.SHOW_ALL);
+        if (itemState != State.SHOW_ALL) {
+            boolean isItem = !bus.isFluid() && !bus.isEssentia();
+            if (itemState == State.SHOW_ONLY && !isItem) return false;
+            if (itemState == State.HIDE && isItem) return false;
+        }
+
+        // Fluid type filter
+        State fluidState = activeFilters.getOrDefault(CellFilter.FLUID_CELLS, State.SHOW_ALL);
+        if (fluidState != State.SHOW_ALL) {
+            if (fluidState == State.SHOW_ONLY && !bus.isFluid()) return false;
+            if (fluidState == State.HIDE && bus.isFluid()) return false;
+        }
+
+        // Essentia type filter
+        State essentiaState = activeFilters.getOrDefault(CellFilter.ESSENTIA_CELLS, State.SHOW_ALL);
+        if (essentiaState != State.SHOW_ALL) {
+            if (essentiaState == State.SHOW_ONLY && !bus.isEssentia()) return false;
+            if (essentiaState == State.HIDE && bus.isEssentia()) return false;
+        }
+
+        // Has items filter
+        State hasItemsState = activeFilters.getOrDefault(CellFilter.HAS_ITEMS, State.SHOW_ALL);
+        if (hasItemsState != State.SHOW_ALL) {
+            boolean hasContents = !bus.getContents().isEmpty();
+            if (hasItemsState == State.SHOW_ONLY && !hasContents) return false;
+            if (hasItemsState == State.HIDE && hasContents) return false;
+        }
+
+        // Partitioned filter
+        State partitionedState = activeFilters.getOrDefault(CellFilter.PARTITIONED, State.SHOW_ALL);
+        if (partitionedState != State.SHOW_ALL) {
+            boolean isPartitioned = bus.hasPartition();
+            if (partitionedState == State.SHOW_ONLY && !isPartitioned) return false;
+            if (partitionedState == State.HIDE && isPartitioned) return false;
+        }
+
+        return true;
     }
 
     private int getHighestNonEmptyStorageBusPartitionSlot(StorageBusInfo bus) {
@@ -347,7 +600,7 @@ public class TerminalDataManager {
      * Check if a cell matches the filter based on the current search mode.
      */
     private boolean matchesCellForMode(boolean matchesInventory, boolean matchesPartition) {
-        if (searchFilter.isEmpty()) return true;
+        if (searchFilter.isEmpty() && !useAdvancedSearch) return true;
 
         switch (searchMode) {
             case INVENTORY:
@@ -366,7 +619,7 @@ public class TerminalDataManager {
      * @param checkInventory true to check inventory contents, false to check partition
      * @return true if the cell matches the filter or if filter is empty
      */
-    private boolean cellMatchesFilter(CellInfo cell, boolean checkInventory) {
+    private boolean cellMatchesSearchFilter(CellInfo cell, boolean checkInventory) {
         if (searchFilter.isEmpty()) return true;
 
         List<ItemStack> itemsToCheck = checkInventory ? cell.getContents() : cell.getPartition();
@@ -383,6 +636,64 @@ public class TerminalDataManager {
                 String registryName = stack.getItem().getRegistryName().toString().toLowerCase(Locale.ROOT);
                 if (registryName.contains(searchFilter)) return true;
             }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if a cell matches the cell type filters.
+     * @param cell The cell to check
+     * @return true if the cell passes all active filters
+     */
+    private boolean cellMatchesCellFilters(CellInfo cell) {
+        // Item type filter
+        State itemState = activeFilters.getOrDefault(CellFilter.ITEM_CELLS, State.SHOW_ALL);
+        if (itemState != State.SHOW_ALL) {
+            boolean isItem = !cell.isFluid() && !cell.isEssentia();
+            if (itemState == State.SHOW_ONLY && !isItem) return false;
+            if (itemState == State.HIDE && isItem) return false;
+        }
+
+        // Fluid type filter
+        State fluidState = activeFilters.getOrDefault(CellFilter.FLUID_CELLS, State.SHOW_ALL);
+        if (fluidState != State.SHOW_ALL) {
+            if (fluidState == State.SHOW_ONLY && !cell.isFluid()) return false;
+            if (fluidState == State.HIDE && cell.isFluid()) return false;
+        }
+
+        // Essentia type filter
+        State essentiaState = activeFilters.getOrDefault(CellFilter.ESSENTIA_CELLS, State.SHOW_ALL);
+        if (essentiaState != State.SHOW_ALL) {
+            if (essentiaState == State.SHOW_ONLY && !cell.isEssentia()) return false;
+            if (essentiaState == State.HIDE && cell.isEssentia()) return false;
+        }
+
+        // Has items filter
+        State hasItemsState = activeFilters.getOrDefault(CellFilter.HAS_ITEMS, State.SHOW_ALL);
+        if (hasItemsState != State.SHOW_ALL) {
+            boolean hasContents = !cell.getContents().isEmpty();
+            if (hasItemsState == State.SHOW_ONLY && !hasContents) return false;
+            if (hasItemsState == State.HIDE && hasContents) return false;
+        }
+
+        // Partitioned filter
+        State partitionedState = activeFilters.getOrDefault(CellFilter.PARTITIONED, State.SHOW_ALL);
+        if (partitionedState != State.SHOW_ALL) {
+            boolean isPartitioned = hasNonEmptyPartition(cell);
+            if (partitionedState == State.SHOW_ONLY && !isPartitioned) return false;
+            if (partitionedState == State.HIDE && isPartitioned) return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Check if a cell has at least one non-empty partition slot.
+     */
+    private boolean hasNonEmptyPartition(CellInfo cell) {
+        for (ItemStack stack : cell.getPartition()) {
+            if (!stack.isEmpty()) return true;
         }
 
         return false;
