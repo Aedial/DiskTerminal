@@ -120,5 +120,13 @@ public class CellTerminalNetwork {
             packetId++,
             Side.SERVER
         );
+
+        // Client -> Server: Extract upgrade from a cell or storage bus
+        INSTANCE.registerMessage(
+            PacketExtractUpgrade.Handler.class,
+            PacketExtractUpgrade.class,
+            packetId++,
+            Side.SERVER
+        );
     }
 }

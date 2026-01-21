@@ -71,8 +71,8 @@ public class GuiSearchHelpButton extends GuiButton {
         tooltip.add("§7  ? $priority>0");
         tooltip.add("§7  ? $items=0 & $partition>0");
         tooltip.add("§7  ? $name~iron | $name~gold | $name=diamond");
-
-        // TODO: add "double-click to expand search box" line
+        tooltip.add("");
+        tooltip.add("§7" + I18n.format("gui.cellterminal.search_help.field_double_click"));
 
         return tooltip;
     }

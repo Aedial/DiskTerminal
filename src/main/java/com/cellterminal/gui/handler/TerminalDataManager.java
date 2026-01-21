@@ -60,7 +60,7 @@ public class TerminalDataManager {
     // Advanced search matcher (cached for performance)
     private AdvancedSearchParser.SearchMatcher advancedMatcher = null;
     private boolean useAdvancedSearch = false;
-    private String advancedSearchError = null;
+    private List<String> advancedSearchError = null;
 
     // Snapshot of visible cell keys (storageId:slot) when filters were last applied
     // Format: "storageId:slot" for cells, "bus:busId" for storage buses
@@ -167,7 +167,7 @@ public class TerminalDataManager {
             } else {
                 this.advancedMatcher = null;
                 this.useAdvancedSearch = false;
-                this.advancedSearchError = result.getErrorMessage();
+                this.advancedSearchError = result.getErrors();
             }
             this.searchFilter = "";  // Don't use simple search when advanced is active
         } else {
@@ -190,7 +190,7 @@ public class TerminalDataManager {
     /**
      * Get the advanced search error message.
      */
-    public String getAdvancedSearchError() {
+    public List<String> getAdvancedSearchError() {
         return advancedSearchError;
     }
 
@@ -285,9 +285,7 @@ public class TerminalDataManager {
 
                     if (evaluateFilters) {
                         // Evaluate filters and update snapshots
-                        if (!cellMatchesCellFilters(cell)) {
-                            continue;
-                        }
+                        if (!cellMatchesCellFilters(cell)) continue;
 
                         if (useAdvancedSearch && advancedMatcher != null) {
                             showInTerminal = advancedMatcher.matchesCell(cell, storage, searchMode);
@@ -435,14 +433,10 @@ public class TerminalDataManager {
             }
 
             // Storage Bus Inventory tab - add header then content rows
-            if (showInInventory) {
-                addStorageBusToInventoryLines(bus);
-            }
+            if (showInInventory) addStorageBusToInventoryLines(bus);
 
             // Storage Bus Partition tab - add header then content rows
-            if (showInPartition) {
-                addStorageBusToPartitionLines(bus);
-            }
+            if (showInPartition) addStorageBusToPartitionLines(bus);
         }
     }
 

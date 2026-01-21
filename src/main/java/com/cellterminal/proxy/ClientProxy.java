@@ -7,6 +7,7 @@ import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import com.cellterminal.ItemRegistry;
 import com.cellterminal.client.BlockHighlightRenderer;
 import com.cellterminal.client.KeyBindings;
+import com.cellterminal.client.UpgradeTooltipHandler;
 
 
 public class ClientProxy extends CommonProxy {
@@ -26,5 +27,8 @@ public class ClientProxy extends CommonProxy {
 
         // Register block highlight renderer
         MinecraftForge.EVENT_BUS.register(new BlockHighlightRenderer());
+
+        // Register upgrade tooltip handler
+        MinecraftForge.EVENT_BUS.register(new UpgradeTooltipHandler());
     }
 }

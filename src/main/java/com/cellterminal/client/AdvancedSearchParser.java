@@ -6,6 +6,7 @@ import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import net.minecraft.client.resources.I18n;
 import net.minecraft.item.ItemStack;
 
 
@@ -27,9 +28,28 @@ import net.minecraft.item.ItemStack;
  * - ?$items=0&$partition>0
  * - ?$name~iron|$name~gold
  * - ?($priority>=5|$items=0)&$partition>0
- * FIXME: localization
  */
 public class AdvancedSearchParser {
+
+    /**
+     * Safely format a localization key, falling back to key itself if I18n is not available.
+     * This is needed for unit tests where Minecraft's I18n system is not initialized.
+     */
+    private static String safeFormat(String key, Object... args) {
+        try {
+            String result = I18n.format(key, args);
+            // I18n.format returns the key if translation not found, but may return null in tests
+            return result != null ? result : key;
+        } catch (Exception e) {
+            // Minecraft not initialized - return key with args appended
+            if (args.length == 0) return key;
+
+            StringBuilder sb = new StringBuilder(key);
+            for (Object arg : args) sb.append(": ").append(arg);
+
+            return sb.toString();
+        }
+    }
 
     private static final Pattern TOKEN_PATTERN = Pattern.compile(
         "\\$\\w+|[<>=!~]+|\\(|\\)|&|\\||\"[^\"]*\"|'[^']*'|[^\\s$<>=!~()&|\"']+"
@@ -98,20 +118,20 @@ public class AdvancedSearchParser {
      */
     public static ParseResult parse(String query) {
         if (query == null || query.isEmpty()) {
-            return ParseResult.error("Empty query");
+            return ParseResult.error(safeFormat("cellterminal.search.error.empty_query"));
         }
 
         // Strip leading "?" if present
         String expr = query.startsWith("?") ? query.substring(1).trim() : query.trim();
         if (expr.isEmpty()) {
-            return ParseResult.error("Empty query after '?'");
+            return ParseResult.error(safeFormat("cellterminal.search.error.empty_after_prefix"));
         }
 
         List<String> errors = new ArrayList<>();
         List<String> tokens = tokenize(expr);
 
         if (tokens.isEmpty()) {
-            return ParseResult.error("No valid tokens found");
+            return ParseResult.error(safeFormat("cellterminal.search.error.no_tokens"));
         }
 
         int[] pos = {0};
@@ -119,7 +139,7 @@ public class AdvancedSearchParser {
 
         // Check for unconsumed tokens
         if (pos[0] < tokens.size()) {
-            errors.add("Unexpected token: '" + tokens.get(pos[0]) + "'");
+            errors.add(safeFormat("cellterminal.search.error.unexpected_token", tokens.get(pos[0])));
         }
 
         if (!errors.isEmpty()) {
@@ -148,7 +168,7 @@ public class AdvancedSearchParser {
             pos[0]++;  // Skip "|"
 
             if (pos[0] >= tokens.size()) {
-                errors.add("Expected expression after '|'");
+                errors.add(safeFormat("cellterminal.search.error.expected_after_or"));
 
                 return left;
             }
@@ -178,7 +198,7 @@ public class AdvancedSearchParser {
             pos[0]++;  // Skip "&"
 
             if (pos[0] >= tokens.size()) {
-                errors.add("Expected expression after '&'");
+                errors.add(safeFormat("cellterminal.search.error.expected_after_and"));
 
                 return left;
             }
@@ -203,7 +223,7 @@ public class AdvancedSearchParser {
 
     private static SearchMatcher parsePrimary(List<String> tokens, int[] pos, List<String> errors) {
         if (pos[0] >= tokens.size()) {
-            errors.add("Unexpected end of expression");
+            errors.add(safeFormat("cellterminal.search.error.unexpected_end"));
 
             return alwaysFalse();
         }
@@ -216,7 +236,7 @@ public class AdvancedSearchParser {
             SearchMatcher inner = parseExpression(tokens, pos, errors);
 
             if (pos[0] >= tokens.size() || !")".equals(tokens.get(pos[0]))) {
-                errors.add("Missing closing parenthesis ')'");
+                errors.add(safeFormat("cellterminal.search.error.missing_paren"));
             } else {
                 pos[0]++;  // Skip ")"
             }
@@ -226,13 +246,13 @@ public class AdvancedSearchParser {
 
         // Check for stray closing paren or operators
         if (")".equals(token)) {
-            errors.add("Unexpected closing parenthesis ')'");
+            errors.add(safeFormat("cellterminal.search.error.unexpected_paren"));
 
             return alwaysFalse();
         }
 
         if ("&".equals(token) || "|".equals(token)) {
-            errors.add("Unexpected operator '" + token + "'");
+            errors.add(safeFormat("cellterminal.search.error.unexpected_operator", token));
 
             return alwaysFalse();
         }
@@ -253,7 +273,7 @@ public class AdvancedSearchParser {
 
         // Validate identifier
         if (!isValidIdentifier(identifier)) {
-            errors.add("Unknown identifier: '" + identifier + "'. Valid: $name, $priority, $partition, $items");
+            errors.add(safeFormat("cellterminal.search.error.unknown_identifier", identifier));
         }
 
         // Check for operator
@@ -281,7 +301,7 @@ public class AdvancedSearchParser {
             try {
                 Integer.parseInt(value.trim());
             } catch (NumberFormatException e) {
-                errors.add("Expected number for '" + identifier + "', got: '" + value + "'");
+                errors.add(safeFormat("cellterminal.search.error.expected_number", identifier, value));
             }
         }
 

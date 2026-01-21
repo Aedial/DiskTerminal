@@ -37,28 +37,32 @@ public class AdvancedSearchParserTest {
     public void testParse_nullQuery_returnsError() {
         AdvancedSearchParser.ParseResult result = AdvancedSearchParser.parse(null);
         Assert.assertFalse(result.isSuccess());
-        Assert.assertTrue(result.getErrorMessage().contains("Empty query"));
+        // Check for localization key or message content
+        Assert.assertTrue(result.getErrorMessage().contains("empty_query") || result.getErrorMessage().contains("Empty query"));
     }
 
     @Test
     public void testParse_emptyQuery_returnsError() {
         AdvancedSearchParser.ParseResult result = AdvancedSearchParser.parse("");
         Assert.assertFalse(result.isSuccess());
-        Assert.assertTrue(result.getErrorMessage().contains("Empty query"));
+        // Check for localization key or message content
+        Assert.assertTrue(result.getErrorMessage().contains("empty_query") || result.getErrorMessage().contains("Empty query"));
     }
 
     @Test
     public void testParse_onlyQuestionMark_returnsError() {
         AdvancedSearchParser.ParseResult result = AdvancedSearchParser.parse("?");
         Assert.assertFalse(result.isSuccess());
-        Assert.assertTrue(result.getErrorMessage().contains("Empty query after '?'"));
+        // Check for localization key or message content
+        Assert.assertTrue(result.getErrorMessage().contains("empty_after_prefix") || result.getErrorMessage().contains("Empty query after"));
     }
 
     @Test
     public void testParse_questionMarkWithWhitespace_returnsError() {
         AdvancedSearchParser.ParseResult result = AdvancedSearchParser.parse("?   ");
         Assert.assertFalse(result.isSuccess());
-        Assert.assertTrue(result.getErrorMessage().contains("Empty query after '?'"));
+        // Check for localization key or message content
+        Assert.assertTrue(result.getErrorMessage().contains("empty_after_prefix") || result.getErrorMessage().contains("Empty query after"));
     }
 
     // ==================== Valid Identifier Tests ====================
@@ -97,8 +101,8 @@ public class AdvancedSearchParserTest {
     public void testParse_unknownIdentifier_returnsError() {
         AdvancedSearchParser.ParseResult result = AdvancedSearchParser.parse("?$unknown~test");
         Assert.assertFalse(result.isSuccess());
-        Assert.assertTrue(result.getErrorMessage().contains("Unknown identifier"));
-        Assert.assertTrue(result.getErrorMessage().contains("$unknown"));
+        // Check for localization key or message content
+        Assert.assertTrue(result.getErrorMessage().contains("unknown_identifier") || result.getErrorMessage().contains("Unknown identifier"));
     }
 
     @Test
@@ -157,28 +161,32 @@ public class AdvancedSearchParserTest {
     public void testParse_danglingAndOperator_returnsError() {
         AdvancedSearchParser.ParseResult result = AdvancedSearchParser.parse("?$priority>0&");
         Assert.assertFalse(result.isSuccess());
-        Assert.assertTrue(result.getErrorMessage().contains("Expected expression after '&'"));
+        // Check for localization key or message content
+        Assert.assertTrue(result.getErrorMessage().contains("expected_after_and") || result.getErrorMessage().contains("Expected expression after '&'"));
     }
 
     @Test
     public void testParse_danglingOrOperator_returnsError() {
         AdvancedSearchParser.ParseResult result = AdvancedSearchParser.parse("?$priority>0|");
         Assert.assertFalse(result.isSuccess());
-        Assert.assertTrue(result.getErrorMessage().contains("Expected expression after '|'"));
+        // Check for localization key or message content
+        Assert.assertTrue(result.getErrorMessage().contains("expected_after_or") || result.getErrorMessage().contains("Expected expression after '|'"));
     }
 
     @Test
     public void testParse_leadingAndOperator_returnsError() {
         AdvancedSearchParser.ParseResult result = AdvancedSearchParser.parse("?&$priority>0");
         Assert.assertFalse(result.isSuccess());
-        Assert.assertTrue(result.getErrorMessage().contains("Unexpected operator '&'"));
+        // Check for localization key or message content
+        Assert.assertTrue(result.getErrorMessage().contains("unexpected_operator") || result.getErrorMessage().contains("Unexpected operator"));
     }
 
     @Test
     public void testParse_leadingOrOperator_returnsError() {
         AdvancedSearchParser.ParseResult result = AdvancedSearchParser.parse("?|$priority>0");
         Assert.assertFalse(result.isSuccess());
-        Assert.assertTrue(result.getErrorMessage().contains("Unexpected operator '|'"));
+        // Check for localization key or message content
+        Assert.assertTrue(result.getErrorMessage().contains("unexpected_operator") || result.getErrorMessage().contains("Unexpected operator"));
     }
 
     // ==================== Parentheses Tests ====================
@@ -205,28 +213,32 @@ public class AdvancedSearchParserTest {
     public void testParse_missingClosingParenthesis_returnsError() {
         AdvancedSearchParser.ParseResult result = AdvancedSearchParser.parse("?($priority>0");
         Assert.assertFalse(result.isSuccess());
-        Assert.assertTrue(result.getErrorMessage().contains("Missing closing parenthesis"));
+        // Check for localization key or message content
+        Assert.assertTrue(result.getErrorMessage().contains("missing_paren") || result.getErrorMessage().contains("Missing closing parenthesis"));
     }
 
     @Test
     public void testParse_extraClosingParenthesis_returnsError() {
         AdvancedSearchParser.ParseResult result = AdvancedSearchParser.parse("?$priority>0)");
         Assert.assertFalse(result.isSuccess());
-        Assert.assertTrue(result.getErrorMessage().contains("Unexpected"));
+        // Check for localization key or message content - extra ')' is an unexpected token
+        Assert.assertTrue(result.getErrorMessage().contains("unexpected_token") || result.getErrorMessage().contains("unexpected_paren") || result.getErrorMessage().contains("Unexpected"));
     }
 
     @Test
     public void testParse_emptyParentheses_returnsError() {
         AdvancedSearchParser.ParseResult result = AdvancedSearchParser.parse("?()");
         Assert.assertFalse(result.isSuccess());
-        Assert.assertTrue(result.getErrorMessage().contains("Unexpected closing parenthesis"));
+        // Check for localization key or message content
+        Assert.assertTrue(result.getErrorMessage().contains("unexpected_paren") || result.getErrorMessage().contains("Unexpected closing parenthesis"));
     }
 
     @Test
     public void testParse_strayClosingParenthesis_returnsError() {
         AdvancedSearchParser.ParseResult result = AdvancedSearchParser.parse("?)");
         Assert.assertFalse(result.isSuccess());
-        Assert.assertTrue(result.getErrorMessage().contains("Unexpected closing parenthesis"));
+        // Check for localization key or message content
+        Assert.assertTrue(result.getErrorMessage().contains("unexpected_paren") || result.getErrorMessage().contains("Unexpected closing parenthesis"));
     }
 
     // ==================== Quoted String Tests ====================
@@ -273,14 +285,16 @@ public class AdvancedSearchParserTest {
     public void testParse_nonNumericForNumericField_returnsError() {
         AdvancedSearchParser.ParseResult result = AdvancedSearchParser.parse("?$priority=abc");
         Assert.assertFalse(result.isSuccess());
-        Assert.assertTrue(result.getErrorMessage().contains("Expected number"));
+        // Check for localization key or message content
+        Assert.assertTrue(result.getErrorMessage().contains("expected_number") || result.getErrorMessage().contains("Expected number"));
     }
 
     @Test
     public void testParse_floatForIntField_returnsError() {
         AdvancedSearchParser.ParseResult result = AdvancedSearchParser.parse("?$priority=5.5");
         Assert.assertFalse(result.isSuccess());
-        Assert.assertTrue(result.getErrorMessage().contains("Expected number"));
+        // Check for localization key or message content
+        Assert.assertTrue(result.getErrorMessage().contains("expected_number") || result.getErrorMessage().contains("Expected number"));
     }
 
     // ==================== Plain Text Search Tests ====================
@@ -377,10 +391,9 @@ public class AdvancedSearchParserTest {
         AdvancedSearchParser.ParseResult result = AdvancedSearchParser.parse("?$unknown~value");
         Assert.assertFalse(result.isSuccess());
         String errorMsg = result.getErrorMessage();
-        Assert.assertTrue("Error should mention the problematic identifier",
-            errorMsg.contains("$unknown"));
-        Assert.assertTrue("Error should list valid identifiers",
-            errorMsg.contains("$name") || errorMsg.contains("Valid:"));
+        // Check for localization key or message content
+        Assert.assertTrue("Error should mention the problematic identifier or be a localization key",
+            errorMsg.contains("$unknown") || errorMsg.contains("unknown_identifier"));
     }
 
     @Test

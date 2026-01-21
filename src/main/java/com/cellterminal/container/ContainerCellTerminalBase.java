@@ -26,6 +26,7 @@ import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.security.IActionHost;
 import appeng.api.parts.IPart;
+import appeng.api.storage.ICellWorkbenchItem;
 import appeng.container.AEBaseContainer;
 import appeng.helpers.IPriorityHost;
 import appeng.parts.automation.PartUpgradeable;
@@ -39,6 +40,7 @@ import com.cellterminal.container.handler.StorageBusDataHandler;
 import com.cellterminal.container.handler.StorageBusDataHandler.StorageBusTracker;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketCellTerminalUpdate;
+import com.cellterminal.network.PacketExtractUpgrade;
 import com.cellterminal.network.PacketPartitionAction;
 import com.cellterminal.network.PacketStorageBusPartitionAction;
 
@@ -374,6 +376,88 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
                 }
             }
 
+            this.needsStorageBusRefresh = true;
+        }
+    }
+
+    /**
+     * Handle upgrade extraction requests from client.
+     * Extracts an upgrade from a cell or storage bus and gives it to the player.
+     * @param player The player to give the upgrade to
+     * @param targetType Whether the target is a cell or storage bus
+     * @param targetId The storage ID (for cells) or storage bus ID
+     * @param cellSlot The slot of the cell (only used for cells)
+     * @param upgradeIndex The upgrade slot index to extract from
+     * @param toInventory If true, put in inventory; if false, put in hand
+     */
+    public void handleExtractUpgrade(EntityPlayer player, PacketExtractUpgrade.TargetType targetType,
+                                      long targetId, int cellSlot, int upgradeIndex, boolean toInventory) {
+        IItemHandler upgradesInv = null;
+        TileEntity tile = null;
+
+        if (targetType == PacketExtractUpgrade.TargetType.CELL) {
+            StorageTracker tracker = this.byId.get(targetId);
+            if (tracker == null) return;
+
+            IItemHandler cellInventory = CellDataHandler.getCellInventory(tracker.storage);
+            if (cellInventory == null) return;
+
+            ItemStack cellStack = cellInventory.getStackInSlot(cellSlot);
+            if (cellStack.isEmpty() || !(cellStack.getItem() instanceof ICellWorkbenchItem)) return;
+
+            ICellWorkbenchItem cellItem = (ICellWorkbenchItem) cellStack.getItem();
+            if (!cellItem.isEditable(cellStack)) return;
+
+            upgradesInv = cellItem.getUpgradesInventory(cellStack);
+            tile = tracker.tile;
+        } else {
+            StorageBusTracker tracker = this.storageBusById.get(targetId);
+            if (tracker == null) return;
+
+            if (!(tracker.storageBus instanceof PartUpgradeable)) return;
+
+            upgradesInv = ((PartUpgradeable) tracker.storageBus).getInventoryByName("upgrades");
+            tile = tracker.hostTile;
+        }
+
+        if (upgradesInv == null) return;
+        if (upgradeIndex < 0 || upgradeIndex >= upgradesInv.getSlots()) return;
+
+        ItemStack upgradeStack = upgradesInv.extractItem(upgradeIndex, 1, false);
+        if (upgradeStack.isEmpty()) return;
+
+        boolean success = false;
+
+        if (toInventory) {
+            // Try to add to player's inventory
+            success = player.inventory.addItemStackToInventory(upgradeStack);
+            if (success) player.inventory.markDirty();
+        } else {
+            // Try to put in player's hand
+            ItemStack heldStack = player.inventory.getItemStack();
+            if (heldStack.isEmpty()) {
+                player.inventory.setItemStack(upgradeStack);
+                ((EntityPlayerMP) player).updateHeldItem();
+                success = true;
+            } else if (ItemStack.areItemsEqual(heldStack, upgradeStack)
+                    && ItemStack.areItemStackTagsEqual(heldStack, upgradeStack)
+                    && heldStack.getCount() < heldStack.getMaxStackSize()) {
+                heldStack.grow(1);
+                ((EntityPlayerMP) player).updateHeldItem();
+                success = true;
+            }
+        }
+
+        if (!success) {
+            // If we couldn't give the upgrade to the player, drop it on the floor
+            player.dropItem(upgradeStack, false);
+        }
+
+        if (tile != null) tile.markDirty();
+
+        if (targetType == PacketExtractUpgrade.TargetType.CELL) {
+            this.needsFullRefresh = true;
+        } else {
             this.needsStorageBusRefresh = true;
         }
     }

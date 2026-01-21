@@ -16,6 +16,7 @@ import appeng.util.ReadableNumberConverter;
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.gui.FluidStackUtil;
 import com.cellterminal.gui.GuiConstants;
+import com.cellterminal.gui.render.RenderContext;
 
 
 /**
@@ -150,12 +151,36 @@ public class CellSlotRenderer {
      * @return The width consumed by upgrade icons
      */
     public int drawCellUpgradeIcons(CellInfo cell, int x, int y) {
+        return drawCellUpgradeIcons(cell, x, y, null, 0, 0);
+    }
+
+    /**
+     * Draw cell upgrade icons to the left of the cell slot, with hover tracking.
+     *
+     * @param cell The cell info
+     * @param x The x position to start drawing (relative to GUI)
+     * @param y The y position of the row (relative to GUI)
+     * @param ctx Optional render context for tracking upgrade icon positions
+     * @param guiLeft GUI left offset for absolute position calculation
+     * @param guiTop GUI top offset for absolute position calculation
+     * @return The width consumed by upgrade icons
+     */
+    public int drawCellUpgradeIcons(CellInfo cell, int x, int y, RenderContext ctx, int guiLeft, int guiTop) {
         List<ItemStack> upgrades = cell.getUpgrades();
         if (upgrades.isEmpty()) return 0;
 
         int iconX = x;
-        for (ItemStack upgrade : upgrades) {
+
+        for (int i = 0; i < upgrades.size(); i++) {
+            ItemStack upgrade = upgrades.get(i);
             renderSmallItemStack(upgrade, iconX, y);
+
+            // Track upgrade icon position for tooltip and click handling
+            if (ctx != null) {
+                ctx.upgradeIconTargets.add(new RenderContext.UpgradeIconTarget(
+                    cell, upgrade, i, guiLeft + iconX, guiTop + y));
+            }
+
             iconX += 9; // 8px icon + 1px spacing
         }
 

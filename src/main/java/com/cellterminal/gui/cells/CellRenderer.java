@@ -165,8 +165,8 @@ public class CellRenderer {
         // Draw partition-all button
         drawPartitionAllButton(cell, lineX, y, mouseX, mouseY, ctx);
 
-        // Draw upgrade icons
-        slotRenderer.drawCellUpgradeIcons(cell, 3, y);
+        // Draw upgrade icons with tracking for tooltips and extraction
+        slotRenderer.drawCellUpgradeIcons(cell, 3, y, ctx, ctx.guiLeft, ctx.guiTop);
 
         // Draw cell slot
         drawCellSlot(cell, y, mouseX, mouseY, absMouseX, absMouseY, storageMap, ctx);
@@ -326,8 +326,8 @@ public class CellRenderer {
         // Draw clear partition button (red)
         drawClearPartitionButton(cell, lineX, y, mouseX, mouseY, ctx);
 
-        // Draw upgrade icons
-        slotRenderer.drawCellUpgradeIcons(cell, 3, y);
+        // Draw upgrade icons with tracking for tooltips and extraction
+        slotRenderer.drawCellUpgradeIcons(cell, 3, y, ctx, ctx.guiLeft, ctx.guiTop);
 
         // Draw cell slot
         drawCellSlot(cell, y, mouseX, mouseY, absMouseX, absMouseY, storageMap, ctx);
