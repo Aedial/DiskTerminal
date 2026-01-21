@@ -7,6 +7,27 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Keep a Changelog: https://keepachangelog.com/en/1.1.0/
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
+
+## [0.5.0] - 2026-01-21
+### Added
+- Add filter buttons for visibility control:
+  - Item Cells/Storage Buses
+  - Fluid Cells/Storage Buses
+  - Essentia Cells/Storage Buses (only when Thaumic Energistics is loaded)
+  - Has Contents (cells/buses with items)
+  - Has Partition/Filter (cells/buses with configured filters)
+  - Each filter cycles through Show All → Show Only → Hide states
+  - Filter states are separate for cell tabs (1-3) and storage bus tabs (4-5)
+- Add advanced search syntax (prefix with "?" to use):
+  - `$name` - Match against display name
+  - `$priority` - Match against storage priority (numeric comparison)
+  - `$partition` - Match against partition slot count (numeric comparison)
+  - `$items` - Match against stored item type count (numeric comparison)
+  - Operators: `= != < > <= >= ~` for comparisons, `& |` for AND/OR, `( )` for grouping
+  - Examples: `?$priority>0`, `? $items=0 & $partition>0`, `? $name~iron | $name~gold`
+- Add search help button ("?") next to the search field, showing syntax help on hover
+
+
 ## [0.4.2] - 2026-01-20
 ### Added
 - Add better user feedback on user messages (errors, success)

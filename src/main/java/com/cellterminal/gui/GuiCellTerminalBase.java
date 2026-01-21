@@ -13,6 +13,7 @@ import org.lwjgl.input.Keyboard;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
+import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.inventory.ClickType;
@@ -32,6 +33,7 @@ import appeng.container.slot.AppEngSlot;
 import mezz.jei.api.gui.IGhostIngredientHandler;
 
 import com.cellterminal.client.CellContentRow;
+import com.cellterminal.client.CellFilter;
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.CellTerminalClientConfig;
 import com.cellterminal.client.CellTerminalClientConfig.TerminalStyle;
@@ -113,9 +115,14 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     // Terminal style button
     protected GuiTerminalStyleButton terminalStyleButton;
 
+    // Filter panel manager
+    protected FilterPanelManager filterPanelManager;
+    protected int nextButtonId = 10;  // Starting button ID for filter buttons
+
     // Search field and mode button
     protected MEGuiTextField searchField;
     protected GuiSearchModeButton searchModeButton;
+    protected GuiSearchHelpButton searchHelpButton;
     protected SearchFilterMode currentSearchMode = SearchFilterMode.MIXED;
 
     // Current tab
@@ -183,6 +190,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         this.dataManager = new TerminalDataManager();
         this.clickHandler = new TerminalClickHandler();
         this.storageBusClickHandler = new StorageBusClickHandler();
+        this.filterPanelManager = new FilterPanelManager();
 
         // Load persisted settings
         CellTerminalClientConfig config = CellTerminalClientConfig.getInstance();
@@ -201,11 +209,11 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
         // TALL mode: expand to fill available screen space
         // Use ScaledResolution to properly get the scaled screen height (handles auto GUI scale)
-        net.minecraft.client.gui.ScaledResolution res = new net.minecraft.client.gui.ScaledResolution(Minecraft.getMinecraft());
+        ScaledResolution res = new ScaledResolution(Minecraft.getMinecraft());
         int screenHeight = res.getScaledHeight();
 
         // Leave some padding at top and bottom
-        int availableHeight = screenHeight - 40;
+        int availableHeight = screenHeight - 24;
         int extraSpace = availableHeight - MAGIC_HEIGHT_NUMBER;
 
         return Math.max(MIN_ROWS, extraSpace / ROW_HEIGHT);
@@ -219,19 +227,34 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         this.rowsVisible = calculateRowsCount();
         this.ySize = MAGIC_HEIGHT_NUMBER + this.rowsVisible * ROW_HEIGHT;
 
-        // Center GUI with appropriate offset for tall mode
-        int unusedSpace = this.height - this.ySize;
-        this.guiTop = (int) Math.floor(unusedSpace / (unusedSpace < 0 ? 3.8f : 2.0f));
-
         super.initGui();
+
+        // Center GUI with appropriate spacing for tall mode
+        int unusedSpace = this.height - this.ySize;
+        if (unusedSpace < 0) {
+            // GUI is larger than screen - push it up so bottom content is more visible
+            this.guiTop = (int) Math.floor(unusedSpace / 3.8f);
+        } else {
+            // GUI fits on screen - position it to extend to the bottom with minimal margin
+            int bottomMargin = 4;
+            this.guiTop = this.height - this.ySize - bottomMargin;
+
+            // Ensure there's enough space at the top for tabs (TAB_HEIGHT = 22, plus buffer)
+            int tabSpace = 24;
+            if (this.guiTop < tabSpace) this.guiTop = tabSpace;
+        }
 
         this.getScrollBar().setTop(18).setLeft(189).setHeight(this.rowsVisible * ROW_HEIGHT - 2);
         this.repositionSlots();
         initTabIcons();
         initRenderers();
         initTerminalStyleButton();
+        initFilterButtons();
         initSearchField();
         initPriorityFieldManager();
+
+        // Apply persisted filter states to data manager
+        applyFiltersToDataManager();
 
         // Update scrollbar range for current tab
         updateScrollbarForCurrentTab();
@@ -263,10 +286,35 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         this.buttonList.add(this.terminalStyleButton);
     }
 
+    protected void initFilterButtons() {
+        nextButtonId = filterPanelManager.initButtons(this.buttonList, nextButtonId, currentTab);
+        updateFilterButtonPositions();
+    }
+
+    protected void updateFilterButtonPositions() {
+        int styleButtonY = (this.terminalStyleButton != null) ? this.terminalStyleButton.y : this.guiTop + 8;
+        int styleButtonBottom = styleButtonY + 16;  // BUTTON_SIZE = 16
+        Rectangle controlsHelpBounds = getControlsHelpBounds();
+        filterPanelManager.updatePositions(this.guiLeft, this.guiTop, this.ySize, styleButtonY, styleButtonBottom, controlsHelpBounds);
+    }
+
+    protected void applyFiltersToDataManager() {
+        dataManager.updateFiltersQuiet(filterPanelManager.getAllFilterStates());
+    }
+
     protected void initSearchField() {
-        // Search field: positioned after title, extending close to the scrollbar/button area
+        // Search help button: positioned at the start of the search area
         int titleWidth = this.fontRenderer.getStringWidth(getGuiTitle());
-        int searchX = 22 + titleWidth + 4, searchY = 4;
+        int helpButtonX = 22 + titleWidth + 4;
+        int helpButtonY = 5;
+
+        if (this.searchHelpButton != null) this.buttonList.remove(this.searchHelpButton);
+        this.searchHelpButton = new GuiSearchHelpButton(2, this.guiLeft + helpButtonX, this.guiTop + helpButtonY);
+        this.buttonList.add(this.searchHelpButton);
+
+        // Search field: positioned after help button
+        int searchX = helpButtonX + GuiSearchHelpButton.BUTTON_SIZE + 2;
+        int searchY = 4;
         int availableWidth = 189 - searchX;
 
         String existingSearch = (this.searchField != null) ? this.searchField.getText() : CellTerminalClientConfig.getInstance().getSearchFilter();
@@ -396,7 +444,19 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         ctx.partitionPopup = partitionPopup;
         ctx.terminalStyleButton = terminalStyleButton;
         ctx.searchModeButton = searchModeButton;
+        ctx.searchHelpButton = searchHelpButton;
         ctx.priorityFieldManager = priorityFieldManager;
+        ctx.filterPanelManager = filterPanelManager;
+
+        // Search error state
+        ctx.hasSearchError = dataManager.hasAdvancedSearchError();
+        ctx.searchErrorMessage = dataManager.getAdvancedSearchError();
+        if (searchField != null) {
+            ctx.searchFieldX = searchField.x - 2;
+            ctx.searchFieldY = searchField.y - 2;
+            ctx.searchFieldWidth = searchField.width + 4;
+            ctx.searchFieldHeight = searchField.height + 4;
+        }
 
         TooltipHandler.drawTooltips(ctx, new TooltipHandler.TooltipRenderer() {
             @Override
@@ -420,6 +480,16 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         if (this.searchField != null) {
             GlStateManager.pushMatrix();
             GlStateManager.translate(-this.guiLeft, -this.guiTop, 0);
+
+            // Draw red border if there's a parse error
+            if (dataManager.hasAdvancedSearchError()) {
+                int fx = this.searchField.x - 3;
+                int fy = this.searchField.y - 3;
+                int fw = this.searchField.width + 6;
+                int fh = this.searchField.height + 6;
+                drawRect(fx, fy, fx + fw, fy + fh, 0xFFFF0000);
+            }
+
             this.searchField.drawTextBox();
             GlStateManager.popMatrix();
         }
@@ -511,11 +581,14 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     protected void drawControlsHelpForCurrentTab() {
         TerminalStyle style = CellTerminalClientConfig.getInstance().getTerminalStyle();
         TabRenderingHandler.ControlsHelpContext ctx = new TabRenderingHandler.ControlsHelpContext(
-            this.guiLeft, this.guiTop, this.ySize, currentTab, this.fontRenderer, style);
+            this.guiLeft, this.guiTop, this.ySize, this.height, currentTab, this.fontRenderer, style);
 
         TabRenderingHandler.ControlsHelpResult result = TabRenderingHandler.drawControlsHelpWidget(ctx);
         this.cachedControlsHelpLines = result.wrappedLines;
         this.cachedControlsHelpTab = result.cachedTab;
+
+        // Update filter button positions after controls help bounds are known
+        updateFilterButtonPositions();
     }
 
     /**
@@ -540,10 +613,10 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         int panelRight = -CONTROLS_HELP_RIGHT_MARGIN;
         int panelLeft = -this.guiLeft + CONTROLS_HELP_LEFT_MARGIN;
 
-        // In tall mode, move up slightly to allow chat to be visible
-        TerminalStyle style = CellTerminalClientConfig.getInstance().getTerminalStyle();
-        int bottomOffset = (style == TerminalStyle.TALL) ? 30 : 8;
-        int panelBottom = this.ySize - bottomOffset;
+        // Position relative to screen bottom
+        // Leave margin for JEI bookmarks button at screen bottom
+        int bottomOffset = 28;
+        int panelBottom = this.height - this.guiTop - bottomOffset;
         int panelTop = panelBottom - panelHeight;
 
         return new Rectangle(
@@ -555,7 +628,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     }
 
     /**
-     * Get JEI exclusion areas to prevent overlap with controls help widget.
+     * Get JEI exclusion areas to prevent overlap with controls help widget and filter buttons.
      */
     @Override
     public List<Rectangle> getJEIExclusionArea() {
@@ -563,6 +636,10 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         Rectangle controlsHelp = getControlsHelpBounds();
 
         if (controlsHelp.width > 0) areas.add(controlsHelp);
+
+        // Add filter panel bounds
+        Rectangle filterBounds = filterPanelManager.getBounds();
+        if (filterBounds.width > 0) areas.add(filterBounds);
 
         return areas;
     }
@@ -814,6 +891,8 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
                 getScrollBar().setRange(0, 0, 1);
                 updateScrollbarForCurrentTab();
                 updateSearchModeButtonVisibility();
+                initFilterButtons();  // Reinitialize filter buttons for new tab
+                applyFiltersToDataManager();
                 onSearchTextChanged();  // Reapply filter with tab-specific mode
 
                 // Notify server of tab change for polling optimization
@@ -873,6 +952,17 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             onSearchTextChanged();
 
             return;
+        }
+
+        // Handle filter button clicks
+        if (btn instanceof GuiFilterButton) {
+            GuiFilterButton filterBtn = (GuiFilterButton) btn;
+            if (filterPanelManager.handleClick(filterBtn)) {
+                applyFiltersToDataManager();
+                rebuildAndUpdateScrollbar();
+
+                return;
+            }
         }
 
         super.actionPerformed(btn);

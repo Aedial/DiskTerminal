@@ -222,15 +222,17 @@ public class TabRenderingHandler {
         public final int guiLeft;
         public final int guiTop;
         public final int ySize;
+        public final int screenHeight;
         public final int currentTab;
         public final FontRenderer fontRenderer;
         public final TerminalStyle style;
 
-        public ControlsHelpContext(int guiLeft, int guiTop, int ySize, int currentTab,
+        public ControlsHelpContext(int guiLeft, int guiTop, int ySize, int screenHeight, int currentTab,
                                    FontRenderer fontRenderer, TerminalStyle style) {
             this.guiLeft = guiLeft;
             this.guiTop = guiTop;
             this.ySize = ySize;
+            this.screenHeight = screenHeight;
             this.currentTab = currentTab;
             this.fontRenderer = fontRenderer;
             this.style = style;
@@ -291,8 +293,10 @@ public class TabRenderingHandler {
         int contentHeight = wrappedLines.size() * CONTROLS_HELP_LINE_HEIGHT;
         int panelHeight = contentHeight + (CONTROLS_HELP_PADDING * 2);
 
-        int bottomOffset = (ctx.style == TerminalStyle.TALL) ? 30 : 8;
-        int panelBottom = ctx.ySize - bottomOffset;
+        // Position relative to screen bottom
+        // Leave margin for JEI bookmarks button at screen bottom
+        int bottomOffset = 28;
+        int panelBottom = ctx.screenHeight - ctx.guiTop - bottomOffset;
         int panelTop = panelBottom - panelHeight;
 
         // Draw AE2-style panel background

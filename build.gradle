@@ -14,7 +14,7 @@ buildscript {
 
 apply plugin: 'net.minecraftforge.gradle.forge'
 
-version = "0.4.2"
+version = "0.5.0"
 group = "com.cellterminal"
 archivesBaseName = "cell-terminal"
 
@@ -50,6 +50,9 @@ dependencies {
 
     // Optional: NAE2 support for larger compacting cells
     deobfCompile "curse.maven:nae2-884359:5380800"
+
+    // Test dependencies
+    testCompile 'junit:junit:4.13.2'
 }
 
 processResources {

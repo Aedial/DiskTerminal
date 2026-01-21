@@ -36,6 +36,20 @@ gui.cellterminal.search_mode.inventory=Inventory (Search cell contents)
 gui.cellterminal.search_mode.partition=Partition (Search cell filters)
 gui.cellterminal.search_mode.mixed=Mixed (Search both)
 
+# Filter buttons
+gui.cellterminal.filter.item_cells=Item Cells/Buses
+gui.cellterminal.filter.fluid_cells=Fluid Cells/Buses
+gui.cellterminal.filter.essentia_cells=Essentia Cells/Buses
+gui.cellterminal.filter.has_items=Has Contents
+gui.cellterminal.filter.partitioned=Has Partition/Filter
+gui.cellterminal.filter.state.show_all=Show All
+gui.cellterminal.filter.state.show_only=Show Only
+gui.cellterminal.filter.state.hide=Hide
+
+# Search error
+gui.cellterminal.search_error=§cSearch Error:§r
+# TODO: add localization for specific error messages
+
 # Config settings
 config.cellterminal.gui=GUI Settings
 config.cellterminal.gui.tooltip=Cell Terminal GUI preferences
@@ -110,6 +124,23 @@ gui.cellterminal.storagebus.iomode.readwrite=Extract/Insert
 gui.cellterminal.storagebus.partitionall=Set Contents to Filter
 gui.cellterminal.storage_bus.name=Storage Bus
 gui.cellterminal.storage_bus.air=Air
+
+# Search help tooltip
+gui.cellterminal.search_help.title=Search Syntax Help
+gui.cellterminal.search_help.simple=Simple Search:
+gui.cellterminal.search_help.simple_desc=Type any text to filter by item/cell name.
+gui.cellterminal.search_help.advanced=Advanced Search:
+gui.cellterminal.search_help.advanced_desc=Start with ? for advanced queries.
+gui.cellterminal.search_help.identifiers=Identifiers:
+gui.cellterminal.search_help.id_name=Cell/bus display name
+gui.cellterminal.search_help.id_priority=Storage priority
+gui.cellterminal.search_help.id_partition=Partition slot count
+gui.cellterminal.search_help.id_items=Stored item type count
+gui.cellterminal.search_help.operators=Operators:
+gui.cellterminal.search_help.op_compare=Comparison
+gui.cellterminal.search_help.op_logic=AND / OR
+gui.cellterminal.search_help.op_group=Grouping
+gui.cellterminal.search_help.examples=Examples:
 
 # Cell partition button tooltips
 gui.cellterminal.cell.partitionall=Set Contents to Partition

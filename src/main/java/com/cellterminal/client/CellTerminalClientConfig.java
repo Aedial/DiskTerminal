@@ -1,6 +1,9 @@
 package com.cellterminal.client;
 
 import java.io.File;
+import java.util.EnumMap;
+import java.util.Map;
+import java.util.HashMap;
 
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.common.config.Configuration;
@@ -15,6 +18,7 @@ public class CellTerminalClientConfig {
 
     private static final String CONFIG_FILE = "cellterminal_client.cfg";
     private static final String CATEGORY_GUI = "gui";
+    private static final String CATEGORY_FILTERS = "filters";
 
     private static CellTerminalClientConfig instance;
 
@@ -27,6 +31,11 @@ public class CellTerminalClientConfig {
     private TerminalStyle terminalStyle = TerminalStyle.SMALL;
     private String searchFilter = "";
     private SearchFilterMode searchMode = SearchFilterMode.MIXED;
+
+    // Filter states - separate maps for cells (tabs 0-2) and storage buses (tabs 3-4)
+    private final Map<CellFilter, CellFilter.State> cellFilterStates = new EnumMap<>(CellFilter.class);
+    private final Map<CellFilter, CellFilter.State> busFilterStates = new EnumMap<>(CellFilter.class);
+    private final Map<String, Property> filterProperties = new HashMap<>();
 
     private CellTerminalClientConfig() {
         File configFile = new File(Minecraft.getMinecraft().gameDir, "config/" + CONFIG_FILE);
@@ -51,6 +60,26 @@ public class CellTerminalClientConfig {
             "Search filter mode: INVENTORY (search contents), PARTITION (search filters), MIXED (search both)");
         this.searchModeProperty.setLanguageKey("config.cellterminal.gui.searchMode");
         this.searchMode = SearchFilterMode.fromName(this.searchModeProperty.getString());
+
+        // Load filter states for cells and storage buses separately
+        config.setCategoryLanguageKey(CATEGORY_FILTERS, "config.cellterminal.filters");
+        for (CellFilter filter : CellFilter.values()) {
+            // Cell filter states (tabs 0-2)
+            String cellKey = filter.getConfigKey(false);
+            Property cellProp = config.get(CATEGORY_FILTERS, cellKey, CellFilter.State.SHOW_ALL.name(),
+                "Filter state for " + filter.name() + " (cells): SHOW_ALL, SHOW_ONLY, or HIDE");
+            cellProp.setLanguageKey("config.cellterminal.filter." + cellKey);
+            filterProperties.put(cellKey, cellProp);
+            cellFilterStates.put(filter, CellFilter.State.fromName(cellProp.getString()));
+
+            // Storage bus filter states (tabs 3-4)
+            String busKey = filter.getConfigKey(true);
+            Property busProp = config.get(CATEGORY_FILTERS, busKey, CellFilter.State.SHOW_ALL.name(),
+                "Filter state for " + filter.name() + " (storage buses): SHOW_ALL, SHOW_ONLY, or HIDE");
+            busProp.setLanguageKey("config.cellterminal.filter." + busKey);
+            filterProperties.put(busKey, busProp);
+            busFilterStates.put(filter, CellFilter.State.fromName(busProp.getString()));
+        }
 
         config.setCategoryLanguageKey(CATEGORY_GUI, "config.cellterminal.gui");
 
@@ -131,6 +160,44 @@ public class CellTerminalClientConfig {
         setSearchMode(next);
 
         return next;
+    }
+
+    /**
+     * Get the filter state for a specific filter.
+     * @param filter The filter type
+     * @param forStorageBus true for storage bus tabs (3-4), false for cell tabs (0-2)
+     */
+    public CellFilter.State getFilterState(CellFilter filter, boolean forStorageBus) {
+        Map<CellFilter, CellFilter.State> states = forStorageBus ? busFilterStates : cellFilterStates;
+
+        return states.getOrDefault(filter, CellFilter.State.SHOW_ALL);
+    }
+
+    /**
+     * Set the filter state for a specific filter.
+     * @param filter The filter type
+     * @param state The new state
+     * @param forStorageBus true for storage bus tabs (3-4), false for cell tabs (0-2)
+     */
+    public void setFilterState(CellFilter filter, CellFilter.State state, boolean forStorageBus) {
+        Map<CellFilter, CellFilter.State> states = forStorageBus ? busFilterStates : cellFilterStates;
+        if (states.get(filter) == state) return;
+
+        states.put(filter, state);
+        String key = filter.getConfigKey(forStorageBus);
+        Property prop = filterProperties.get(key);
+        if (prop != null) {
+            prop.set(state.name());
+            config.save();
+        }
+    }
+
+    /**
+     * Get all filter states as a map.
+     * @param forStorageBus true for storage bus tabs (3-4), false for cell tabs (0-2)
+     */
+    public Map<CellFilter, CellFilter.State> getAllFilterStates(boolean forStorageBus) {
+        return new EnumMap<>(forStorageBus ? busFilterStates : cellFilterStates);
     }
 
     /**
