@@ -36,6 +36,20 @@ gui.cellterminal.search_mode.inventory=库存（搜索元件内容）
 gui.cellterminal.search_mode.partition=分区（搜索元件过滤项）
 gui.cellterminal.search_mode.mixed=混合（同时搜索两者）
 
+# Filter buttons
+gui.cellterminal.filter.item_cells=物品元件/总线
+gui.cellterminal.filter.fluid_cells=流体元件/总线
+gui.cellterminal.filter.essentia_cells=源质元件/总线
+gui.cellterminal.filter.has_items=存有内容
+gui.cellterminal.filter.partitioned=存在分区/过滤项
+gui.cellterminal.filter.state.show_all=显示全部
+gui.cellterminal.filter.state.show_only=仅显示
+gui.cellterminal.filter.state.hide=隐藏
+
+# Search error
+gui.cellterminal.search_error=§c搜索错误：§r
+# TODO: add localization for specific error messages
+
 # Config settings
 config.cellterminal.gui=GUI设置
 config.cellterminal.gui.tooltip=元件终端GUI偏好设置
@@ -110,6 +124,23 @@ gui.cellterminal.storagebus.iomode.readwrite=取出/存入
 gui.cellterminal.storagebus.partitionall=设置内容至过滤项
 gui.cellterminal.storage_bus.name=存储总线
 gui.cellterminal.storage_bus.air=空气
+
+# Search help tooltip
+gui.cellterminal.search_help.title=搜索语法帮助
+gui.cellterminal.search_help.simple=简单搜索：
+gui.cellterminal.search_help.simple_desc=输入任意文本，按物品/元件名称过滤。
+gui.cellterminal.search_help.advanced=高级搜索：
+gui.cellterminal.search_help.advanced_desc=以 ? 开头进行高级查询。
+gui.cellterminal.search_help.identifiers=标识符：
+gui.cellterminal.search_help.id_name=元件/总线显示名称
+gui.cellterminal.search_help.id_priority=存储优先级
+gui.cellterminal.search_help.id_partition=分区槽位数量
+gui.cellterminal.search_help.id_items=存储的物品类型数量
+gui.cellterminal.search_help.operators=运算符：
+gui.cellterminal.search_help.op_compare=比较
+gui.cellterminal.search_help.op_logic=与/或
+gui.cellterminal.search_help.op_group=分组
+gui.cellterminal.search_help.examples=示例：
 
 # Cell partition button tooltips
 gui.cellterminal.cell.partitionall=设置内容至分区
