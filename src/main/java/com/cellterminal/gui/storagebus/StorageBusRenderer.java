@@ -125,7 +125,7 @@ public class StorageBusRenderer {
         }
 
         // Draw upgrade icons
-        drawUpgradeIcons(storageBus, 3, y - 1);
+        drawUpgradeIcons(storageBus, 3, y - 1, ctx);
     }
 
     /**
@@ -239,13 +239,13 @@ public class StorageBusRenderer {
         }
 
         // Draw upgrade icons
-        drawUpgradeIcons(storageBus, 3, y - 1);
+        drawUpgradeIcons(storageBus, 3, y - 1, ctx);
     }
 
     /**
-     * Draw upgrade icons in 2 columns.
+     * Draw upgrade icons in 2 columns with hover tracking.
      */
-    private void drawUpgradeIcons(StorageBusInfo storageBus, int x, int y) {
+    private void drawUpgradeIcons(StorageBusInfo storageBus, int x, int y, RenderContext ctx) {
         List<ItemStack> upgrades = storageBus.getUpgrades();
         if (upgrades.isEmpty()) return;
 
@@ -261,6 +261,12 @@ public class StorageBusRenderer {
                 int iconX = x + col * (iconSize + spacing);
                 int iconY = y + 1 + row * (iconSize + spacing);
                 slotRenderer.renderSmallItemStack(upgrade, iconX, iconY);
+
+                // Track upgrade icon position for tooltip and click handling
+                if (ctx != null) {
+                    ctx.upgradeIconTargets.add(new RenderContext.UpgradeIconTarget(
+                        storageBus, upgrade, i, ctx.guiLeft + iconX, ctx.guiTop + iconY));
+                }
             }
         }
     }

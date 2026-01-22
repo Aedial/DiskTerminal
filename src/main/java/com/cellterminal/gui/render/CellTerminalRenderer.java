@@ -150,14 +150,35 @@ public abstract class CellTerminalRenderer {
      * @return The width consumed by upgrade icons
      */
     protected int drawCellUpgradeIcons(CellInfo cell, int x, int y) {
+        return drawCellUpgradeIcons(cell, x, y, null);
+    }
+
+    /**
+     * Draw upgrade icons for a cell with hover tracking.
+     * Icons are drawn at the left side of the cell entry, using small 8x8 icons.
+     * @param cell The cell info
+     * @param x The x position to start drawing (relative to GUI)
+     * @param y The y position of the row (relative to GUI)
+     * @param ctx Optional render context for tracking upgrade icon positions
+     * @return The width consumed by upgrade icons
+     */
+    protected int drawCellUpgradeIcons(CellInfo cell, int x, int y, RenderContext ctx) {
         List<ItemStack> upgrades = cell.getUpgrades();
         if (upgrades.isEmpty()) return 0;
 
         int iconX = x;
         int iconY = y; // Align with top of cell icon
 
-        for (ItemStack upgrade : upgrades) {
+        for (int i = 0; i < upgrades.size(); i++) {
+            ItemStack upgrade = upgrades.get(i);
             renderSmallItemStack(upgrade, iconX, iconY);
+
+            // Track upgrade icon position for tooltip and click handling
+            if (ctx != null) {
+                ctx.upgradeIconTargets.add(new RenderContext.UpgradeIconTarget(
+                    cell, upgrade, i, ctx.guiLeft + iconX, ctx.guiTop + iconY));
+            }
+
             iconX += 9; // 8px icon + 1px spacing
         }
 

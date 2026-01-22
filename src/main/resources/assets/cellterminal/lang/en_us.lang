@@ -48,7 +48,26 @@ gui.cellterminal.filter.state.hide=Hide
 
 # Search error
 gui.cellterminal.search_error=§cSearch Error:§r
-# TODO: add localization for specific error messages
+
+# Advanced search error messages
+cellterminal.search.error.empty_query=Empty query
+cellterminal.search.error.empty_after_prefix=Empty query after '?'
+cellterminal.search.error.no_tokens=No valid tokens found
+cellterminal.search.error.unexpected_token=Unexpected token: '%s'
+cellterminal.search.error.expected_after_or=Expected expression after '|'
+cellterminal.search.error.expected_after_and=Expected expression after '&'
+cellterminal.search.error.unexpected_end=Unexpected end of expression
+cellterminal.search.error.missing_paren=Missing closing parenthesis ')'
+cellterminal.search.error.unexpected_paren=Unexpected closing parenthesis ')'
+cellterminal.search.error.unexpected_operator=Unexpected operator '%s'
+cellterminal.search.error.unknown_identifier=Unknown identifier: '%s'. Valid: $name, $priority, $partition, $items
+cellterminal.search.error.expected_number=Expected number for '%s', got: '%s'
+
+# Upgrade tooltips
+gui.cellterminal.upgrade.click_extract=Click to pick up
+gui.cellterminal.upgrade.shift_click_inventory=Shift+Click to send to inventory
+gui.cellterminal.upgrade.tooltip_hint_click=Drop it on an entry to apply the upgrade
+gui.cellterminal.upgrade.tooltip_hint_shift_click=Shift-Click to apply the upgrade to the first available entry
 
 # Config settings
 config.cellterminal.gui=GUI Settings
@@ -128,19 +147,20 @@ gui.cellterminal.storage_bus.air=Air
 # Search help tooltip
 gui.cellterminal.search_help.title=Search Syntax Help
 gui.cellterminal.search_help.simple=Simple Search:
-gui.cellterminal.search_help.simple_desc=Type any text to filter by item/cell name.
+gui.cellterminal.search_help.simple_desc=Type any text to filter by name/id in cell/bus's contents/partitions.
 gui.cellterminal.search_help.advanced=Advanced Search:
 gui.cellterminal.search_help.advanced_desc=Start with ? for advanced queries.
 gui.cellterminal.search_help.identifiers=Identifiers:
-gui.cellterminal.search_help.id_name=Cell/bus display name
+gui.cellterminal.search_help.id_name=Name/ID of the items in inventory/partition
 gui.cellterminal.search_help.id_priority=Storage priority
-gui.cellterminal.search_help.id_partition=Partition slot count
-gui.cellterminal.search_help.id_items=Stored item type count
+gui.cellterminal.search_help.id_partition=Used partition slots count
+gui.cellterminal.search_help.id_items=Stored item types count
 gui.cellterminal.search_help.operators=Operators:
 gui.cellterminal.search_help.op_compare=Comparison
 gui.cellterminal.search_help.op_logic=AND / OR
 gui.cellterminal.search_help.op_group=Grouping
 gui.cellterminal.search_help.examples=Examples:
+gui.cellterminal.search_help.field_double_click=§bDouble-click the search box to expand it.
 
 # Cell partition button tooltips
 gui.cellterminal.cell.partitionall=Set Contents to Partition

@@ -63,6 +63,7 @@ import com.cellterminal.gui.tab.StorageBusPartitionTabController;
 import com.cellterminal.gui.tab.TabContext;
 import com.cellterminal.gui.tab.TabControllerRegistry;
 import com.cellterminal.network.CellTerminalNetwork;
+import com.cellterminal.network.PacketExtractUpgrade;
 import com.cellterminal.network.PacketPartitionAction;
 import com.cellterminal.network.PacketStorageBusPartitionAction;
 import com.cellterminal.network.PacketTabChange;
@@ -177,6 +178,14 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     protected StorageBusInfo hoveredPartitionAllButtonStorageBus = null;  // Tab 4: partition all button
     protected final Set<Long> selectedStorageBusIds = new HashSet<>();  // For Tab 5 - multi-selection of buses for keybind
     protected final List<JeiGhostHandler.StorageBusPartitionSlotTarget> storageBusPartitionSlotTargets = new ArrayList<>();
+
+    // Modal search bar for expanded editing
+    protected GuiModalSearchBar modalSearchBar = null;
+    protected long lastSearchFieldClickTime = 0;
+    protected static final long DOUBLE_CLICK_THRESHOLD = 500;  // ms
+
+    // Hovered upgrade icon for tooltip and extraction
+    protected RenderContext.UpgradeIconTarget hoveredUpgradeIcon = null;
 
     public GuiCellTerminalBase(Container container) {
         super(container);
@@ -326,7 +335,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             }
         };
         this.searchField.setEnableBackgroundDrawing(true);
-        this.searchField.setMaxStringLength(50);
+        this.searchField.setMaxStringLength(512);
         this.searchField.setText(existingSearch, true);
 
         if (this.searchModeButton != null) this.buttonList.remove(this.searchModeButton);
@@ -335,6 +344,9 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         this.searchModeButton = new GuiSearchModeButton(1, this.guiLeft + 189, this.guiTop + 4, currentSearchMode);
         this.buttonList.add(this.searchModeButton);
         updateSearchModeButtonVisibility();
+
+        // Initialize modal search bar
+        this.modalSearchBar = new GuiModalSearchBar(this.fontRenderer, this.searchField, this::onSearchTextChanged);
 
         if (!existingSearch.isEmpty()) dataManager.setSearchFilter(existingSearch, getEffectiveSearchMode());
     }
@@ -422,6 +434,9 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
         drawTooltips(mouseX, mouseY);
 
+        // Render modal search bar on top of everything else
+        if (modalSearchBar != null && modalSearchBar.isVisible()) modalSearchBar.draw(mouseX, mouseY);
+
         // Render overlay messages last (on top of everything)
         OverlayMessageRenderer.render();
     }
@@ -457,6 +472,9 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             ctx.searchFieldWidth = searchField.width + 4;
             ctx.searchFieldHeight = searchField.height + 4;
         }
+
+        // Upgrade icon hover state
+        ctx.hoveredUpgradeIcon = hoveredUpgradeIcon;
 
         TooltipHandler.drawTooltips(ctx, new TooltipHandler.TooltipRenderer() {
             @Override
@@ -683,6 +701,18 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             this.storageBusPartitionSlotTargets.add(new StorageBusPartitionSlotTarget(
                 target.storageBus, target.slotIndex, target.x, target.y, target.width, target.height));
         }
+
+        // Detect hovered upgrade icon (absolute mouse coords)
+        int absMouseX = relMouseX + this.guiLeft;
+        int absMouseY = relMouseY + this.guiTop;
+        this.hoveredUpgradeIcon = null;
+
+        for (RenderContext.UpgradeIconTarget target : renderContext.upgradeIconTargets) {
+            if (target.isMouseOver(absMouseX, absMouseY)) {
+                this.hoveredUpgradeIcon = target;
+                break;
+            }
+        }
     }
 
     @Override
@@ -793,6 +823,11 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
+        // Handle modal search bar clicks first
+        if (modalSearchBar != null && modalSearchBar.isVisible()) {
+            if (modalSearchBar.handleMouseClick(mouseX, mouseY, mouseButton)) return;
+        }
+
         // Handle search field clicks
         if (this.searchField != null) {
             // Right-click clears the field and focuses it
@@ -803,10 +838,29 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
                 return;
             }
 
+            // Left-click: check for double-click to open modal
+            if (mouseButton == 0 && this.searchField.isMouseIn(mouseX, mouseY)) {
+                long currentTime = System.currentTimeMillis();
+
+                if (currentTime - lastSearchFieldClickTime < DOUBLE_CLICK_THRESHOLD) {
+                    // Double-click: open modal search bar
+                    if (modalSearchBar != null) modalSearchBar.open(this.searchField.y);
+                    lastSearchFieldClickTime = 0;
+
+                    return;
+                }
+
+                lastSearchFieldClickTime = currentTime;
+            }
+
             this.searchField.mouseClicked(mouseX, mouseY, mouseButton);
         }
 
         if (priorityFieldManager != null && priorityFieldManager.handleClick(mouseX, mouseY, mouseButton)) return;
+
+        // Handle upgrade icon clicks (extraction)
+        if (mouseButton == 0 && handleUpgradeIconClick()) return;
+
         if (mouseButton == 0 && handleUpgradeClick(mouseX, mouseY)) return;
 
         if (inventoryPopup != null) {
@@ -970,6 +1024,11 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
+        // Handle modal search bar keyboard first
+        if (modalSearchBar != null && modalSearchBar.isVisible()) {
+            if (modalSearchBar.handleKeyTyped(typedChar, keyCode)) return;
+        }
+
         // Handle priority field keyboard first
         if (priorityFieldManager != null && priorityFieldManager.handleKeyTyped(typedChar, keyCode)) {
             return;
@@ -977,9 +1036,20 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
         // Esc key should close modals first
         if (keyCode == Keyboard.KEY_ESCAPE) {
-            if (inventoryPopup != null) { inventoryPopup = null; return; }
-            if (partitionPopup != null) { partitionPopup = null; return; }
-            if (this.searchField != null && this.searchField.isFocused()) { this.searchField.setFocused(false); return; }
+            if (inventoryPopup != null) {
+                inventoryPopup = null;
+                return;
+            }
+
+            if (partitionPopup != null) {
+                partitionPopup = null;
+                return;
+            }
+
+            if (this.searchField != null && this.searchField.isFocused()) {
+                this.searchField.setFocused(false);
+                return;
+            }
         }
 
         // Delegate keybind handling to the active tab controller (only when search is not focused)
@@ -1052,6 +1122,35 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
                 GuiCellTerminalBase.this.scrollToLine(lineIndex);
             }
         }, dataManager.getTerminalDimension());
+    }
+
+    /**
+     * Handle upgrade icon click to extract upgrades from cells or storage buses.
+     * @return true if an upgrade icon click was handled
+     */
+    protected boolean handleUpgradeIconClick() {
+        if (hoveredUpgradeIcon == null) return false;
+
+        boolean toInventory = Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT);
+
+        if (hoveredUpgradeIcon.cell != null) {
+            CellTerminalNetwork.INSTANCE.sendToServer(PacketExtractUpgrade.forCell(
+                hoveredUpgradeIcon.cell.getParentStorageId(),
+                hoveredUpgradeIcon.cell.getSlot(),
+                hoveredUpgradeIcon.upgradeIndex,
+                toInventory
+            ));
+        } else if (hoveredUpgradeIcon.storageBus != null) {
+            CellTerminalNetwork.INSTANCE.sendToServer(PacketExtractUpgrade.forStorageBus(
+                hoveredUpgradeIcon.storageBus.getId(),
+                hoveredUpgradeIcon.upgradeIndex,
+                toInventory
+            ));
+        } else {
+            return false;
+        }
+
+        return true;
     }
 
     /**

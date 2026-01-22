@@ -74,6 +74,10 @@ public class RenderContext {
     // Visible storage bus positions for priority field rendering (Tab 4/5)
     public final List<VisibleStorageBusEntry> visibleStorageBuses = new ArrayList<>();
 
+    // Upgrade icon hover tracking
+    public final List<UpgradeIconTarget> upgradeIconTargets = new ArrayList<>();
+    public UpgradeIconTarget hoveredUpgradeIcon = null;
+
     /**
      * Tracks a visible storage entry and its Y position for priority field placement.
      */
@@ -127,6 +131,8 @@ public class RenderContext {
         storageBusPartitionSlotTargets.clear();
         visibleStorages.clear();
         visibleStorageBuses.clear();
+        upgradeIconTargets.clear();
+        hoveredUpgradeIcon = null;
     }
 
     /**
@@ -168,6 +174,41 @@ public class RenderContext {
             this.y = y;
             this.width = width;
             this.height = height;
+        }
+    }
+
+    /**
+     * Helper class to track upgrade icon positions for tooltips and click handling.
+     */
+    public static class UpgradeIconTarget {
+        public final CellInfo cell;               // For cell upgrades (null for storage bus)
+        public final StorageBusInfo storageBus;   // For storage bus upgrades (null for cell)
+        public final ItemStack upgrade;
+        public final int upgradeIndex;
+        public final int x;
+        public final int y;
+        public static final int SIZE = 8;  // Small icon size
+
+        public UpgradeIconTarget(CellInfo cell, ItemStack upgrade, int upgradeIndex, int x, int y) {
+            this.cell = cell;
+            this.storageBus = null;
+            this.upgrade = upgrade;
+            this.upgradeIndex = upgradeIndex;
+            this.x = x;
+            this.y = y;
+        }
+
+        public UpgradeIconTarget(StorageBusInfo storageBus, ItemStack upgrade, int upgradeIndex, int x, int y) {
+            this.cell = null;
+            this.storageBus = storageBus;
+            this.upgrade = upgrade;
+            this.upgradeIndex = upgradeIndex;
+            this.x = x;
+            this.y = y;
+        }
+
+        public boolean isMouseOver(int mouseX, int mouseY) {
+            return mouseX >= x && mouseX < x + SIZE && mouseY >= y && mouseY < y + SIZE;
         }
     }
 }

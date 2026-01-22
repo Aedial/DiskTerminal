@@ -137,8 +137,8 @@ public class TerminalTabRenderer extends CellTerminalRenderer {
         // Extend horizontal branch to reach the cell icon (covering the gap left by no button)
         Gui.drawRect(lineX + 10, y + 8, CELL_INDENT, y + 9, 0xFF808080);
 
-        // Draw upgrade icons to the left of the cell icon
-        drawCellUpgradeIcons(cell, 3, y);
+        // Draw upgrade icons to the left of the cell icon (with tracking)
+        drawCellUpgradeIcons(cell, 3, y, ctx);
 
         // Draw cell icon
         renderItemStack(cell.getCellItem(), CELL_INDENT, y);

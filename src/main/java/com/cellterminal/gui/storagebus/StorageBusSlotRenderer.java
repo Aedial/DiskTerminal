@@ -17,6 +17,7 @@ import appeng.util.ReadableNumberConverter;
 import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.gui.FluidStackUtil;
 import com.cellterminal.gui.GuiConstants;
+import com.cellterminal.gui.render.RenderContext;
 
 
 /**
@@ -144,12 +145,36 @@ public class StorageBusSlotRenderer {
      * @return Width consumed by upgrade icons
      */
     public int drawUpgradeIcons(StorageBusInfo storageBus, int x, int y) {
+        return drawUpgradeIcons(storageBus, x, y, null, 0, 0);
+    }
+
+    /**
+     * Draw storage bus upgrade icons on the header row, with hover tracking.
+     *
+     * @param storageBus The storage bus info
+     * @param x X position to start (relative to GUI)
+     * @param y Y position of the row (relative to GUI)
+     * @param ctx Optional render context for tracking upgrade icon positions
+     * @param guiLeft GUI left offset for absolute position calculation
+     * @param guiTop GUI top offset for absolute position calculation
+     * @return Width consumed by upgrade icons
+     */
+    public int drawUpgradeIcons(StorageBusInfo storageBus, int x, int y, RenderContext ctx, int guiLeft, int guiTop) {
         List<ItemStack> upgrades = storageBus.getUpgrades();
         if (upgrades.isEmpty()) return 0;
 
         int iconX = x;
-        for (ItemStack upgrade : upgrades) {
+
+        for (int i = 0; i < upgrades.size(); i++) {
+            ItemStack upgrade = upgrades.get(i);
             renderSmallItemStack(upgrade, iconX, y);
+
+            // Track upgrade icon position for tooltip and click handling
+            if (ctx != null) {
+                ctx.upgradeIconTargets.add(new RenderContext.UpgradeIconTarget(
+                    storageBus, upgrade, i, guiLeft + iconX, guiTop + y));
+            }
+
             iconX += 9; // 8px icon + 1px spacing
         }
 

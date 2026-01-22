@@ -8,6 +8,13 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.5.1] - 2026-01-22
+### Added
+- Add localization for new search syntax errors
+- Add double-click to expand search bar as a modal
+- Add upgrades controls tooltip and insertion/extraction
+
+
 ## [0.5.0] - 2026-01-21
 ### Added
 - Add filter buttons for visibility control:
@@ -19,7 +26,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
   - Each filter cycles through Show All → Show Only → Hide states
   - Filter states are separate for cell tabs (1-3) and storage bus tabs (4-5)
 - Add advanced search syntax (prefix with "?" to use):
-  - `$name` - Match against display name
+  - `$name` - Match against inventory/partition content's name/id (string matching)
   - `$priority` - Match against storage priority (numeric comparison)
   - `$partition` - Match against partition slot count (numeric comparison)
   - `$items` - Match against stored item type count (numeric comparison)

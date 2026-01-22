@@ -18,6 +18,7 @@ import com.cellterminal.gui.GuiTerminalStyleButton;
 import com.cellterminal.gui.PopupCellInventory;
 import com.cellterminal.gui.PopupCellPartition;
 import com.cellterminal.gui.PriorityFieldManager;
+import com.cellterminal.gui.render.RenderContext;
 
 
 /**
@@ -69,8 +70,11 @@ public class TooltipHandler {
 
         // Search error state
         public boolean hasSearchError = false;
-        public String searchErrorMessage = null;
+        public List<String> searchErrorMessage = null;
         public int searchFieldX, searchFieldY, searchFieldWidth, searchFieldHeight;
+
+        // Upgrade icon hover state
+        public RenderContext.UpgradeIconTarget hoveredUpgradeIcon = null;
     }
 
     /**
@@ -87,6 +91,18 @@ public class TooltipHandler {
     public static void drawTooltips(TooltipContext ctx, TooltipRenderer renderer, int mouseX, int mouseY) {
         // Terminal tab hover preview (not full tooltip)
         // This is handled separately in drawScreen
+
+        // Upgrade icon tooltips
+        if (ctx.hoveredUpgradeIcon != null) {
+            List<String> tooltip = new ArrayList<>();
+            tooltip.add("§6" + ctx.hoveredUpgradeIcon.upgrade.getDisplayName());
+            tooltip.add("");
+            tooltip.add("§b" + I18n.format("gui.cellterminal.upgrade.click_extract"));
+            tooltip.add("§b" + I18n.format("gui.cellterminal.upgrade.shift_click_inventory"));
+            renderer.drawHoveringText(tooltip, mouseX, mouseY);
+
+            return;
+        }
 
         // Content item tooltips
         if ((ctx.currentTab == TAB_INVENTORY || ctx.currentTab == TAB_PARTITION
@@ -133,7 +149,7 @@ public class TooltipHandler {
             if (hoveringSearchField) {
                 List<String> errorTooltip = new ArrayList<>();
                 errorTooltip.add("§c" + I18n.format("gui.cellterminal.search_error"));
-                errorTooltip.add("§7" + ctx.searchErrorMessage);
+                for (String line : ctx.searchErrorMessage) errorTooltip.add("§c- " + line);
                 renderer.drawHoveringText(errorTooltip, mouseX, mouseY);
 
                 return;
