@@ -36,6 +36,39 @@ gui.cellterminal.search_mode.inventory=库存（搜索元件内容）
 gui.cellterminal.search_mode.partition=分区（搜索元件过滤项）
 gui.cellterminal.search_mode.mixed=混合（同时搜索两者）
 
+# Filter buttons
+gui.cellterminal.filter.item_cells=物品元件/总线
+gui.cellterminal.filter.fluid_cells=流体元件/总线
+gui.cellterminal.filter.essentia_cells=源质元件/总线
+gui.cellterminal.filter.has_items=存有内容
+gui.cellterminal.filter.partitioned=存在分区/过滤项
+gui.cellterminal.filter.state.show_all=显示全部
+gui.cellterminal.filter.state.show_only=仅显示
+gui.cellterminal.filter.state.hide=隐藏
+
+# Search error
+gui.cellterminal.search_error=§c搜索错误：§r
+
+# Advanced search error messages
+cellterminal.search.error.empty_query=查询为空
+cellterminal.search.error.empty_after_prefix='?'后查询为空
+cellterminal.search.error.no_tokens=未找到有效标记
+cellterminal.search.error.unexpected_token=意外的标记：'%s'
+cellterminal.search.error.expected_after_or='|'后应为表达式
+cellterminal.search.error.expected_after_and='&'后应为表达式
+cellterminal.search.error.unexpected_end=表达式意外结束
+cellterminal.search.error.missing_paren=缺少右括号')'
+cellterminal.search.error.unexpected_paren=意外的右括号')'
+cellterminal.search.error.unexpected_operator=意外的运算符'%s'
+cellterminal.search.error.unknown_identifier=未知标识符：'%s'。有效标识符：$name, $priority, $partition, $items
+cellterminal.search.error.expected_number='%s'应为数字，而实际为：'%s'
+
+# Upgrade tooltips
+gui.cellterminal.upgrade.click_extract=点击以拿取
+gui.cellterminal.upgrade.shift_click_inventory=Shift+点击以发送到物品栏
+gui.cellterminal.upgrade.tooltip_hint_click=将其拖放到条目上以应用升级
+gui.cellterminal.upgrade.tooltip_hint_shift_click=Shift+点击以将升级应用至首个可用条目
+
 # Config settings
 config.cellterminal.gui=GUI设置
 config.cellterminal.gui.tooltip=元件终端GUI偏好设置
@@ -90,7 +123,7 @@ cellterminal.quick_partition.no_cell_item=未找到没有分区的物品元件
 cellterminal.quick_partition.no_cell_fluid=未找到没有分区的流体元件
 cellterminal.quick_partition.no_cell_essentia=未找到没有分区的源质元件
 cellterminal.quick_partition.no_cell_auto=未找到匹配该类型的没有分区的元件
-cellterminal.quick_partition.success=已将 %s 分区至 %s
+cellterminal.quick_partition.success=已将%s分区至%s
 cellterminal.quick_partition.essentia_unavailable=需安装神秘能源模组才能使用源质元件功能
 cellterminal.quick_partition.wrong_tab=快速分区功能只能在分区标签页中使用
 
@@ -110,6 +143,24 @@ gui.cellterminal.storagebus.iomode.readwrite=取出/存入
 gui.cellterminal.storagebus.partitionall=设置内容至过滤项
 gui.cellterminal.storage_bus.name=存储总线
 gui.cellterminal.storage_bus.air=空气
+
+# Search help tooltip
+gui.cellterminal.search_help.title=搜索语法帮助
+gui.cellterminal.search_help.simple=简单搜索：
+gui.cellterminal.search_help.simple_desc=输入任意文本，以按元件/总线的内容/分区中的名称/ID进行筛选。
+gui.cellterminal.search_help.advanced=高级搜索：
+gui.cellterminal.search_help.advanced_desc=以 ? 开头进行高级查询。
+gui.cellterminal.search_help.identifiers=标识符：
+gui.cellterminal.search_help.id_name=库存/分区中物品的名称/ID
+gui.cellterminal.search_help.id_priority=存储优先级
+gui.cellterminal.search_help.id_partition=已使用的分区槽位数量
+gui.cellterminal.search_help.id_items=存储的物品类型数量
+gui.cellterminal.search_help.operators=运算符：
+gui.cellterminal.search_help.op_compare=比较
+gui.cellterminal.search_help.op_logic=与/或
+gui.cellterminal.search_help.op_group=分组
+gui.cellterminal.search_help.examples=示例：
+gui.cellterminal.search_help.field_double_click=§b双击搜索框以展开。
 
 # Cell partition button tooltips
 gui.cellterminal.cell.partitionall=设置内容至分区
