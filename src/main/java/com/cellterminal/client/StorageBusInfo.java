@@ -64,6 +64,7 @@ public class StorageBusInfo {
     private final List<ItemStack> contents = new ArrayList<>();
     private final List<Long> contentCounts = new ArrayList<>();
     private final List<ItemStack> upgrades = new ArrayList<>();
+    private final List<Integer> upgradeSlotIndices = new ArrayList<>();
     private boolean expanded = true;
 
     public StorageBusInfo(NBTTagCompound nbt) {
@@ -90,7 +91,12 @@ public class StorageBusInfo {
             for (int i = 0; i < upgradeList.tagCount(); i++) {
                 NBTTagCompound upgradeNbt = upgradeList.getCompoundTagAt(i);
                 ItemStack upgrade = new ItemStack(upgradeNbt);
-                if (!upgrade.isEmpty()) this.upgrades.add(upgrade);
+                if (!upgrade.isEmpty()) {
+                    this.upgrades.add(upgrade);
+                    // Read actual slot index, fallback to iteration index for backwards compatibility
+                    int slotIndex = upgradeNbt.hasKey("slot") ? upgradeNbt.getInteger("slot") : i;
+                    this.upgradeSlotIndices.add(slotIndex);
+                }
             }
         }
 
@@ -248,6 +254,17 @@ public class StorageBusInfo {
 
     public List<ItemStack> getUpgrades() {
         return upgrades;
+    }
+
+    /**
+     * Get the actual slot index for an upgrade in the upgrade inventory.
+     * @param index The index in the upgrades list (0 to upgrades.size()-1)
+     * @return The actual slot index in the upgrade inventory
+     */
+    public int getUpgradeSlotIndex(int index) {
+        if (index < 0 || index >= upgradeSlotIndices.size()) return index;
+
+        return upgradeSlotIndices.get(index);
     }
 
     public boolean isExpanded() {

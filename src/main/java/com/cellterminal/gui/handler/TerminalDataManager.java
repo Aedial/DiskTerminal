@@ -494,7 +494,7 @@ public class TerminalDataManager {
         List<ItemStack> itemsToCheck = checkInventory ? bus.getContents() : bus.getPartition();
 
         for (ItemStack stack : itemsToCheck) {
-            if (stack.isEmpty()) return false;
+            if (stack.isEmpty()) continue;
 
             // Check localized display name
             String displayName = stack.getDisplayName().toLowerCase(Locale.ROOT);

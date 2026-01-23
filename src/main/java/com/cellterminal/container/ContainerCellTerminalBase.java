@@ -84,6 +84,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
         if (needsFullRefresh) {
             this.regenStorageList();
+            this.regenStorageBusList();  // Also refresh storage bus data to prevent blank tabs on initial open
             needsFullRefresh = false;
         }
 
@@ -374,9 +375,11 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
                 } else {
                     ((EntityPlayerMP) player).updateHeldItem();
                 }
-            }
 
-            this.needsStorageBusRefresh = true;
+                this.needsStorageBusRefresh = true;
+
+                return;
+            }
         }
     }
 

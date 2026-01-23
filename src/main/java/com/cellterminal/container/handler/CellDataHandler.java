@@ -227,6 +227,7 @@ public class CellDataHandler {
 
             NBTTagCompound upgradeNbt = new NBTTagCompound();
             upgrade.writeToNBT(upgradeNbt);
+            upgradeNbt.setInteger("slot", i);
             upgradeList.appendTag(upgradeNbt);
 
             if (upgrade.getItem() instanceof IUpgradeModule) {

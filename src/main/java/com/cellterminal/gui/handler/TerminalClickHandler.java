@@ -147,7 +147,9 @@ public class TerminalClickHandler {
             StorageInfo hoveredStorageLine, int hoveredLineIndex,
             Map<Long, StorageInfo> storageMap, int terminalDimension, Callback callback) {
 
-        // Check for double-click to highlight block (on storage entries or cells)
+        // Check for double-click to highlight block (only on storage headers, not slots)
+        // If user is clicking on a content slot or partition slot, don't track for double-click
+        boolean isSlotClick = (hoveredContentSlotIndex >= 0) || (hoveredPartitionSlotIndex >= 0);
         long now = System.currentTimeMillis();
         StorageInfo clickedStorage = hoveredCellStorage;
 
@@ -162,8 +164,8 @@ public class TerminalClickHandler {
             clickedStorage = storageMap.get(hoveredPartitionCell.getParentStorageId());
         }
 
-        // Use line index for double-click detection (more reliable than storage ID)
-        if (hoveredLineIndex >= 0 && hoveredLineIndex == lastClickedLineIndexTab23
+        // Only track double-clicks when NOT clicking on slots
+        if (!isSlotClick && hoveredLineIndex >= 0 && hoveredLineIndex == lastClickedLineIndexTab23
                 && now - lastClickTimeTab23 < 400) {
             // Double-click detected - highlight the storage
             if (clickedStorage != null) handleDoubleClickTab23(clickedStorage, terminalDimension);
@@ -172,8 +174,14 @@ public class TerminalClickHandler {
             return;
         }
 
-        lastClickedLineIndexTab23 = hoveredLineIndex;
-        lastClickTimeTab23 = now;
+        // Only update tracking if not a slot click
+        if (!isSlotClick) {
+            lastClickedLineIndexTab23 = hoveredLineIndex;
+            lastClickTimeTab23 = now;
+        } else {
+            // Reset double-click tracking when clicking on slots
+            lastClickedLineIndexTab23 = -1;
+        }
 
         // Tab 2 (Inventory): Check if clicking on a content item to toggle partition
         if (currentTab == TAB_INVENTORY && hoveredCellCell != null && hoveredContentSlotIndex >= 0) {

@@ -170,9 +170,11 @@ public class StorageBusSlotRenderer {
             renderSmallItemStack(upgrade, iconX, y);
 
             // Track upgrade icon position for tooltip and click handling
+            // Use actual slot index from the upgrade inventory, not the iteration index
             if (ctx != null) {
+                int actualSlotIndex = storageBus.getUpgradeSlotIndex(i);
                 ctx.upgradeIconTargets.add(new RenderContext.UpgradeIconTarget(
-                    storageBus, upgrade, i, guiLeft + iconX, guiTop + y));
+                    storageBus, upgrade, actualSlotIndex, guiLeft + iconX, guiTop + y));
             }
 
             iconX += 9; // 8px icon + 1px spacing

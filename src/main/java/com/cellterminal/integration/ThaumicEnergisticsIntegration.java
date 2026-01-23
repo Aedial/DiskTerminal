@@ -573,7 +573,6 @@ public class ThaumicEnergisticsIntegration {
                     break;
 
                 case SET_ALL_FROM_CONTENTS:
-                case PARTITION_ALL:
                     // Clear all aspects first
                     clearAspectConfig(config);
                     // Get contents from connected IAspectContainer

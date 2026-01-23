@@ -36,6 +36,8 @@ public final class FluidStackUtil {
         if (targetFluid != null && targetFluid.getFluid() != null) {
             // Fluid comparison - compare by fluid type only
             for (ItemStack partItem : partition) {
+                if (partItem.isEmpty()) continue;
+
                 FluidStack partFluid = extractFluidFromStack(partItem);
 
                 if (partFluid != null && partFluid.getFluid() == targetFluid.getFluid()) return true;
@@ -44,9 +46,14 @@ public final class FluidStackUtil {
             return false;
         }
 
-        // Non-fluid comparison - use full ItemStack comparison
+        // Non-fluid comparison - compare by item and NBT only (ignore count)
         for (ItemStack partItem : partition) {
-            if (ItemStack.areItemStacksEqual(stack, partItem)) return true;
+            if (partItem.isEmpty()) continue;
+
+            if (ItemStack.areItemsEqual(stack, partItem) &&
+                ItemStack.areItemStackTagsEqual(stack, partItem)) {
+                return true;
+            }
         }
 
         return false;

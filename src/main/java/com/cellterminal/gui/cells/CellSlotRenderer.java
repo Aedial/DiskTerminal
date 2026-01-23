@@ -169,22 +169,29 @@ public class CellSlotRenderer {
         List<ItemStack> upgrades = cell.getUpgrades();
         if (upgrades.isEmpty()) return 0;
 
-        int iconX = x;
+        // Find max slot index to determine layout width
+        int maxSlot = 0;
+        for (int i = 0; i < upgrades.size(); i++) {
+            int slotIndex = cell.getUpgradeSlotIndex(i);
+            if (slotIndex > maxSlot) maxSlot = slotIndex;
+        }
 
+        // Render each upgrade at its actual slot position
         for (int i = 0; i < upgrades.size(); i++) {
             ItemStack upgrade = upgrades.get(i);
+            int actualSlotIndex = cell.getUpgradeSlotIndex(i);
+            int iconX = x + actualSlotIndex * 9; // 8px icon + 1px spacing per slot
+
             renderSmallItemStack(upgrade, iconX, y);
 
             // Track upgrade icon position for tooltip and click handling
             if (ctx != null) {
                 ctx.upgradeIconTargets.add(new RenderContext.UpgradeIconTarget(
-                    cell, upgrade, i, guiLeft + iconX, guiTop + y));
+                    cell, upgrade, actualSlotIndex, guiLeft + iconX, guiTop + y));
             }
-
-            iconX += 9; // 8px icon + 1px spacing
         }
 
-        return iconX - x;
+        return (maxSlot + 1) * 9; // Total width based on max slot position
     }
 
     /**
