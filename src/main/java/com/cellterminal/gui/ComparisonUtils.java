@@ -11,21 +11,19 @@ import appeng.fluids.items.FluidDummyItem;
 
 
 /**
- * Utility methods for fluid stack comparison in GUI code.
+ * Utility methods for stack comparison in GUI code.
  */
-public final class FluidStackUtil {
+public final class ComparisonUtils {
 
-    private FluidStackUtil() {}
+    private ComparisonUtils() {}
 
     /**
      * Check if an item stack is in the partition list.
      * For fluid items (FluidDummyItem), compares by fluid type only (ignoring amount and NBT).
-     * For other items, uses full ItemStack comparison including NBT.
+     * For other items, uses item and NBT comparison (ignoring count).
      *
-     * This is necessary because:
-     * 1. FluidDummyItem stores the fluid amount in NBT
-     * 2. Cell contents show the actual amount (2B, 16B, etc.) while partition is normalized to 1B
-     * 3. Using areItemStacksEqual would fail to match when amounts differ
+     * This is necessary because partitioning/filtering normalizes stacks to count 1,
+     * without extra NBT data.
      */
     public static boolean isInPartition(ItemStack stack, List<ItemStack> partition) {
         if (stack.isEmpty()) return false;

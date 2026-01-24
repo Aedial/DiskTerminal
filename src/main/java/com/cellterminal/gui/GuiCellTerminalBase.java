@@ -793,26 +793,41 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
     @Override
     protected void handleMouseClick(Slot slot, int slotIdx, int mouseButton, ClickType clickType) {
-        // Intercept shift-clicks on upgrade items in player inventory to insert into cells
+        // Intercept shift-clicks on upgrade items in player inventory to insert into cells or storage buses
         if (clickType == ClickType.QUICK_MOVE && slot != null && slot.getHasStack()) {
             ItemStack slotStack = slot.getStack();
 
             if (slotStack.getItem() instanceof IUpgradeModule) {
-                CellInfo targetCell = findFirstVisibleCellThatCanAcceptUpgrade(slotStack);
+                // On storage bus tabs, try to insert into storage buses
+                if (currentTab == TAB_STORAGE_BUS_INVENTORY || currentTab == TAB_STORAGE_BUS_PARTITION) {
+                    StorageBusInfo targetBus = findFirstVisibleStorageBusThatCanAcceptUpgrade(slotStack);
 
-                if (targetCell != null) {
-                    StorageInfo storage = dataManager.getStorageMap().get(targetCell.getParentStorageId());
-
-                    if (storage != null) {
-                        // Pass the slot index so server knows where to take the upgrade from
-                        CellTerminalNetwork.INSTANCE.sendToServer(new PacketUpgradeCell(
-                            storage.getId(),
-                            targetCell.getSlot(),
-                            true,
+                    if (targetBus != null) {
+                        CellTerminalNetwork.INSTANCE.sendToServer(new PacketUpgradeStorageBus(
+                            targetBus.getId(),
                             slot.getSlotIndex()
                         ));
 
                         return;
+                    }
+                } else {
+                    // On cell tabs, try to insert into cells
+                    CellInfo targetCell = findFirstVisibleCellThatCanAcceptUpgrade(slotStack);
+
+                    if (targetCell != null) {
+                        StorageInfo storage = dataManager.getStorageMap().get(targetCell.getParentStorageId());
+
+                        if (storage != null) {
+                            // Pass the slot index so server knows where to take the upgrade from
+                            CellTerminalNetwork.INSTANCE.sendToServer(new PacketUpgradeCell(
+                                storage.getId(),
+                                targetCell.getSlot(),
+                                true,
+                                slot.getSlotIndex()
+                            ));
+
+                            return;
+                        }
                     }
                 }
             }
@@ -1195,6 +1210,20 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
      */
     protected CellInfo findFirstCellInStorageThatCanAcceptUpgrade(StorageInfo storage, ItemStack upgradeStack) {
         return UpgradeClickHandler.findFirstCellInStorageThatCanAcceptUpgrade(storage, upgradeStack);
+    }
+
+    /**
+     * Find the first visible storage bus that can accept the given upgrade.
+     * Only used on storage bus tabs.
+     * @param upgradeStack The upgrade item to check compatibility with
+     * @return The first StorageBusInfo that can accept the upgrade, or null if none found
+     */
+    protected StorageBusInfo findFirstVisibleStorageBusThatCanAcceptUpgrade(ItemStack upgradeStack) {
+        UpgradeClickHandler.UpgradeClickContext ctx = new UpgradeClickHandler.UpgradeClickContext(
+            currentTab, hoveredCellCell, hoveredCellStorage, hoveredCellSlotIndex,
+            hoveredStorageLine, hoveredStorageBus, dataManager);
+
+        return UpgradeClickHandler.findFirstVisibleStorageBusThatCanAcceptUpgrade(ctx, upgradeStack);
     }
 
     /**

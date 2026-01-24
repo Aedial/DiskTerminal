@@ -14,6 +14,7 @@ import appeng.api.implementations.items.IUpgradeModule;
 
 import com.cellterminal.client.CellContentRow;
 import com.cellterminal.client.CellInfo;
+import com.cellterminal.client.StorageBusContentRow;
 import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.client.StorageInfo;
 import com.cellterminal.network.CellTerminalNetwork;
@@ -58,6 +59,8 @@ public class UpgradeClickHandler {
     public static final int TAB_TERMINAL = 0;
     public static final int TAB_INVENTORY = 1;
     public static final int TAB_PARTITION = 2;
+    public static final int TAB_STORAGE_BUS_INVENTORY = 3;
+    public static final int TAB_STORAGE_BUS_PARTITION = 4;
 
     /**
      * Handle upgrade click when player is holding an upgrade item.
@@ -185,6 +188,47 @@ public class UpgradeClickHandler {
     public static CellInfo findFirstCellInStorageThatCanAcceptUpgrade(StorageInfo storage, ItemStack upgradeStack) {
         for (CellInfo cell : storage.getCells()) {
             if (cell.canAcceptUpgrade(upgradeStack)) return cell;
+        }
+
+        return null;
+    }
+
+    /**
+     * Find the first visible storage bus that can accept the given upgrade.
+     * Used for shift-clicking upgrades from inventory on storage bus tabs.
+     */
+    public static StorageBusInfo findFirstVisibleStorageBusThatCanAcceptUpgrade(UpgradeClickContext ctx, ItemStack upgradeStack) {
+        List<Object> lines;
+
+        switch (ctx.currentTab) {
+            case TAB_STORAGE_BUS_INVENTORY:
+                lines = ctx.dataManager.getStorageBusInventoryLines();
+                break;
+            case TAB_STORAGE_BUS_PARTITION:
+                lines = ctx.dataManager.getStorageBusPartitionLines();
+                break;
+            default:
+                return null;
+        }
+
+        Set<Long> checkedBusIds = new HashSet<>();
+
+        for (Object line : lines) {
+            StorageBusInfo bus = null;
+
+            if (line instanceof StorageBusInfo) {
+                bus = (StorageBusInfo) line;
+            } else if (line instanceof StorageBusContentRow) {
+                bus = ((StorageBusContentRow) line).getStorageBus();
+            }
+
+            if (bus == null) continue;
+
+            long busId = bus.getId();
+            if (checkedBusIds.contains(busId)) continue;
+            checkedBusIds.add(busId);
+
+            if (bus.canAcceptUpgrade(upgradeStack)) return bus;
         }
 
         return null;

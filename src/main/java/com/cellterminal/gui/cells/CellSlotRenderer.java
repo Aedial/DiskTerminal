@@ -14,7 +14,7 @@ import net.minecraft.item.ItemStack;
 import appeng.util.ReadableNumberConverter;
 
 import com.cellterminal.client.CellInfo;
-import com.cellterminal.gui.FluidStackUtil;
+import com.cellterminal.gui.ComparisonUtils;
 import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.render.RenderContext;
 
@@ -241,7 +241,7 @@ public class CellSlotRenderer {
      * Uses fluid-aware comparison for fluid items (compares by fluid type only).
      */
     public boolean isInPartition(ItemStack stack, List<ItemStack> partition) {
-        return FluidStackUtil.isInPartition(stack, partition);
+        return ComparisonUtils.isInPartition(stack, partition);
     }
 
     /**

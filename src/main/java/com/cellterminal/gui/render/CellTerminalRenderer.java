@@ -17,7 +17,7 @@ import com.cellterminal.client.CellContentRow;
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.EmptySlotInfo;
 import com.cellterminal.client.StorageInfo;
-import com.cellterminal.gui.FluidStackUtil;
+import com.cellterminal.gui.ComparisonUtils;
 import com.cellterminal.gui.GuiConstants;
 
 
@@ -300,6 +300,6 @@ public abstract class CellTerminalRenderer {
      * where the aspect type is stored in NBT).
      */
     protected boolean isInPartition(ItemStack stack, List<ItemStack> partition) {
-        return FluidStackUtil.isInPartition(stack, partition);
+        return ComparisonUtils.isInPartition(stack, partition);
     }
 }
