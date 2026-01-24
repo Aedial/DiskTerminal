@@ -69,7 +69,7 @@ gui.cellterminal.upgrade.shift_click_inventory=Shift+Click to send to inventory
 gui.cellterminal.upgrade.tooltip_hint_click=Drop it on an entry to apply the upgrade
 gui.cellterminal.upgrade.tooltip_hint_shift_click=Shift-Click to apply the upgrade to the first available entry
 
-# Config settings
+# Persistent settings
 config.cellterminal.gui=GUI Settings
 config.cellterminal.gui.tooltip=Cell Terminal GUI preferences
 config.cellterminal.gui.selectedTab=Selected Tab
@@ -80,6 +80,67 @@ config.cellterminal.gui.searchFilter=Search Filter
 config.cellterminal.gui.searchFilter.tooltip=The last search filter text used in the Cell Terminal
 config.cellterminal.gui.searchMode=Search Mode
 config.cellterminal.gui.searchMode.tooltip=Search filter mode: INVENTORY, PARTITION, or MIXED
+
+# Tab disabled message
+gui.cellterminal.tab.disabled=§c(disabled in server config)§r
+
+# Client config
+config.cellterminal.config.client.settings=Client Settings
+config.cellterminal.config.client.settings.tooltip=User-configurable settings for Cell Terminal rendering and behavior.
+config.cellterminal.config.client.settings.max_highlight_distance=Max Highlight Distance
+config.cellterminal.config.client.settings.max_highlight_distance.tooltip=Maximum distance (in blocks) from the player for block highlighting. Set to -1 for unlimited.
+config.cellterminal.config.client.settings.highlight_duration=Highlight Duration
+config.cellterminal.config.client.settings.highlight_duration.tooltip=Duration (in seconds) for block highlighting when double-clicking entries.
+
+# Server config
+config.cellterminal.config.server.tabs=Tab Settings
+config.cellterminal.config.server.tabs.tooltip=Enable or disable individual tabs in the Cell Terminal GUI. Disabled tabs will appear grayed out.
+config.cellterminal.config.server.tabs.terminal=Terminal Tab
+config.cellterminal.config.server.tabs.terminal.tooltip=Enable the Terminal tab (overview of all cells)
+config.cellterminal.config.server.tabs.inventory=Inventory Tab
+config.cellterminal.config.server.tabs.inventory.tooltip=Enable the Inventory tab (view cell contents)
+config.cellterminal.config.server.tabs.partition=Partition Tab
+config.cellterminal.config.server.tabs.partition.tooltip=Enable the Partition tab (edit cell filters)
+config.cellterminal.config.server.tabs.storage_bus_inventory=Storage Bus Inventory Tab
+config.cellterminal.config.server.tabs.storage_bus_inventory.tooltip=Enable the Storage Bus Inventory tab (view storage bus contents)
+config.cellterminal.config.server.tabs.storage_bus_partition=Storage Bus Partition Tab
+config.cellterminal.config.server.tabs.storage_bus_partition.tooltip=Enable the Storage Bus Partition tab (edit storage bus filters)
+
+config.cellterminal.config.server.polling=Polling Settings
+config.cellterminal.config.server.polling.tooltip=Storage bus polling settings. WARNING: Polling can be expensive on large networks!
+config.cellterminal.config.server.polling.enabled=Storage Bus Polling
+config.cellterminal.config.server.polling.enabled.tooltip=Enable automatic polling of Storage Bus data. When disabled, data is only fetched once per terminal session.
+config.cellterminal.config.server.polling.interval=Polling Interval
+config.cellterminal.config.server.polling.interval.tooltip=How often to poll for Storage Bus updates, in ticks (20 ticks = 1 second). Only applies when polling is enabled.
+
+config.cellterminal.config.server.cell_ops=Cell Operations
+config.cellterminal.config.server.cell_ops.tooltip=Cell operation permissions. Controls whether cells can be inserted/ejected from drives using the Cell Terminal.
+config.cellterminal.config.server.cell_ops.eject=Cell Ejection
+config.cellterminal.config.server.cell_ops.eject.tooltip=Allow ejecting/picking up cells from drives/chests. Affects the eject button and clicking cells in Inventory/Partition tabs.
+config.cellterminal.config.server.cell_ops.insert=Cell Insertion
+config.cellterminal.config.server.cell_ops.insert.tooltip=Allow inserting cells into drives/chests through the Cell Terminal.
+config.cellterminal.config.server.cell_ops.swap=Cell Swapping
+config.cellterminal.config.server.cell_ops.swap.tooltip=Allow swapping cells between drives/chests. Requires both eject and insert to be enabled.
+
+config.cellterminal.config.server.misc=Miscellaneous Settings
+config.cellterminal.config.server.misc.tooltip=Miscellaneous settings for various Cell Terminal features.
+config.cellterminal.config.server.misc.partition_edit=Partition Editing
+config.cellterminal.config.server.misc.partition_edit.tooltip=Allow editing cell partitions through the Cell Terminal.
+config.cellterminal.config.server.misc.priority_edit=Priority Editing
+config.cellterminal.config.server.misc.priority_edit.tooltip=Allow editing drive/storage bus priorities through the Cell Terminal.
+config.cellterminal.config.server.misc.upgrade_insert=Upgrade Insertion
+config.cellterminal.config.server.misc.upgrade_insert.tooltip=Allow inserting upgrades into cells and storage buses through the Cell Terminal.
+config.cellterminal.config.server.misc.upgrade_extract=Allow Upgrade Extraction
+config.cellterminal.config.server.misc.upgrade_extract.tooltip=Allow extracting upgrades from cells and storage buses through the Cell Terminal.
+
+# Server config error messages
+cellterminal.error.cell_eject_disabled=§cCell ejection is disabled on this server.
+cellterminal.error.cell_insert_disabled=§cCell insertion is disabled on this server.
+cellterminal.error.cell_swap_disabled=§cCell swapping is disabled on this server.
+cellterminal.error.partition_edit_disabled=§cPartition editing is disabled on this server.
+cellterminal.error.priority_edit_disabled=§cPriority editing is disabled on this server.
+cellterminal.error.upgrade_insert_disabled=§cUpgrade insertion is disabled on this server.
+cellterminal.error.upgrade_extract_disabled=§cUpgrade extraction is disabled on this server.
 
 # Panel hints
 gui.cellterminal.hint.partition=Click to remove, drag from JEI to add

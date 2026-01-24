@@ -35,12 +35,13 @@ import mezz.jei.api.gui.IGhostIngredientHandler;
 import com.cellterminal.client.CellContentRow;
 import com.cellterminal.client.CellFilter;
 import com.cellterminal.client.CellInfo;
-import com.cellterminal.client.CellTerminalClientConfig;
-import com.cellterminal.client.CellTerminalClientConfig.TerminalStyle;
+import com.cellterminal.config.CellTerminalClientConfig;
+import com.cellterminal.config.CellTerminalClientConfig.TerminalStyle;
 import com.cellterminal.client.KeyBindings;
 import com.cellterminal.client.SearchFilterMode;
 import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.client.StorageInfo;
+import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.gui.handler.JeiGhostHandler;
 import com.cellterminal.gui.handler.JeiGhostHandler.PartitionSlotTarget;
 import com.cellterminal.gui.handler.JeiGhostHandler.StorageBusPartitionSlotTarget;
@@ -50,6 +51,7 @@ import com.cellterminal.gui.handler.TerminalClickHandler;
 import com.cellterminal.gui.handler.TerminalDataManager;
 import com.cellterminal.gui.handler.TooltipHandler;
 import com.cellterminal.gui.handler.UpgradeClickHandler;
+import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.gui.overlay.OverlayMessageRenderer;
 import com.cellterminal.gui.render.InventoryTabRenderer;
 import com.cellterminal.gui.render.PartitionTabRenderer;
@@ -205,6 +207,11 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         CellTerminalClientConfig config = CellTerminalClientConfig.getInstance();
         this.currentTab = config.getSelectedTab();
         if (this.currentTab < 0 || this.currentTab >= TAB_COUNT) this.currentTab = TAB_TERMINAL;
+
+        // If the persisted tab is disabled, redirect to the first enabled tab
+        if (CellTerminalServerConfig.isInitialized() && !CellTerminalServerConfig.getInstance().isTabEnabled(this.currentTab)) {
+            this.currentTab = findFirstEnabledTab();
+        }
         this.currentSearchMode = config.getSearchMode();
     }
 
@@ -228,6 +235,22 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         return Math.max(MIN_ROWS, extraSpace / ROW_HEIGHT);
     }
 
+    /**
+     * Find the first enabled tab, or fall back to TAB_TERMINAL if all are disabled.
+     */
+    protected int findFirstEnabledTab() {
+        if (!CellTerminalServerConfig.isInitialized()) return TAB_TERMINAL;
+
+        CellTerminalServerConfig config = CellTerminalServerConfig.getInstance();
+
+        for (int i = 0; i < TAB_COUNT; i++) {
+            if (config.isTabEnabled(i)) return i;
+        }
+
+        // Fallback to terminal tab even if disabled (should not happen in practice)
+        return TAB_TERMINAL;
+    }
+
     protected abstract String getGuiTitle();
 
     @Override
@@ -238,13 +261,19 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
         super.initGui();
 
-        // Center GUI with appropriate spacing for tall mode
+        // Center GUI with appropriate spacing based on terminal style
+        TerminalStyle style = CellTerminalClientConfig.getInstance().getTerminalStyle();
         int unusedSpace = this.height - this.ySize;
-        if (unusedSpace < 0) {
-            // GUI is larger than screen - push it up so bottom content is more visible
+
+        if (style == TerminalStyle.SMALL) {
+            // Small mode: center vertically with tab space consideration
+            int tabSpace = 24;
+            this.guiTop = Math.max(tabSpace, (this.height - this.ySize) / 2);
+        } else if (unusedSpace < 0) {
+            // Tall mode: GUI is larger than screen - push it up so bottom content is more visible
             this.guiTop = (int) Math.floor(unusedSpace / 3.8f);
         } else {
-            // GUI fits on screen - position it to extend to the bottom with minimal margin
+            // Tall mode: GUI fits on screen - position it to extend to the bottom with minimal margin
             int bottomMargin = 4;
             this.guiTop = this.height - this.ySize - bottomMargin;
 
@@ -798,6 +827,14 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             ItemStack slotStack = slot.getStack();
 
             if (slotStack.getItem() instanceof IUpgradeModule) {
+                // Check if upgrade insertion is enabled
+                if (CellTerminalServerConfig.isInitialized()
+                        && !CellTerminalServerConfig.getInstance().isUpgradeInsertEnabled()) {
+                    MessageHelper.error("cellterminal.error.upgrade_insert_disabled");
+
+                    return;
+                }
+
                 // On storage bus tabs, try to insert into storage buses
                 if (currentTab == TAB_STORAGE_BUS_INVENTORY || currentTab == TAB_STORAGE_BUS_PARTITION) {
                     StorageBusInfo targetBus = findFirstVisibleStorageBusThatCanAcceptUpgrade(slotStack);
@@ -1145,6 +1182,14 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
      */
     protected boolean handleUpgradeIconClick() {
         if (hoveredUpgradeIcon == null) return false;
+
+        // Check if upgrade extraction is enabled
+        if (CellTerminalServerConfig.isInitialized()
+                && !CellTerminalServerConfig.getInstance().isUpgradeExtractEnabled()) {
+            MessageHelper.error("cellterminal.error.upgrade_extract_disabled");
+
+            return true;  // Consume click to prevent other handlers
+        }
 
         boolean toInventory = Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT);
 

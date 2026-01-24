@@ -9,7 +9,7 @@ import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.util.ResourceLocation;
 
-import com.cellterminal.client.CellTerminalClientConfig.TerminalStyle;
+import com.cellterminal.config.CellTerminalClientConfig.TerminalStyle;
 
 
 /**

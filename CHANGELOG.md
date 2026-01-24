@@ -7,9 +7,22 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Keep a Changelog: https://keepachangelog.com/en/1.1.0/
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
-## [0.5.3] - 2026-01-23
+## [0.5.3] - 2026-01-24
+### Added
+- Add server config option to disable core features:
+  - Each individual tab
+  - Storage Bus Inventory polling (enable and frequency)
+  - Cell Ejection/Insertion/Swapping
+  - Partition/Priority Editing
+  - Upgrade Insertion/Extraction
+
+- Add client config option to tweak visuals:
+  - Distance limit for block highlighting
+  - Duration of block highlighting when double-clicking entries
+
 ### Fixed
 - Fix shift-clicking Upgrade Cards not working for Storage Buses tabs
+- Fix Small style GUI sticking to the bottom (instead of centering)
 
 
 ## [0.5.2] - 2026-01-23

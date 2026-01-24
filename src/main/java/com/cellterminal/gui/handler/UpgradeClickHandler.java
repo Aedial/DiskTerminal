@@ -17,6 +17,8 @@ import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.StorageBusContentRow;
 import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.client.StorageInfo;
+import com.cellterminal.config.CellTerminalServerConfig;
+import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketUpgradeCell;
 import com.cellterminal.network.PacketUpgradeStorageBus;
@@ -72,6 +74,14 @@ public class UpgradeClickHandler {
         ItemStack heldStack = Minecraft.getMinecraft().player.inventory.getItemStack();
         if (heldStack.isEmpty()) return false;
         if (!(heldStack.getItem() instanceof IUpgradeModule)) return false;
+
+        // Check if upgrade insertion is enabled
+        if (CellTerminalServerConfig.isInitialized()
+                && !CellTerminalServerConfig.getInstance().isUpgradeInsertEnabled()) {
+            MessageHelper.error("cellterminal.error.upgrade_insert_disabled");
+
+            return true;  // Consume click to prevent other handlers
+        }
 
         boolean isShiftClick = Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT);
 
@@ -133,6 +143,14 @@ public class UpgradeClickHandler {
         ItemStack heldStack = Minecraft.getMinecraft().player.inventory.getItemStack();
         if (heldStack.isEmpty()) return false;
         if (!(heldStack.getItem() instanceof IUpgradeModule)) return false;
+
+        // Check if upgrade insertion is enabled
+        if (CellTerminalServerConfig.isInitialized()
+                && !CellTerminalServerConfig.getInstance().isUpgradeInsertEnabled()) {
+            MessageHelper.error("cellterminal.error.upgrade_insert_disabled");
+
+            return true;  // Consume click to prevent other handlers
+        }
 
         CellTerminalNetwork.INSTANCE.sendToServer(new PacketUpgradeStorageBus(hoveredStorageBus.getId()));
 

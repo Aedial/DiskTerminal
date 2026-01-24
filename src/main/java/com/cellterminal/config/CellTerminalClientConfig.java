@@ -1,4 +1,4 @@
-package com.cellterminal.client;
+package com.cellterminal.config;
 
 import java.io.File;
 import java.util.EnumMap;
@@ -9,6 +9,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraftforge.common.config.Configuration;
 import net.minecraftforge.common.config.Property;
 
+import com.cellterminal.client.CellFilter;
+import com.cellterminal.client.SearchFilterMode;
+
 
 /**
  * Client-side configuration for Cell Terminal GUI preferences.
@@ -17,12 +20,21 @@ import net.minecraftforge.common.config.Property;
 public class CellTerminalClientConfig {
 
     private static final String CONFIG_FILE = "cellterminal_client.cfg";
+    private static final String CATEGORY_SETTINGS = "settings";
     private static final String CATEGORY_GUI = "gui";
     private static final String CATEGORY_FILTERS = "filters";
 
     private static CellTerminalClientConfig instance;
 
     private final Configuration config;
+
+    // Settings properties (shown in config GUI)
+    private final Property maxHighlightDistanceProperty;
+    private final Property highlightDurationProperty;
+    private int maxHighlightDistance = -1;  // -1 = unlimited
+    private int highlightDuration = 15;  // seconds
+
+    // GUI state properties (hidden from config GUI - persistent state)
     private final Property selectedTabProperty;
     private final Property terminalStyleProperty;
     private final Property searchFilterProperty;
@@ -41,6 +53,24 @@ public class CellTerminalClientConfig {
         File configFile = new File(Minecraft.getMinecraft().gameDir, "config/" + CONFIG_FILE);
         this.config = new Configuration(configFile);
 
+        // Settings category (shown in config GUI)
+        config.setCategoryComment(CATEGORY_SETTINGS,
+            "User-configurable settings for Cell Terminal rendering and behavior.");
+        config.setCategoryLanguageKey(CATEGORY_SETTINGS, "config.cellterminal.config.client.settings");
+
+        this.maxHighlightDistanceProperty = config.get(CATEGORY_SETTINGS, "maxHighlightDistance", -1,
+            "Maximum distance (in blocks) from the player for block highlighting.\n" +
+            "Set to -1 for unlimited. Blocks beyond this distance will not be highlighted.", -1, 10000);
+        this.maxHighlightDistanceProperty.setLanguageKey("config.cellterminal.config.client.settings.max_highlight_distance");
+        this.maxHighlightDistance = this.maxHighlightDistanceProperty.getInt();
+
+        this.highlightDurationProperty = config.get(CATEGORY_SETTINGS, "highlightDuration", 15,
+            "Duration (in seconds) for block highlighting when double-clicking entries.\n" +
+            "Higher values keep highlights visible longer.", 1, 3600);
+        this.highlightDurationProperty.setLanguageKey("config.cellterminal.config.client.settings.highlight_duration");
+        this.highlightDuration = this.highlightDurationProperty.getInt();
+
+        // GUI state category (hidden from config GUI - persistent state)
         this.selectedTabProperty = config.get(CATEGORY_GUI, "selectedTab", 0,
             "The currently selected tab in the Cell Terminal GUI (0=Terminal, 1=Inventory, 2=Partition)");
         this.selectedTabProperty.setLanguageKey("config.cellterminal.gui.selectedTab");
@@ -198,6 +228,48 @@ public class CellTerminalClientConfig {
      */
     public Map<CellFilter, CellFilter.State> getAllFilterStates(boolean forStorageBus) {
         return new EnumMap<>(forStorageBus ? busFilterStates : cellFilterStates);
+    }
+
+    public int getMaxHighlightDistance() {
+        return maxHighlightDistance;
+    }
+
+    /**
+     * Get the highlight duration in milliseconds.
+     */
+    public long getHighlightDurationMs() {
+        return highlightDuration * 1000L;
+    }
+
+    /**
+     * Get the underlying Configuration object.
+     */
+    public Configuration getConfiguration() {
+        return config;
+    }
+
+    /**
+     * Get the path to the config file for display in the config GUI.
+     */
+    public String getConfigFilePath() {
+        return config.getConfigFile().getAbsolutePath();
+    }
+
+    /**
+     * Get the settings category name (shown in config GUI).
+     */
+    public String getSettingsCategoryName() {
+        return CATEGORY_SETTINGS;
+    }
+
+    /**
+     * Sync values from the config file after GUI changes.
+     */
+    public void syncFromConfig() {
+        this.maxHighlightDistance = this.maxHighlightDistanceProperty.getInt();
+        this.highlightDuration = this.highlightDurationProperty.getInt();
+
+        if (config.hasChanged()) config.save();
     }
 
     /**

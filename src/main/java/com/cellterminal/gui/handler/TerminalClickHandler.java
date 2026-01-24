@@ -8,8 +8,9 @@ import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.item.ItemStack;
 
 import com.cellterminal.client.CellInfo;
-import com.cellterminal.client.CellTerminalClientConfig;
 import com.cellterminal.client.StorageInfo;
+import com.cellterminal.config.CellTerminalClientConfig;
+import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketEjectCell;
@@ -67,6 +68,12 @@ public class TerminalClickHandler {
 
             if (mouseX >= tabX && mouseX < tabX + TAB_WIDTH
                     && mouseY >= tabY && mouseY < tabY + TAB_HEIGHT) {
+
+                // Check if the tab is enabled in server config
+                if (CellTerminalServerConfig.isInitialized() && !CellTerminalServerConfig.getInstance().isTabEnabled(i)) {
+                    return true;  // Consume click but don't switch to disabled tab
+                }
+
                 if (currentTab != i) {
                     callback.onTabChanged(i);
                     CellTerminalClientConfig.getInstance().setSelectedTab(i);
