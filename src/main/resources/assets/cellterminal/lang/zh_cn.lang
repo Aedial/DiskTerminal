@@ -69,7 +69,7 @@ gui.cellterminal.upgrade.shift_click_inventory=Shift+点击以发送到物品栏
 gui.cellterminal.upgrade.tooltip_hint_click=将其拖放到条目上以应用升级
 gui.cellterminal.upgrade.tooltip_hint_shift_click=Shift+点击以将升级应用至首个可用条目
 
-# Config settings
+# Persistent settings
 config.cellterminal.gui=GUI设置
 config.cellterminal.gui.tooltip=元件终端GUI偏好设置
 config.cellterminal.gui.selectedTab=所选标签页
@@ -80,6 +80,67 @@ config.cellterminal.gui.searchFilter=搜索过滤
 config.cellterminal.gui.searchFilter.tooltip=元件终端中最后使用的搜索过滤文本
 config.cellterminal.gui.searchMode=搜索模式
 config.cellterminal.gui.searchMode.tooltip=搜索过滤模式：INVENTORY（库存），PARTITION（分区），或MIXED（混合）
+
+# Tab disabled message
+gui.cellterminal.tab.disabled=§c（在服务端配置中已被禁用）§r
+
+# Client config
+config.cellterminal.config.client.settings=客户端设置
+config.cellterminal.config.client.settings.tooltip=可由用户配置的元件终端渲染与行为设置。
+config.cellterminal.config.client.settings.max_highlight_distance=最大高亮距离
+config.cellterminal.config.client.settings.max_highlight_distance.tooltip=方块高亮效果距玩家的最远距离（以方块为单位）。设为-1表示无限制。
+config.cellterminal.config.client.settings.highlight_duration=高光时长
+config.cellterminal.config.client.settings.highlight_duration.tooltip=双击条目时，方块高亮效果的持续时长（以秒为单位）。
+
+# Server config
+config.cellterminal.config.server.tabs=标签页设置
+config.cellterminal.config.server.tabs.tooltip=启用或禁用元件终端GUI中的各个标签页。被禁用的标签页将显示为灰色。
+config.cellterminal.config.server.tabs.terminal=终端标签页
+config.cellterminal.config.server.tabs.terminal.tooltip=启用终端标签页（所有单元的概览）
+config.cellterminal.config.server.tabs.inventory=库存标签页
+config.cellterminal.config.server.tabs.inventory.tooltip=启用库存标签页（查看元件内容）
+config.cellterminal.config.server.tabs.partition=分区标签页
+config.cellterminal.config.server.tabs.partition.tooltip=启用分区标签页（编辑元件过滤项）
+config.cellterminal.config.server.tabs.storage_bus_inventory=存储总线库存标签页
+config.cellterminal.config.server.tabs.storage_bus_inventory.tooltip=启用存储总线库存标签页（查看存储总线内容）
+config.cellterminal.config.server.tabs.storage_bus_partition=存储总线分区标签页
+config.cellterminal.config.server.tabs.storage_bus_partition.tooltip=启用存储总线分区标签页（查看存储总线过滤项）
+
+config.cellterminal.config.server.polling=轮询设置
+config.cellterminal.config.server.polling.tooltip=存储总线轮询设置。警告：在大型网络中进行轮询可能会严重消耗性能！
+config.cellterminal.config.server.polling.enabled=存储总线轮询
+config.cellterminal.config.server.polling.enabled.tooltip=启用存储总线数据的自动轮询。禁用后，每个终端会话仅获取一次数据。
+config.cellterminal.config.server.polling.interval=轮询间隔
+config.cellterminal.config.server.polling.interval.tooltip=存储总线轮询更新的频率，单位为刻（20刻=1秒）。仅在轮询启用时生效。
+
+config.cellterminal.config.server.cell_ops=元件操作
+config.cellterminal.config.server.cell_ops.tooltip=元件操作权限。控制是否可通过元件终端在驱动器中插入/弹出元件。
+config.cellterminal.config.server.cell_ops.eject=元件弹出
+config.cellterminal.config.server.cell_ops.eject.tooltip=允许从驱动器/箱子中弹出/取出元件。影响弹出按钮及库存/分区标签页中的元件点击操作。
+config.cellterminal.config.server.cell_ops.insert=元件插入
+config.cellterminal.config.server.cell_ops.insert.tooltip=允许通过元件终端向驱动器/箱子中插入元件。
+config.cellterminal.config.server.cell_ops.swap=元件替换
+config.cellterminal.config.server.cell_ops.swap.tooltip=允许在驱动器/箱子中替换元件。需同时启用弹出与插入。
+
+config.cellterminal.config.server.misc=杂项设置
+config.cellterminal.config.server.misc.tooltip=元件终端各种功能的杂项设置。
+config.cellterminal.config.server.misc.partition_edit=分区编辑
+config.cellterminal.config.server.misc.partition_edit.tooltip=允许通过元件终端编辑元件分区。
+config.cellterminal.config.server.misc.priority_edit=优先级编辑
+config.cellterminal.config.server.misc.priority_edit.tooltip=允许通过元件终端编辑驱动器/存储总线的优先级。
+config.cellterminal.config.server.misc.upgrade_insert=升级加装
+config.cellterminal.config.server.misc.upgrade_insert.tooltip=允许通过元件终端为元件和存储总线加装升级。
+config.cellterminal.config.server.misc.upgrade_extract=允许升级取出
+config.cellterminal.config.server.misc.upgrade_extract.tooltip=允许通过元件终端从元件和存储总线中取出升级。
+
+# Server config error messages
+cellterminal.error.cell_eject_disabled=§元件弹出在该服务器中已被禁用。
+cellterminal.error.cell_insert_disabled=§c元件插入在该服务器中已被禁用。
+cellterminal.error.cell_swap_disabled=§c元件替换在该服务器中已被禁用。
+cellterminal.error.partition_edit_disabled=§c分区编辑在该服务器中已被禁用。
+cellterminal.error.priority_edit_disabled=§c优先级编辑在该服务器中已被禁用。
+cellterminal.error.upgrade_insert_disabled=§c升级加装在该服务器已被禁用。
+cellterminal.error.upgrade_extract_disabled=§c升级取出在该服务器已被禁用。
 
 # Panel hints
 gui.cellterminal.hint.partition=点击以移除，从JEI中拖拽以添加
