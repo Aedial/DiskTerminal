@@ -154,39 +154,22 @@ public class TerminalClickHandler {
             StorageInfo hoveredStorageLine, int hoveredLineIndex,
             Map<Long, StorageInfo> storageMap, int terminalDimension, Callback callback) {
 
-        // Check for double-click to highlight block (only on storage headers, not slots)
-        // If user is clicking on a content slot or partition slot, don't track for double-click
-        boolean isSlotClick = (hoveredContentSlotIndex >= 0) || (hoveredPartitionSlotIndex >= 0);
+        // Check for double-click to highlight block
         long now = System.currentTimeMillis();
-        StorageInfo clickedStorage = hoveredCellStorage;
 
-        // Determine which storage was clicked (either directly or via cell/content)
-        if (clickedStorage == null && hoveredStorageLine != null) clickedStorage = hoveredStorageLine;
-
-        if (clickedStorage == null && hoveredCellCell != null) {
-            clickedStorage = storageMap.get(hoveredCellCell.getParentStorageId());
-        }
-
-        if (clickedStorage == null && hoveredPartitionCell != null) {
-            clickedStorage = storageMap.get(hoveredPartitionCell.getParentStorageId());
-        }
-
-        // Only track double-clicks when NOT clicking on slots
-        if (!isSlotClick && hoveredLineIndex >= 0 && hoveredLineIndex == lastClickedLineIndexTab23
-                && now - lastClickTimeTab23 < 400) {
-            // Double-click detected - highlight the storage
-            if (clickedStorage != null) handleDoubleClickTab23(clickedStorage, terminalDimension);
+        if (hoveredStorageLine != null && hoveredLineIndex >= 0
+                && hoveredLineIndex == lastClickedLineIndexTab23 && now - lastClickTimeTab23 < 400) {
+            handleDoubleClickTab23(hoveredStorageLine, terminalDimension);
             lastClickedLineIndexTab23 = -1;
 
             return;
         }
 
-        // Only update tracking if not a slot click
-        if (!isSlotClick) {
+        // Only track for double-click when clicking directly on a storage header
+        if (hoveredStorageLine != null) {
             lastClickedLineIndexTab23 = hoveredLineIndex;
             lastClickTimeTab23 = now;
         } else {
-            // Reset double-click tracking when clicking on slots
             lastClickedLineIndexTab23 = -1;
         }
 
