@@ -14,7 +14,7 @@ import net.minecraft.item.ItemStack;
 import appeng.util.ReadableNumberConverter;
 
 import com.cellterminal.client.CellInfo;
-import com.cellterminal.gui.FluidStackUtil;
+import com.cellterminal.gui.ComparisonUtils;
 import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.render.RenderContext;
 
@@ -169,22 +169,29 @@ public class CellSlotRenderer {
         List<ItemStack> upgrades = cell.getUpgrades();
         if (upgrades.isEmpty()) return 0;
 
-        int iconX = x;
+        // Find max slot index to determine layout width
+        int maxSlot = 0;
+        for (int i = 0; i < upgrades.size(); i++) {
+            int slotIndex = cell.getUpgradeSlotIndex(i);
+            if (slotIndex > maxSlot) maxSlot = slotIndex;
+        }
 
+        // Render each upgrade at its actual slot position
         for (int i = 0; i < upgrades.size(); i++) {
             ItemStack upgrade = upgrades.get(i);
+            int actualSlotIndex = cell.getUpgradeSlotIndex(i);
+            int iconX = x + actualSlotIndex * 9; // 8px icon + 1px spacing per slot
+
             renderSmallItemStack(upgrade, iconX, y);
 
             // Track upgrade icon position for tooltip and click handling
             if (ctx != null) {
                 ctx.upgradeIconTargets.add(new RenderContext.UpgradeIconTarget(
-                    cell, upgrade, i, guiLeft + iconX, guiTop + y));
+                    cell, upgrade, actualSlotIndex, guiLeft + iconX, guiTop + y));
             }
-
-            iconX += 9; // 8px icon + 1px spacing
         }
 
-        return iconX - x;
+        return (maxSlot + 1) * 9; // Total width based on max slot position
     }
 
     /**
@@ -234,7 +241,7 @@ public class CellSlotRenderer {
      * Uses fluid-aware comparison for fluid items (compares by fluid type only).
      */
     public boolean isInPartition(ItemStack stack, List<ItemStack> partition) {
-        return FluidStackUtil.isInPartition(stack, partition);
+        return ComparisonUtils.isInPartition(stack, partition);
     }
 
     /**

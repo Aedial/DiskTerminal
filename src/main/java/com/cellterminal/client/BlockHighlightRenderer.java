@@ -1,7 +1,9 @@
 package com.cellterminal.client;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import org.lwjgl.opengl.GL11;
@@ -16,6 +18,8 @@ import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+
+import com.cellterminal.config.CellTerminalClientConfig;
 
 
 /**
@@ -50,23 +54,29 @@ public class BlockHighlightRenderer {
 
     @SubscribeEvent
     public void onRenderWorldLast(RenderWorldLastEvent event) {
-        boolean hasStandardHighlights = !highlightedBlocks.isEmpty();
-
-        if (!hasStandardHighlights) return;
+        if (highlightedBlocks.isEmpty()) return;
 
         long now = System.currentTimeMillis();
 
         // Remove expired standard highlights
-        if (hasStandardHighlights) {
-            Iterator<Map.Entry<BlockPos, Long>> iter = highlightedBlocks.entrySet().iterator();
-            while (iter.hasNext()) {
-                if (iter.next().getValue() < now) iter.remove();
-            }
-
-            hasStandardHighlights = !highlightedBlocks.isEmpty();
+        Iterator<Map.Entry<BlockPos, Long>> iter = highlightedBlocks.entrySet().iterator();
+        while (iter.hasNext()) {
+            if (iter.next().getValue() < now) iter.remove();
         }
 
-        if (!hasStandardHighlights) return;
+        // Keep only highlights within max view distance (local list to keep highlights persistent)
+        // TODO: change max view distance to show arrows instead of removing highlights
+        List<BlockPos> validHighlights = new ArrayList<>();
+        int maxDist = CellTerminalClientConfig.getInstance().getMaxHighlightDistance();
+        double maxDistSq = maxDist > 0 ? (double) maxDist * maxDist : -1;
+
+        for (BlockPos pos : highlightedBlocks.keySet()) {
+            BlockPos playerPos = Minecraft.getMinecraft().player.getPosition();
+            boolean withinMaxDist = maxDistSq < 0 || pos.distanceSq(playerPos) <= maxDistSq;
+            if (withinMaxDist) validHighlights.add(pos);
+        }
+
+        if (validHighlights.isEmpty()) return;
 
         EntityPlayer player = Minecraft.getMinecraft().player;
         double playerX = player.lastTickPosX + (player.posX - player.lastTickPosX) * event.getPartialTicks();
@@ -84,14 +94,8 @@ public class BlockHighlightRenderer {
         GlStateManager.depthMask(false);
         GlStateManager.glLineWidth(3.0F);
 
-        for (Map.Entry<BlockPos, Long> entry : highlightedBlocks.entrySet()) {
-            BlockPos pos = entry.getKey();
-            long expireTime = entry.getValue();
-
-            // Calculate alpha for pulsing effect and fade-out
-            long remaining = expireTime - now;
+        for (BlockPos pos : validHighlights) {
             float alpha = 0.7f + 0.3f * (float) Math.sin(now / 500.0);
-
             renderBlockOutline(pos, 0.0f, 1.0f, 0.5f, alpha);
         }
 

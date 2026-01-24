@@ -9,6 +9,7 @@ import java.util.Map;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
@@ -34,10 +35,12 @@ import appeng.tile.storage.TileChest;
 import appeng.tile.storage.TileDrive;
 import appeng.util.Platform;
 
+import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.container.handler.CellActionHandler;
 import com.cellterminal.container.handler.CellDataHandler;
 import com.cellterminal.container.handler.StorageBusDataHandler;
 import com.cellterminal.container.handler.StorageBusDataHandler.StorageBusTracker;
+import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketCellTerminalUpdate;
 import com.cellterminal.network.PacketExtractUpgrade;
@@ -67,9 +70,8 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
     protected int activeTab = 0;
 
     // Tick counter for storage bus polling (only poll every N ticks when on storage bus tab)
-    protected static final boolean ENABLE_STORAGE_BUS_POLLING = true;
     protected int storageBusPollCounter = 0;
-    protected static final int STORAGE_BUS_POLL_INTERVAL = 20;  // Poll every second (20 ticks)
+    protected boolean hasPolledOnce = false;  // Track if initial poll has been done for storage bus tab
 
     public ContainerCellTerminalBase(InventoryPlayer ip, IPart part) {
         super(ip, null, part);
@@ -84,6 +86,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
         if (needsFullRefresh) {
             this.regenStorageList();
+            this.regenStorageBusList();  // Also refresh storage bus data to prevent blank tabs on initial open
             needsFullRefresh = false;
         }
 
@@ -102,24 +105,42 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
     /**
      * Handle storage bus polling when the client is on a storage bus tab.
-     * Only polls if activeTab is a storage bus tab, and respects poll interval.
+     * Only polls if activeTab is a storage bus tab, and respects poll interval from config.
+     * If polling is disabled in config, only the initial poll when switching to the tab is performed.
      */
     protected void handleStorageBusPolling() {
         boolean isOnStorageBusTab = (activeTab == TAB_STORAGE_BUS_INVENTORY || activeTab == TAB_STORAGE_BUS_PARTITION);
-        if (!ENABLE_STORAGE_BUS_POLLING || (!isOnStorageBusTab && !needsStorageBusRefresh)) return;
 
-        storageBusPollCounter++;
+        // If not on storage bus tab and no pending refresh, nothing to do
+        if (!isOnStorageBusTab && !needsStorageBusRefresh) return;
 
-        if (needsStorageBusRefresh || storageBusPollCounter >= STORAGE_BUS_POLL_INTERVAL) {
+        CellTerminalServerConfig config = CellTerminalServerConfig.getInstance();
+
+        // Always handle the initial/forced refresh when switching to storage bus tab
+        if (needsStorageBusRefresh) {
             regenStorageBusList();
             storageBusPollCounter = 0;
             needsStorageBusRefresh = false;
+            hasPolledOnce = true;
+
+            return;
+        }
+
+        // If polling is disabled, only do initial poll (handled above via needsStorageBusRefresh)
+        if (!config.isStorageBusPollingEnabled()) return;
+
+        // Handle periodic polling
+        storageBusPollCounter++;
+
+        if (storageBusPollCounter >= config.getPollingInterval()) {
+            regenStorageBusList();
+            storageBusPollCounter = 0;
         }
     }
 
     /**
      * Set the active tab on the server (called from packet handler).
-     * This enables storage bus polling only when needed.
+     * Triggers storage bus refresh only on first switch to a storage bus tab.
      */
     public void setActiveTab(int tab) {
         boolean wasOnStorageBusTab = (activeTab == TAB_STORAGE_BUS_INVENTORY || activeTab == TAB_STORAGE_BUS_PARTITION);
@@ -230,6 +251,13 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
      */
     public void handlePartitionAction(long storageId, int cellSlot, PacketPartitionAction.Action action,
                                        int partitionSlot, ItemStack itemStack) {
+        // Check if partition editing is enabled in server config
+        if (!CellTerminalServerConfig.getInstance().isPartitionEditEnabled()) {
+            MessageHelper.error("cellterminal.error.partition_edit_disabled");
+
+            return;
+        }
+
         StorageTracker tracker = this.byId.get(storageId);
         if (tracker == null) return;
 
@@ -246,6 +274,13 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
     public void handleStorageBusPartitionAction(long storageBusId,
                                                   PacketStorageBusPartitionAction.Action action,
                                                   int partitionSlot, ItemStack itemStack) {
+        // Check if partition editing is enabled in server config
+        if (!CellTerminalServerConfig.getInstance().isPartitionEditEnabled()) {
+            MessageHelper.error("cellterminal.error.partition_edit_disabled");
+
+            return;
+        }
+
         StorageBusTracker tracker = this.storageBusById.get(storageBusId);
         if (tracker == null) return;
 
@@ -270,6 +305,13 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
      * Always ejects to player's inventory (or drops if inventory is full).
      */
     public void handleEjectCell(long storageId, int cellSlot, EntityPlayer player) {
+        // Check if cell eject is enabled in server config
+        if (!CellTerminalServerConfig.getInstance().isCellEjectEnabled()) {
+            MessageHelper.error("cellterminal.error.cell_eject_disabled");
+
+            return;
+        }
+
         StorageTracker tracker = this.byId.get(storageId);
         if (tracker == null) return;
 
@@ -281,6 +323,13 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
      * Supports both storage tiles (ME Drive, Chest) and storage buses.
      */
     public void handleSetPriority(long storageId, int priority) {
+        // Check if priority editing is enabled in server config
+        if (!CellTerminalServerConfig.getInstance().isPriorityEditEnabled()) {
+            MessageHelper.error("cellterminal.error.priority_edit_disabled");
+
+            return;
+        }
+
         // Try storage tiles first
         StorageTracker tracker = this.byId.get(storageId);
         if (tracker != null) {
@@ -312,6 +361,13 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
      * @param fromSlot Inventory slot to take upgrade from (-1 = cursor)
      */
     public void handleUpgradeCell(EntityPlayer player, long storageId, int cellSlot, boolean shiftClick, int fromSlot) {
+        // Check if upgrade insertion is enabled in server config
+        if (!CellTerminalServerConfig.getInstance().isUpgradeInsertEnabled()) {
+            MessageHelper.error("cellterminal.error.upgrade_insert_disabled");
+
+            return;
+        }
+
         StorageTracker tracker = this.byId.get(storageId);
         if (tracker == null) return;
 
@@ -336,6 +392,13 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
      * @param fromSlot Inventory slot to take upgrade from (-1 = cursor)
      */
     public void handleUpgradeStorageBus(EntityPlayer player, long storageBusId, int fromSlot) {
+        // Check if upgrade insertion is enabled in server config
+        if (!CellTerminalServerConfig.getInstance().isUpgradeInsertEnabled()) {
+            MessageHelper.error("cellterminal.error.upgrade_insert_disabled");
+
+            return;
+        }
+
         ItemStack upgradeStack;
 
         if (fromSlot >= 0) {
@@ -374,9 +437,11 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
                 } else {
                     ((EntityPlayerMP) player).updateHeldItem();
                 }
-            }
 
-            this.needsStorageBusRefresh = true;
+                this.needsStorageBusRefresh = true;
+
+                return;
+            }
         }
     }
 
@@ -392,6 +457,13 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
      */
     public void handleExtractUpgrade(EntityPlayer player, PacketExtractUpgrade.TargetType targetType,
                                       long targetId, int cellSlot, int upgradeIndex, boolean toInventory) {
+        // Check if upgrade extraction is enabled in server config
+        if (!CellTerminalServerConfig.getInstance().isUpgradeExtractEnabled()) {
+            MessageHelper.error("cellterminal.error.upgrade_extract_disabled");
+
+            return;
+        }
+
         IItemHandler upgradesInv = null;
         TileEntity tile = null;
 
@@ -466,8 +538,48 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
      * Handle cell pickup requests from client.
      */
     public void handlePickupCell(long storageId, int cellSlot, EntityPlayer player, boolean toInventory) {
+        CellTerminalServerConfig config = CellTerminalServerConfig.getInstance();
         StorageTracker tracker = this.byId.get(storageId);
         if (tracker == null) return;
+
+        IItemHandler cellInventory = CellDataHandler.getCellInventory(tracker.storage);
+        if (cellInventory == null) return;
+
+        ItemStack cellStack = cellInventory.getStackInSlot(cellSlot);
+        ItemStack heldStack = player.inventory.getItemStack();
+
+        // Empty slot + holding cell = insert (only for hand mode)
+        if (cellStack.isEmpty()) {
+            if (!toInventory && !heldStack.isEmpty()) {
+                // Check if cell insert is enabled
+                if (!config.isCellInsertEnabled()) {
+                    MessageHelper.error("cellterminal.error.cell_insert_disabled");
+
+                    return;
+                }
+            }
+        } else if (toInventory) {
+            // Shift-click: extract to inventory
+            if (!config.isCellEjectEnabled()) {
+                MessageHelper.error("cellterminal.error.cell_eject_disabled");
+
+                return;
+            }
+        } else if (!heldStack.isEmpty()) {
+            // Regular click with held item: swap
+            if (!config.isCellSwapEnabled()) {
+                MessageHelper.error("cellterminal.error.cell_swap_disabled");
+
+                return;
+            }
+        } else {
+            // Regular click with empty hand: pick up
+            if (!config.isCellEjectEnabled()) {
+                MessageHelper.error("cellterminal.error.cell_eject_disabled");
+
+                return;
+            }
+        }
 
         if (CellActionHandler.pickupCell(tracker.storage, cellSlot, player, toInventory)) {
             this.needsFullRefresh = true;
@@ -479,6 +591,13 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
      * Inserts the held cell into the specified storage.
      */
     public void handleInsertCell(long storageId, int targetSlot, EntityPlayer player) {
+        // Check if cell insert is enabled in server config
+        if (!CellTerminalServerConfig.getInstance().isCellInsertEnabled()) {
+            MessageHelper.error("cellterminal.error.cell_insert_disabled");
+
+            return;
+        }
+
         StorageTracker tracker = this.byId.get(storageId);
         if (tracker == null) return;
 
@@ -497,6 +616,13 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         // Check if it's a valid cell
         if (AEApi.instance().registries().cell().getHandler(stack) == null) {
             return super.transferStackInSlot(player, slotIndex);
+        }
+
+        // Check if cell insert is enabled in server config
+        if (!CellTerminalServerConfig.getInstance().isCellInsertEnabled()) {
+            MessageHelper.error("cellterminal.error.cell_insert_disabled");
+
+            return ItemStack.EMPTY;
         }
 
         // Get position for sorting

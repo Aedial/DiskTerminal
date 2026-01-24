@@ -10,12 +10,16 @@ import appeng.api.AEApi;
 
 import com.cellterminal.CellTerminal;
 import com.cellterminal.ItemRegistry;
+import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.gui.GuiHandler;
 
 
 public class CommonProxy {
 
     public void preInit(FMLPreInitializationEvent event) {
+        // Initialize server config (applies to both client and server)
+        CellTerminalServerConfig.init(event.getModConfigurationDirectory());
+
         ItemRegistry.init();
         MinecraftForge.EVENT_BUS.register(new ItemRegistry());
     }

@@ -1,6 +1,7 @@
 # Misc
 *.zip
 TODO.md
+*.patch
 
 # Gradle
 .gradle/

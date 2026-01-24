@@ -9,6 +9,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 import com.cellterminal.client.BlockHighlightRenderer;
+import com.cellterminal.config.CellTerminalClientConfig;
 
 
 /**
@@ -46,7 +47,8 @@ public class PacketHighlightBlockClient implements IMessage {
             Minecraft.getMinecraft().addScheduledTask(() -> {
                 // Only highlight if in same dimension
                 if (Minecraft.getMinecraft().player.dimension == message.dimension) {
-                    BlockHighlightRenderer.addHighlight(message.pos, 15000); // 15 seconds
+                    long duration = CellTerminalClientConfig.getInstance().getHighlightDurationMs();
+                    BlockHighlightRenderer.addHighlight(message.pos, duration);
                 }
             });
 

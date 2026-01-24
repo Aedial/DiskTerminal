@@ -73,7 +73,7 @@ public class StorageBusClickHandler {
      */
     public boolean handleClick(ClickContext ctx, int mouseButton) {
         long now = System.currentTimeMillis();
-        boolean wasDoubleClick = checkDoubleClick(ctx.hoveredStorageBus, now, mouseButton);
+        boolean wasDoubleClick = checkDoubleClick(ctx, now, mouseButton);
 
         if (ctx.currentTab == TAB_STORAGE_BUS_INVENTORY) {
             return handleInventoryTabClick(ctx, mouseButton);
@@ -86,15 +86,20 @@ public class StorageBusClickHandler {
         return false;
     }
 
-    private boolean checkDoubleClick(StorageBusInfo hoveredBus, long now, int mouseButton) {
+    private boolean checkDoubleClick(ClickContext ctx, long now, int mouseButton) {
+        StorageBusInfo hoveredBus = ctx.hoveredStorageBus;
         if (hoveredBus == null || mouseButton != 0) return false;
+
+        // If a slot is being hovered, don't trigger block highlight (but don't reset tracking)
+        // This allows the slot click to be handled by other methods
+        if (ctx.hoveredStorageBusPartitionSlot >= 0 || ctx.hoveredStorageBusContentSlot >= 0) {
+            return false;
+        }
 
         long currentBusId = hoveredBus.getId();
 
         if (currentBusId == lastClickedStorageBusId && now - lastClickTimeStorageBus < DOUBLE_CLICK_TIME) {
-            CellTerminalNetwork.INSTANCE.sendToServer(
-                new PacketHighlightBlock(hoveredBus.getPos(), hoveredBus.getDimension())
-            );
+            highlightStorageBus(hoveredBus);
             lastClickedStorageBusId = -1;
             lastClickTimeStorageBus = now;
 
@@ -105,6 +110,23 @@ public class StorageBusClickHandler {
         lastClickTimeStorageBus = now;
 
         return false;
+    }
+
+    private void highlightStorageBus(StorageBusInfo storageBus) {
+        if (storageBus.getDimension() != Minecraft.getMinecraft().player.dimension) {
+            MessageHelper.error("cellterminal.error.different_dimension");
+
+            return;
+        }
+
+        CellTerminalNetwork.INSTANCE.sendToServer(
+            new PacketHighlightBlock(storageBus.getPos(), storageBus.getDimension())
+        );
+
+        // Send green chat message with block name and coordinates
+        MessageHelper.success("gui.cellterminal.highlighted",
+            storageBus.getPos().getX(), storageBus.getPos().getY(), storageBus.getPos().getZ(),
+            storageBus.getLocalizedName());
     }
 
     private boolean handleInventoryTabClick(ClickContext ctx, int mouseButton) {
@@ -124,7 +146,7 @@ public class StorageBusClickHandler {
             CellTerminalNetwork.INSTANCE.sendToServer(
                 new PacketStorageBusPartitionAction(
                     ctx.hoveredPartitionAllButtonStorageBus.getId(),
-                    PacketStorageBusPartitionAction.Action.PARTITION_ALL
+                    PacketStorageBusPartitionAction.Action.SET_ALL_FROM_CONTENTS
                 )
             );
 

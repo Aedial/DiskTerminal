@@ -10,6 +10,7 @@ import net.minecraft.item.ItemStack;
 
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.StorageBusInfo;
+import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.gui.FilterPanelManager;
 import com.cellterminal.gui.GuiFilterButton;
 import com.cellterminal.gui.GuiSearchHelpButton;
@@ -89,8 +90,6 @@ public class TooltipHandler {
      * Draw all tooltips for the current state.
      */
     public static void drawTooltips(TooltipContext ctx, TooltipRenderer renderer, int mouseX, int mouseY) {
-        // Terminal tab hover preview (not full tooltip)
-        // This is handled separately in drawScreen
 
         // Upgrade icon tooltips
         if (ctx.hoveredUpgradeIcon != null) {
@@ -213,19 +212,33 @@ public class TooltipHandler {
     }
 
     private static String getTabTooltip(int tab) {
+        String baseTooltip;
+
         switch (tab) {
             case TAB_TERMINAL:
-                return I18n.format("gui.cellterminal.tab.terminal.tooltip");
+                baseTooltip = I18n.format("gui.cellterminal.tab.terminal.tooltip");
+                break;
             case TAB_INVENTORY:
-                return I18n.format("gui.cellterminal.tab.inventory.tooltip");
+                baseTooltip = I18n.format("gui.cellterminal.tab.inventory.tooltip");
+                break;
             case TAB_PARTITION:
-                return I18n.format("gui.cellterminal.tab.partition.tooltip");
+                baseTooltip = I18n.format("gui.cellterminal.tab.partition.tooltip");
+                break;
             case TAB_STORAGE_BUS_INVENTORY:
-                return I18n.format("gui.cellterminal.tab.storage_bus_inventory.tooltip");
+                baseTooltip = I18n.format("gui.cellterminal.tab.storage_bus_inventory.tooltip");
+                break;
             case TAB_STORAGE_BUS_PARTITION:
-                return I18n.format("gui.cellterminal.tab.storage_bus_partition.tooltip");
+                baseTooltip = I18n.format("gui.cellterminal.tab.storage_bus_partition.tooltip");
+                break;
             default:
                 return "";
         }
+
+        // Add disabled notice if tab is disabled in server config
+        if (CellTerminalServerConfig.isInitialized() && !CellTerminalServerConfig.getInstance().isTabEnabled(tab)) {
+            return baseTooltip + " " + I18n.format("gui.cellterminal.tab.disabled");
+        }
+
+        return baseTooltip;
     }
 }

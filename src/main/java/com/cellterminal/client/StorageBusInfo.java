@@ -11,6 +11,9 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.common.util.Constants;
 
+import appeng.api.config.Upgrades;
+import appeng.api.implementations.items.IUpgradeModule;
+
 
 /**
  * Client-side data holder for storage bus information received from server.
@@ -64,6 +67,7 @@ public class StorageBusInfo {
     private final List<ItemStack> contents = new ArrayList<>();
     private final List<Long> contentCounts = new ArrayList<>();
     private final List<ItemStack> upgrades = new ArrayList<>();
+    private final List<Integer> upgradeSlotIndices = new ArrayList<>();
     private boolean expanded = true;
 
     public StorageBusInfo(NBTTagCompound nbt) {
@@ -90,7 +94,12 @@ public class StorageBusInfo {
             for (int i = 0; i < upgradeList.tagCount(); i++) {
                 NBTTagCompound upgradeNbt = upgradeList.getCompoundTagAt(i);
                 ItemStack upgrade = new ItemStack(upgradeNbt);
-                if (!upgrade.isEmpty()) this.upgrades.add(upgrade);
+                if (!upgrade.isEmpty()) {
+                    this.upgrades.add(upgrade);
+                    // Read actual slot index, fallback to iteration index for backwards compatibility
+                    int slotIndex = upgradeNbt.hasKey("slot") ? upgradeNbt.getInteger("slot") : i;
+                    this.upgradeSlotIndices.add(slotIndex);
+                }
             }
         }
 
@@ -250,6 +259,17 @@ public class StorageBusInfo {
         return upgrades;
     }
 
+    /**
+     * Get the actual slot index for an upgrade in the upgrade inventory.
+     * @param index The index in the upgrades list (0 to upgrades.size()-1)
+     * @return The actual slot index in the upgrade inventory
+     */
+    public int getUpgradeSlotIndex(int index) {
+        if (index < 0 || index >= upgradeSlotIndices.size()) return index;
+
+        return upgradeSlotIndices.get(index);
+    }
+
     public boolean isExpanded() {
         return expanded;
     }
@@ -333,5 +353,87 @@ public class StorageBusInfo {
         for (Long count : contentCounts) total += count;
 
         return total;
+    }
+
+    /**
+     * Check if this storage bus has space for more upgrades.
+     * Storage buses have 5 upgrade slots.
+     */
+    public boolean hasUpgradeSpace() {
+        return upgrades.size() < 5;
+    }
+
+    /**
+     * Get the maximum number of a specific upgrade type this storage bus can hold.
+     * @param upgradeType The upgrade type to check
+     * @return The maximum count, or 0 if not supported
+     */
+    public int getMaxInstalled(Upgrades upgradeType) {
+        if (upgradeType == null) return 0;
+
+        // Essentia buses don't support standard AE2 upgrades
+        if (isEssentia) return 0;
+
+        switch (upgradeType) {
+            case CAPACITY:
+                return 5;
+            case INVERTER:
+            case STICKY:
+                return 1;
+            case FUZZY:
+                // Fluid storage buses don't support fuzzy
+                return isFluid ? 0 : 1;
+            default:
+                return 0;
+        }
+    }
+
+    /**
+     * Get the current installed count of a specific upgrade type.
+     * @param upgradeType The upgrade type to count
+     * @return The number currently installed
+     */
+    public int getInstalledUpgrades(Upgrades upgradeType) {
+        if (upgradeType == null) return 0;
+
+        switch (upgradeType) {
+            case CAPACITY:
+                return capacityUpgrades;
+            case INVERTER:
+                return hasInverter ? 1 : 0;
+            case STICKY:
+                return hasSticky ? 1 : 0;
+            case FUZZY:
+                return hasFuzzy ? 1 : 0;
+            default:
+                return 0;
+        }
+    }
+
+    /**
+     * Check if this storage bus can accept the given upgrade item.
+     * Checks if the bus has upgrade space, the upgrade type is supported,
+     * and the current count is below the maximum for that upgrade type.
+     * @param upgradeStack The upgrade item to check
+     * @return true if the upgrade can be inserted
+     */
+    public boolean canAcceptUpgrade(ItemStack upgradeStack) {
+        if (upgradeStack.isEmpty()) return false;
+        if (!(upgradeStack.getItem() instanceof IUpgradeModule)) return false;
+        if (!hasUpgradeSpace()) return false;
+
+        // Essentia buses don't support standard AE2 upgrades
+        if (isEssentia) return false;
+
+        IUpgradeModule upgradeModule = (IUpgradeModule) upgradeStack.getItem();
+        Upgrades upgradeType = upgradeModule.getType(upgradeStack);
+        if (upgradeType == null) return false;
+
+        int maxInstalled = getMaxInstalled(upgradeType);
+        if (maxInstalled == 0) return false;
+
+        int currentInstalled = getInstalledUpgrades(upgradeType);
+
+        return currentInstalled < maxInstalled;
     }
 }

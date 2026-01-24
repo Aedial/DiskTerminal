@@ -21,7 +21,6 @@ public class PacketStorageBusPartitionAction implements IMessage {
         REMOVE_ITEM,
         TOGGLE_ITEM,
         SET_ALL_FROM_CONTENTS,
-        PARTITION_ALL,  // Alias for SET_ALL_FROM_CONTENTS
         CLEAR_ALL
     }
 

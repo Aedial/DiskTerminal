@@ -14,7 +14,8 @@ import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.RenderItem;
 import net.minecraft.item.ItemStack;
 
-import com.cellterminal.client.CellTerminalClientConfig.TerminalStyle;
+import com.cellterminal.config.CellTerminalClientConfig.TerminalStyle;
+import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.gui.tab.ITabController;
 import com.cellterminal.gui.tab.TabControllerRegistry;
 
@@ -108,32 +109,47 @@ public class TabRenderingHandler {
             boolean isSelected = (i == ctx.currentTab);
             boolean isHovered = ctx.mouseX >= tabX && ctx.mouseX < tabX + ctx.tabWidth
                 && ctx.mouseY >= tabY && ctx.mouseY < tabY + ctx.tabHeight;
+            boolean isDisabled = CellTerminalServerConfig.isInitialized()
+                && !CellTerminalServerConfig.getInstance().isTabEnabled(i);
 
             if (isHovered) hoveredTab = i;
 
-            // Tab background
-            int bgColor = isSelected ? 0xFFC6C6C6 : (isHovered ? 0xFFA0A0A0 : 0xFF8B8B8B);
+            // Tab background - gray out disabled tabs
+            int bgColor;
+            if (isDisabled) {
+                bgColor = 0xFF505050;  // Darker gray for disabled tabs
+            } else if (isSelected) {
+                bgColor = 0xFFC6C6C6;
+            } else if (isHovered) {
+                bgColor = 0xFFA0A0A0;
+            } else {
+                bgColor = 0xFF8B8B8B;
+            }
             Gui.drawRect(tabX, tabY, tabX + ctx.tabWidth, tabY + ctx.tabHeight, bgColor);
 
-            // Tab border (3D effect)
-            Gui.drawRect(tabX, tabY, tabX + ctx.tabWidth, tabY + 1, 0xFFFFFFFF);  // top
-            Gui.drawRect(tabX, tabY, tabX + 1, tabY + ctx.tabHeight, 0xFFFFFFFF);  // left
-            Gui.drawRect(tabX + ctx.tabWidth - 1, tabY, tabX + ctx.tabWidth, tabY + ctx.tabHeight, 0xFF555555);  // right
+            // Tab border (3D effect) - dimmer for disabled tabs
+            int highlightColor = isDisabled ? 0xFF888888 : 0xFFFFFFFF;
+            int shadowColor = isDisabled ? 0xFF303030 : 0xFF555555;
+            Gui.drawRect(tabX, tabY, tabX + ctx.tabWidth, tabY + 1, highlightColor);  // top
+            Gui.drawRect(tabX, tabY, tabX + 1, tabY + ctx.tabHeight, highlightColor);  // left
+            Gui.drawRect(tabX + ctx.tabWidth - 1, tabY, tabX + ctx.tabWidth, tabY + ctx.tabHeight, shadowColor);  // right
 
             // If selected, remove bottom border to connect with main GUI
-            if (isSelected) {
+            if (isSelected && !isDisabled) {
                 Gui.drawRect(tabX + 1, tabY + ctx.tabHeight - 1, tabX + ctx.tabWidth - 1, tabY + ctx.tabHeight, 0xFFC6C6C6);
             } else {
-                Gui.drawRect(tabX, tabY + ctx.tabHeight - 1, tabX + ctx.tabWidth, tabY + ctx.tabHeight, 0xFF555555);  // bottom
+                Gui.drawRect(tabX, tabY + ctx.tabHeight - 1, tabX + ctx.tabWidth, tabY + ctx.tabHeight, shadowColor);  // bottom
             }
 
             // Draw icon (composite for storage bus tabs)
+            // Gray out icons for disabled tabs
+            float iconAlpha = isDisabled ? 0.4f : 1.0f;
             if (i == TAB_STORAGE_BUS_INVENTORY || i == TAB_STORAGE_BUS_PARTITION) {
-                drawCompositeTabIcon(ctx, tabX + 3, tabY + 3, i, iconProvider);
+                drawCompositeTabIcon(ctx, tabX + 3, tabY + 3, i, iconProvider, isDisabled);
             } else {
                 ItemStack icon = iconProvider.getTabIcon(i);
                 if (!icon.isEmpty()) {
-                    GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+                    GlStateManager.color(iconAlpha, iconAlpha, iconAlpha, 1.0F);
                     RenderHelper.enableGUIStandardItemLighting();
                     ctx.itemRender.renderItemIntoGUI(icon, tabX + 3, tabY + 3);
                     RenderHelper.disableStandardItemLighting();
@@ -152,12 +168,19 @@ public class TabRenderingHandler {
     /**
      * Draw a composite icon for storage bus tabs using diagonal cut view.
      * Shows top-left half of one icon and bottom-right half of the storage bus icon.
+     * @param ctx The rendering context
+     * @param x The x position to draw at
+     * @param y The y position to draw at
+     * @param tab The tab index
+     * @param iconProvider Provider for tab icons
+     * @param isDisabled Whether the tab is disabled (will render grayed out)
      */
-    private static void drawCompositeTabIcon(TabRenderContext ctx, int x, int y, int tab, TabIconProvider iconProvider) {
+    private static void drawCompositeTabIcon(TabRenderContext ctx, int x, int y, int tab, TabIconProvider iconProvider, boolean isDisabled) {
         ItemStack topLeftIcon = (tab == TAB_STORAGE_BUS_INVENTORY) ? iconProvider.getInventoryIcon() : iconProvider.getPartitionIcon();
         ItemStack storageBusIcon = iconProvider.getStorageBusIcon();
 
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        float colorMod = isDisabled ? 0.4f : 1.0f;
+        GlStateManager.color(colorMod, colorMod, colorMod, 1.0F);
 
         int scaleFactor = new ScaledResolution(ctx.mc).getScaleFactor();
         int offset = 4;
@@ -203,8 +226,9 @@ public class TabRenderingHandler {
         GlStateManager.disableLighting();
 
         // Draw diagonal separator line
+        float lineColor = isDisabled ? 0.15f : 0.3f;
         GlStateManager.disableTexture2D();
-        GlStateManager.color(0.3f, 0.3f, 0.3f, 1.0f);
+        GlStateManager.color(lineColor, lineColor, lineColor, 1.0f);
         GL11.glLineWidth(1.5f);
         GL11.glBegin(GL11.GL_LINES);
         GL11.glVertex2f(x + 15, y + 1);

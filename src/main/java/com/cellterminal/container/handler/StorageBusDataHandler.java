@@ -467,6 +467,7 @@ public class StorageBusDataHandler {
             if (!upgrade.isEmpty()) {
                 NBTTagCompound upgradeNbt = new NBTTagCompound();
                 upgrade.writeToNBT(upgradeNbt);
+                upgradeNbt.setInteger("slot", i);
                 upgradeList.appendTag(upgradeNbt);
             }
         }
@@ -553,18 +554,45 @@ public class StorageBusDataHandler {
                 }
                 break;
             case SET_ALL_FROM_CONTENTS:
-            case PARTITION_ALL:
                 clearConfig(configInv, slotsToUse);
-                MEInventoryHandler<IAEItemStack> handler = bus.getInternalHandler();
-                if (handler != null) {
-                    IStorageChannel<IAEItemStack> channel =
-                        AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
-                    IItemList<IAEItemStack> contents =
-                        handler.getAvailableItems(channel.createList());
-                    int slot = 0;
-                    for (IAEItemStack stack : contents) {
-                        if (slot >= slotsToUse) break;
-                        ItemHandlerUtil.setStackInSlot(configInv, slot++, stack.asItemStackRepresentation());
+                TileEntity hostTile = bus.getHost().getTile();
+                TileEntity targetTile = hostTile.getWorld().getTileEntity(
+                    hostTile.getPos().offset(bus.getSide().getFacing()));
+
+                if (targetTile != null) {
+                    EnumFacing targetSide = bus.getSide().getFacing().getOpposite();
+
+                    // Try Storage Drawers IItemRepository first
+                    List<StorageDrawersIntegration.ItemRecordData> repoContents =
+                        StorageDrawersIntegration.tryGetItemRepositoryContents(targetTile, targetSide);
+
+                    if (repoContents != null) {
+                        int slot = 0;
+                        for (StorageDrawersIntegration.ItemRecordData record : repoContents) {
+                            if (slot >= slotsToUse) break;
+                            ItemStack configStack = record.itemPrototype.copy();
+                            configStack.setCount(1);
+                            ItemHandlerUtil.setStackInSlot(configInv, slot++, configStack);
+                        }
+                    } else {
+                        // Fall back to standard IItemHandler
+                        IItemHandler targetHandler = targetTile.getCapability(
+                            CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, targetSide);
+
+                        if (targetHandler != null) {
+                            int slot = 0;
+                            for (int i = 0; i < targetHandler.getSlots() && slot < slotsToUse; i++) {
+                                ItemStack slotStack = targetHandler.getStackInSlot(i);
+                                if (slotStack.isEmpty()) continue;
+
+                                // Check if this item type is already in config
+                                if (findItemInConfig(configInv, slotStack, slot) < 0) {
+                                    ItemStack configStack = slotStack.copy();
+                                    configStack.setCount(1);
+                                    ItemHandlerUtil.setStackInSlot(configInv, slot++, configStack);
+                                }
+                            }
+                        }
                     }
                 }
                 break;
@@ -608,17 +636,33 @@ public class StorageBusDataHandler {
                 }
                 break;
             case SET_ALL_FROM_CONTENTS:
-            case PARTITION_ALL:
                 for (int i = 0; i < slotsToUse; i++) aeConfig.setFluidInSlot(i, null);
-                MEInventoryHandler<IAEFluidStack> handler = bus.getInternalHandler();
-                if (handler != null) {
-                    IStorageChannel<IAEFluidStack> channel =
-                        AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
-                    IItemList<IAEFluidStack> contents = handler.getAvailableItems(channel.createList());
-                    int slot = 0;
-                    for (IAEFluidStack stack : contents) {
-                        if (slot >= slotsToUse) break;
-                        setFluidSlot(aeConfig, slot++, normalizeFluid(stack.getFluidStack()));
+                TileEntity fluidHostTile = bus.getHost().getTile();
+                TileEntity fluidTargetTile = fluidHostTile.getWorld().getTileEntity(
+                    fluidHostTile.getPos().offset(bus.getSide().getFacing()));
+
+                if (fluidTargetTile != null) {
+                    IFluidHandler targetFluidHandler = fluidTargetTile.getCapability(
+                        CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY,
+                        bus.getSide().getFacing().getOpposite());
+
+                    if (targetFluidHandler != null) {
+                        IFluidTankProperties[] tanks = targetFluidHandler.getTankProperties();
+                        int slot = 0;
+
+                        for (IFluidTankProperties tank : tanks) {
+                            if (slot >= slotsToUse) break;
+
+                            FluidStack tankFluid = tank.getContents();
+                            if (tankFluid == null || tankFluid.amount <= 0) continue;
+
+                            FluidStack normalized = normalizeFluid(tankFluid);
+
+                            // Check if this fluid type is already in config
+                            if (findFluidInConfig(aeConfig, normalized, slot) < 0) {
+                                setFluidSlot(aeConfig, slot++, normalized);
+                            }
+                        }
                     }
                 }
                 break;
@@ -654,7 +698,11 @@ public class StorageBusDataHandler {
 
     private static int findItemInConfig(IItemHandler inv, ItemStack stack, int limit) {
         for (int i = 0; i < inv.getSlots() && i < limit; i++) {
-            if (ItemStack.areItemStacksEqual(inv.getStackInSlot(i), stack)) return i;
+            ItemStack slotStack = inv.getStackInSlot(i);
+            // Compare by item and NBT only, not count (config slots have count=1, content items may differ)
+            if (ItemStack.areItemsEqual(slotStack, stack) && ItemStack.areItemStackTagsEqual(slotStack, stack)) {
+                return i;
+            }
         }
 
         return -1;

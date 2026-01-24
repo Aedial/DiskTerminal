@@ -244,6 +244,7 @@ public class StorageBusRenderer {
 
     /**
      * Draw upgrade icons in 2 columns with hover tracking.
+     * Icons are positioned based on their actual slot index to preserve gaps.
      */
     private void drawUpgradeIcons(StorageBusInfo storageBus, int x, int y, RenderContext ctx) {
         List<ItemStack> upgrades = storageBus.getUpgrades();
@@ -253,11 +254,13 @@ public class StorageBusRenderer {
         int spacing = 1;
         int cols = 2;
 
+        // Render each upgrade at its actual slot position in the 2-column grid
         for (int i = 0; i < Math.min(upgrades.size(), 5); i++) {
             ItemStack upgrade = upgrades.get(i);
             if (!upgrade.isEmpty()) {
-                int col = i % cols;
-                int row = i / cols;
+                int actualSlotIndex = storageBus.getUpgradeSlotIndex(i);
+                int col = actualSlotIndex % cols;
+                int row = actualSlotIndex / cols;
                 int iconX = x + col * (iconSize + spacing);
                 int iconY = y + 1 + row * (iconSize + spacing);
                 slotRenderer.renderSmallItemStack(upgrade, iconX, iconY);
@@ -265,7 +268,7 @@ public class StorageBusRenderer {
                 // Track upgrade icon position for tooltip and click handling
                 if (ctx != null) {
                     ctx.upgradeIconTargets.add(new RenderContext.UpgradeIconTarget(
-                        storageBus, upgrade, i, ctx.guiLeft + iconX, ctx.guiTop + iconY));
+                        storageBus, upgrade, actualSlotIndex, ctx.guiLeft + iconX, ctx.guiTop + iconY));
                 }
             }
         }

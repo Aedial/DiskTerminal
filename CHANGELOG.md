@@ -8,6 +8,44 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.5.4] - 2026-01-24
+### Fixed
+- Fix Void Cells not being properly handled
+
+
+## [0.5.3] - 2026-01-24
+### Added
+- Add server config option to disable core features:
+  - Each individual tab
+  - Storage Bus Inventory polling (enable and frequency)
+  - Cell Ejection/Insertion/Swapping
+  - Partition/Priority Editing
+  - Upgrade Insertion/Extraction
+
+- Add client config option to tweak visuals:
+  - Distance limit for block highlighting
+  - Duration of block highlighting when double-clicking entries
+
+### Fixed
+- Fix shift-clicking Upgrade Cards not working for Storage Buses tabs
+- Fix Small style GUI sticking to the bottom (instead of centering)
+
+
+## [0.5.2] - 2026-01-23
+### Fixed
+- Fix Upgrade Cards not being properly consumed when inserted fast enough
+- Fix Upgrade Cards only being extractable in reverse order
+- Fix tab 4/5 not updating until tab switch, when opening the GUI with a storage bus already selected
+- Fix item filter considering item count when checking for existing items in Storage Bus slots
+- Fix double-click partition/inventory slots triggering device highlighting
+- Fix search failing to match items after a gap on Storage Bus tabs, due to an early exit
+- Fix highlighting Storage Bus in-world not giving proper user feedback
+- Fix Set Contents to Filter button not working if the Storage Bus already has a filter configured
+
+### Changed
+- Change Upgrade Cards to show their physical slot position
+
+
 ## [0.5.1] - 2026-01-22
 ### Added
 - Add localization for new search syntax errors

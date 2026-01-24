@@ -15,7 +15,7 @@ import appeng.api.config.AccessRestriction;
 import appeng.util.ReadableNumberConverter;
 
 import com.cellterminal.client.StorageBusInfo;
-import com.cellterminal.gui.FluidStackUtil;
+import com.cellterminal.gui.ComparisonUtils;
 import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.render.RenderContext;
 
@@ -170,9 +170,11 @@ public class StorageBusSlotRenderer {
             renderSmallItemStack(upgrade, iconX, y);
 
             // Track upgrade icon position for tooltip and click handling
+            // Use actual slot index from the upgrade inventory, not the iteration index
             if (ctx != null) {
+                int actualSlotIndex = storageBus.getUpgradeSlotIndex(i);
                 ctx.upgradeIconTargets.add(new RenderContext.UpgradeIconTarget(
-                    storageBus, upgrade, i, guiLeft + iconX, guiTop + y));
+                    storageBus, upgrade, actualSlotIndex, guiLeft + iconX, guiTop + y));
             }
 
             iconX += 9; // 8px icon + 1px spacing
@@ -238,6 +240,6 @@ public class StorageBusSlotRenderer {
      * Uses fluid-aware comparison for fluid items (compares by fluid type only).
      */
     public boolean isInPartition(ItemStack stack, List<ItemStack> partition) {
-        return FluidStackUtil.isInPartition(stack, partition);
+        return ComparisonUtils.isInPartition(stack, partition);
     }
 }

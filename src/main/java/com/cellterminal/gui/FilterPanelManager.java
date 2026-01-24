@@ -10,7 +10,7 @@ import net.minecraft.client.gui.GuiButton;
 
 import com.cellterminal.client.CellFilter;
 import com.cellterminal.client.CellFilter.State;
-import com.cellterminal.client.CellTerminalClientConfig;
+import com.cellterminal.config.CellTerminalClientConfig;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 
 

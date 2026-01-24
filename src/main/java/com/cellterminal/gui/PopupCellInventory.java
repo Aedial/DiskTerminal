@@ -230,7 +230,7 @@ public class PopupCellInventory extends Gui {
     }
 
     private boolean isInPartition(ItemStack stack, List<ItemStack> partition) {
-        return FluidStackUtil.isInPartition(stack, partition);
+        return ComparisonUtils.isInPartition(stack, partition);
     }
 
     public boolean handleClick(int mouseX, int mouseY, int mouseButton) {
