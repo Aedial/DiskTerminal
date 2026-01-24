@@ -7,6 +7,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Keep a Changelog: https://keepachangelog.com/en/1.1.0/
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
+
+## [0.5.4] - 2026-01-24
+### Fixed
+- Fix Void Cells not being properly handled
+
+
 ## [0.5.3] - 2026-01-24
 ### Added
 - Add server config option to disable core features:

@@ -16,6 +16,7 @@ import appeng.api.implementations.tiles.IChestOrDrive;
 import appeng.api.storage.ICellHandler;
 import appeng.api.storage.ICellInventory;
 import appeng.api.storage.ICellInventoryHandler;
+import appeng.api.storage.ICellWorkbenchItem;
 import appeng.api.storage.IStorageChannel;
 import appeng.api.storage.channels.IFluidStorageChannel;
 import appeng.api.storage.channels.IItemStorageChannel;
@@ -117,12 +118,28 @@ public class CellDataHandler {
         if (handler == null) return false;
 
         ICellInventory<IAEItemStack> cellInv = handler.getCellInv();
-        if (cellInv == null) return false;
+
+        // If cellInv is null (e.g., VoidCells), fall back to ICellWorkbenchItem for config/upgrades
+        if (cellInv == null) {
+            if (!(cellStack.getItem() instanceof ICellWorkbenchItem)) return false;
+
+            ICellWorkbenchItem workbenchItem = (ICellWorkbenchItem) cellStack.getItem();
+            IItemHandler configInv = workbenchItem.getConfigInventory(cellStack);
+            IItemHandler upgradesInv = workbenchItem.getUpgradesInventory(cellStack);
+
+            // Only populate if we have at least config or upgrades
+            if (configInv == null && upgradesInv == null) return false;
+
+            populateConfigInventory(cellData, configInv);
+            populateCellUpgrades(cellData, upgradesInv);
+
+            return true;
+        }
 
         populateCellStats(cellData, cellInv);
         populateConfigInventory(cellData, cellInv.getConfigInventory());
         populateItemContents(cellData, cellInv, channel);
-        populateCellUpgrades(cellData, cellInv);
+        populateCellUpgrades(cellData, cellInv.getUpgradesInventory());
 
         return true;
     }
@@ -133,13 +150,30 @@ public class CellDataHandler {
         if (handler == null) return false;
 
         ICellInventory<IAEFluidStack> cellInv = handler.getCellInv();
-        if (cellInv == null) return false;
+
+        // If cellInv is null (e.g., VoidCells), fall back to ICellWorkbenchItem for config/upgrades
+        if (cellInv == null) {
+            if (!(cellStack.getItem() instanceof ICellWorkbenchItem)) return false;
+
+            ICellWorkbenchItem workbenchItem = (ICellWorkbenchItem) cellStack.getItem();
+            IItemHandler configInv = workbenchItem.getConfigInventory(cellStack);
+            IItemHandler upgradesInv = workbenchItem.getUpgradesInventory(cellStack);
+
+            // Only populate if we have at least config or upgrades
+            if (configInv == null && upgradesInv == null) return false;
+
+            cellData.setBoolean("isFluid", true);
+            populateConfigInventory(cellData, configInv);
+            populateCellUpgrades(cellData, upgradesInv);
+
+            return true;
+        }
 
         cellData.setBoolean("isFluid", true);
         populateCellStats(cellData, cellInv);
         populateConfigInventory(cellData, cellInv.getConfigInventory());
         populateFluidContents(cellData, cellInv, channel);
-        populateCellUpgrades(cellData, cellInv);
+        populateCellUpgrades(cellData, cellInv.getUpgradesInventory());
 
         return true;
     }
@@ -214,8 +248,7 @@ public class CellDataHandler {
         cellData.setTag("contents", contentsList);
     }
 
-    private static void populateCellUpgrades(NBTTagCompound cellData, ICellInventory<?> cellInv) {
-        IItemHandler upgradesInv = cellInv.getUpgradesInventory();
+    private static void populateCellUpgrades(NBTTagCompound cellData, IItemHandler upgradesInv) {
         if (upgradesInv == null) return;
 
         NBTTagList upgradeList = new NBTTagList();

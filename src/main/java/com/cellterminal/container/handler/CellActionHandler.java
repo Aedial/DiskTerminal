@@ -235,22 +235,43 @@ public class CellActionHandler {
         IStorageChannel<IAEItemStack> itemChannel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
         ICellInventoryHandler<IAEItemStack> itemHandler = cellHandler.getCellInventory(cellStack, null, itemChannel);
 
-        if (itemHandler != null && itemHandler.getCellInv() != null) {
-            result.configInv = itemHandler.getCellInv().getConfigInventory();
-            result.itemHandler = itemHandler;
+        if (itemHandler != null) {
+            if (itemHandler.getCellInv() != null) {
+                result.configInv = itemHandler.getCellInv().getConfigInventory();
+                result.itemHandler = itemHandler;
 
-            return result;
+                return result;
+            }
+
+            // Fallback for cells with null getCellInv() (e.g., VoidCells)
+            if (cellStack.getItem() instanceof ICellWorkbenchItem) {
+                result.configInv = ((ICellWorkbenchItem) cellStack.getItem()).getConfigInventory(cellStack);
+                result.itemHandler = itemHandler;
+
+                return result;
+            }
         }
 
         IStorageChannel<IAEFluidStack> fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
         ICellInventoryHandler<IAEFluidStack> fluidHandler = cellHandler.getCellInventory(cellStack, null, fluidChannel);
 
-        if (fluidHandler != null && fluidHandler.getCellInv() != null) {
-            result.configInv = fluidHandler.getCellInv().getConfigInventory();
-            result.fluidHandler = fluidHandler;
-            result.isFluidCell = true;
+        if (fluidHandler != null) {
+            if (fluidHandler.getCellInv() != null) {
+                result.configInv = fluidHandler.getCellInv().getConfigInventory();
+                result.fluidHandler = fluidHandler;
+                result.isFluidCell = true;
 
-            return result;
+                return result;
+            }
+
+            // Fallback for cells with null getCellInv() (e.g., VoidCells)
+            if (cellStack.getItem() instanceof ICellWorkbenchItem) {
+                result.configInv = ((ICellWorkbenchItem) cellStack.getItem()).getConfigInventory(cellStack);
+                result.fluidHandler = fluidHandler;
+                result.isFluidCell = true;
+
+                return result;
+            }
         }
 
         result.essentiaData = ThaumicEnergisticsIntegration.tryGetEssentiaConfigInventory(cellHandler, cellStack);
