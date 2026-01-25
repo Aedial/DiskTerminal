@@ -19,13 +19,14 @@ public class PartCellTerminal extends AbstractPartDisplay {
 
     private static final ResourceLocation MODEL_BASE = new ResourceLocation("appliedenergistics2", "part/display_base");
     private static final ResourceLocation MODEL_ON = new ResourceLocation(Tags.MODID, "part/cell_terminal_on");
+    private static final ResourceLocation MODEL_ON_DIM = new ResourceLocation(Tags.MODID, "part/cell_terminal_on_dim");
     private static final ResourceLocation MODEL_OFF = new ResourceLocation(Tags.MODID, "part/cell_terminal_off");
     private static final ResourceLocation MODEL_STATUS_OFF = new ResourceLocation("appliedenergistics2", "part/display_status_off");
     private static final ResourceLocation MODEL_STATUS_ON = new ResourceLocation("appliedenergistics2", "part/display_status_on");
     private static final ResourceLocation MODEL_STATUS_HAS_CHANNEL = new ResourceLocation("appliedenergistics2", "part/display_status_has_channel");
 
     private static final IPartModel MODELS_OFF = new PartModel(MODEL_BASE, MODEL_OFF, MODEL_STATUS_OFF);
-    private static final IPartModel MODELS_ON = new PartModel(MODEL_BASE, MODEL_ON, MODEL_STATUS_ON);
+    private static final IPartModel MODELS_ON = new PartModel(MODEL_BASE, MODEL_ON_DIM, MODEL_STATUS_ON);
     private static final IPartModel MODELS_HAS_CHANNEL = new PartModel(MODEL_BASE, MODEL_ON, MODEL_STATUS_HAS_CHANNEL);
 
     public PartCellTerminal(ItemStack is) {
@@ -36,6 +37,7 @@ public class PartCellTerminal extends AbstractPartDisplay {
         return new ResourceLocation[] {
             MODEL_BASE,
             MODEL_ON,
+            MODEL_ON_DIM,
             MODEL_OFF,
             MODEL_STATUS_OFF,
             MODEL_STATUS_ON,
