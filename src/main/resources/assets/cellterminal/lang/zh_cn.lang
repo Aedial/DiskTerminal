@@ -133,6 +133,11 @@ config.cellterminal.config.server.misc.upgrade_insert.tooltip=允许通过元件
 config.cellterminal.config.server.misc.upgrade_extract=允许升级取出
 config.cellterminal.config.server.misc.upgrade_extract.tooltip=允许通过元件终端从元件和存储总线中取出升级。
 
+config.cellterminal.config.server.integration=集成设置
+config.cellterminal.config.server.integration.tooltip=与其他模组集成的相关设置。
+config.cellterminal.config.server.integration.wut_mode_id=无线通用终端（WUT）模式ID
+config.cellterminal.config.server.integration.wut_mode_id.tooltip=无线通用终端（AE2WUT）中元件终端的模式ID。如果其他模组使用了相同的ID，请修改此设置。需要重启。
+
 # Server config error messages
 cellterminal.error.cell_eject_disabled=§元件弹出在该服务器中已被禁用。
 cellterminal.error.cell_insert_disabled=§c元件插入在该服务器中已被禁用。
