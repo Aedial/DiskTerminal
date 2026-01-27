@@ -35,6 +35,7 @@ import appeng.tile.storage.TileChest;
 import appeng.tile.storage.TileDrive;
 import appeng.util.Platform;
 
+import com.cellterminal.CellTerminal;
 import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.container.handler.CellActionHandler;
 import com.cellterminal.container.handler.CellDataHandler;
@@ -198,6 +199,8 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
                 storageList.appendTag(CellDataHandler.createStorageData((TileChest) gn.getMachine(),
                     "tile.appliedenergistics2.chest.name", callback));
             }
+        } else {
+            CellTerminal.LOGGER.warn("regenStorageList: grid is null!");
         }
 
         data.setTag("storages", storageList);

@@ -24,7 +24,7 @@ import com.cellterminal.proxy.CommonProxy;
     name = Tags.MODNAME,
     version = Tags.VERSION,
     acceptedMinecraftVersions = "[1.12.2]",
-    dependencies = "required-after:appliedenergistics2;",
+    dependencies = "required-after:appliedenergistics2;after:ae2wut;",
     guiFactory = "com.cellterminal.config.CellTerminalConfigGuiFactory"
 )
 public class CellTerminal {

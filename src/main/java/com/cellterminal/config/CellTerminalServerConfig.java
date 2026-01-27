@@ -24,6 +24,7 @@ public class CellTerminalServerConfig {
     private static final String CATEGORY_POLLING = "polling";
     private static final String CATEGORY_CELL_OPERATIONS = "cell_operations";
     private static final String CATEGORY_MISC = "misc";
+    private static final String CATEGORY_INTEGRATION = "integration";
 
     private static CellTerminalServerConfig instance;
 
@@ -68,6 +69,11 @@ public class CellTerminalServerConfig {
     private boolean priorityEditEnabled = true;
     private boolean upgradeInsertEnabled = true;
     private boolean upgradeExtractEnabled = true;
+
+    // Integration settings
+    private final Property wutModeIdProperty;
+
+    private int wutModeId = 11;
 
     private CellTerminalServerConfig(File configDir) {
         File configFile = new File(configDir, CONFIG_FILE);
@@ -182,6 +188,17 @@ public class CellTerminalServerConfig {
         this.upgradeExtractEnabledProperty.setLanguageKey("config.cellterminal.config.server.misc.upgrade_extract");
         this.upgradeExtractEnabled = this.upgradeExtractEnabledProperty.getBoolean();
 
+        // Integration settings
+        config.setCategoryComment(CATEGORY_INTEGRATION, "Settings for integration with other mods.");
+        config.setCategoryLanguageKey(CATEGORY_INTEGRATION, "config.cellterminal.config.server.integration");
+
+        this.wutModeIdProperty = config.get(CATEGORY_INTEGRATION, "wutModeId", 11,
+            "Mode ID for Cell Terminal in the Wireless Universal Terminal (AE2WUT).\n" +
+            "Change this if another mod is using the same mode ID, causing conflicts.\n" +
+            "Default: 11. REQUIRES GAME RESTART to take effect.", 0, 127);
+        this.wutModeIdProperty.setLanguageKey("config.cellterminal.config.server.integration.wut_mode_id");
+        this.wutModeId = this.wutModeIdProperty.getInt();
+
         if (config.hasChanged()) config.save();
     }
 
@@ -228,6 +245,9 @@ public class CellTerminalServerConfig {
         this.priorityEditEnabled = this.priorityEditEnabledProperty.getBoolean();
         this.upgradeInsertEnabled = this.upgradeInsertEnabledProperty.getBoolean();
         this.upgradeExtractEnabled = this.upgradeExtractEnabledProperty.getBoolean();
+
+        // Integration settings (require restart, but sync for consistency)
+        this.wutModeId = this.wutModeIdProperty.getInt();
 
         if (config.hasChanged()) config.save();
     }
@@ -353,5 +373,15 @@ public class CellTerminalServerConfig {
 
     public boolean isUpgradeExtractEnabled() {
         return upgradeExtractEnabled;
+    }
+
+    // Integration getters
+
+    /**
+     * Get the mode ID for Cell Terminal in the Wireless Universal Terminal.
+     * This value is set at startup and requires a restart to change.
+     */
+    public byte getWutModeId() {
+        return (byte) wutModeId;
     }
 }

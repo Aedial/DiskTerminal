@@ -20,8 +20,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import com.cellterminal.gui.GuiCellTerminal;
-import com.cellterminal.gui.GuiWirelessCellTerminal;
+import com.cellterminal.gui.GuiCellTerminalBase;
 
 
 /**
@@ -86,10 +85,8 @@ public class PacketCellTerminalUpdate implements IMessage {
             Minecraft.getMinecraft().addScheduledTask(() -> {
                 GuiScreen screen = Minecraft.getMinecraft().currentScreen;
 
-                if (screen instanceof GuiCellTerminal) {
-                    ((GuiCellTerminal) screen).postUpdate(message.data);
-                } else if (screen instanceof GuiWirelessCellTerminal) {
-                    ((GuiWirelessCellTerminal) screen).postUpdate(message.data);
+                if (screen instanceof GuiCellTerminalBase) {
+                    ((GuiCellTerminalBase) screen).postUpdate(message.data);
                 }
             });
 

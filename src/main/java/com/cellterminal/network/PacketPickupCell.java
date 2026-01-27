@@ -8,8 +8,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
-import com.cellterminal.container.ContainerCellTerminal;
-import com.cellterminal.container.ContainerWirelessCellTerminal;
+import com.cellterminal.container.ContainerCellTerminalBase;
 
 
 /**
@@ -56,12 +55,9 @@ public class PacketPickupCell implements IMessage {
             player.getServerWorld().addScheduledTask(() -> {
                 Container container = player.openContainer;
 
-                if (container instanceof ContainerCellTerminal) {
-                    ContainerCellTerminal cellContainer = (ContainerCellTerminal) container;
+                if (container instanceof ContainerCellTerminalBase) {
+                    ContainerCellTerminalBase cellContainer = (ContainerCellTerminalBase) container;
                     cellContainer.handlePickupCell(message.storageId, message.cellSlot, player, message.toInventory);
-                } else if (container instanceof ContainerWirelessCellTerminal) {
-                    ContainerWirelessCellTerminal wirelessContainer = (ContainerWirelessCellTerminal) container;
-                    wirelessContainer.handlePickupCell(message.storageId, message.cellSlot, player, message.toInventory);
                 }
             });
 

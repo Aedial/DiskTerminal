@@ -10,6 +10,7 @@ import com.cellterminal.ItemRegistry;
 import com.cellterminal.client.BlockHighlightRenderer;
 import com.cellterminal.client.KeyBindings;
 import com.cellterminal.client.UpgradeTooltipHandler;
+import com.cellterminal.integration.AE2WUTIntegration;
 
 
 public class ClientProxy extends CommonProxy {
@@ -39,5 +40,9 @@ public class ClientProxy extends CommonProxy {
 
         // Register upgrade tooltip handler
         MinecraftForge.EVENT_BUS.register(new UpgradeTooltipHandler());
+
+        // Register with AE2WUT client-side if present
+        AE2WUTIntegration.registerGui();
+        AE2WUTIntegration.registerIcon();
     }
 }
