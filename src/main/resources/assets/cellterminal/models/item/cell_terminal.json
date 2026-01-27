@@ -1,6 +1,9 @@
 {
-  "parent": "item/generated",
+  "parent": "appliedenergistics2:item/part/display",
   "textures": {
-    "layer0": "cellterminal:items/cell_terminal"
+    "front": "cellterminal:items/cell_terminal_outline",
+    "front_bright": "cellterminal:items/cell_terminal_overlay",
+    "front_medium": "cellterminal:items/cell_terminal_background",
+    "front_dark": "cellterminal:items/cell_terminal_corners"
   }
 }

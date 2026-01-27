@@ -1,11 +1,11 @@
 # Cell Terminal
 
-An AE2-UEL addon providing a centralized terminal to manage storage cells directly.
+An AE2 addon providing a centralized terminal to manage storage cells and storage buses directly.
 
 ## Features
 
 ### Cell Terminal
-A terminal block and wireless variant for managing storage cells across the ME network.
+A terminal and wireless terminal for managing storage cells and storage buses across the ME network.
 
 - **Terminal & Wireless Access**: Place the Cell Terminal part on ME cables, or use the Wireless Cell Terminal for remote access. As usual, you will need to use the Security Station to link the wireless terminal to your network.
 - **Multi-Cell Support**: Works with all AE2 storage cell types (items, fluids, essentia).

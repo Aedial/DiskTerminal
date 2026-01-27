@@ -12,6 +12,7 @@ import com.cellterminal.CellTerminal;
 import com.cellterminal.ItemRegistry;
 import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.gui.GuiHandler;
+import com.cellterminal.integration.AE2WUTIntegration;
 
 
 public class CommonProxy {
@@ -30,6 +31,12 @@ public class CommonProxy {
 
         // Register the wireless cell terminal with AE2's wireless registry
         AEApi.instance().registries().wireless().registerWirelessHandler(ItemRegistry.WIRELESS_CELL_TERMINAL);
+
+        // Register with AE2WUT if present
+        AE2WUTIntegration.registerContainer();
+
+        // Register Cell Terminal recipe ingredient with AE2WUT if present
+        AE2WUTIntegration.registerRecipeIngredient();
     }
 
     public void postInit(FMLPostInitializationEvent event) {

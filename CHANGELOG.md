@@ -8,6 +8,26 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.1.0] - 2026-01-27
+### Added
+- Add integration with AE2 Wireless Universal Terminal mod:
+  - Register Cell Terminal as a Wireless Universal Terminal mode
+  - Add Cell Terminal mode switcher button in the GUI when AE2WUT is present
+  - Support for crafting recipes using the Wireless Universal Terminal with Cell Terminal mode
+
+
+## [1.0.0] - 2026-01-25
+### Added
+- Add recipes for Cell Terminal and Wireless Cell Terminal
+- Add textures for Cell Terminal and Wireless Cell Terminal items
+- Add models for Cell Terminal part and Wireless Cell Terminal item
+
+
+## [0.5.5] - 2026-01-24
+### Fixed
+- Fix double-click highlighting for Storage Cells sometimes missfiring
+
+
 ## [0.5.4] - 2026-01-24
 ### Fixed
 - Fix Void Cells not being properly handled

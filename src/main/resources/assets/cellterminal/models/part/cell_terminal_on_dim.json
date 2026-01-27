@@ -13,7 +13,7 @@
         "north": {
           "uv": [0, 0, 16, 16],
           "texture": "#lightsBright",
-          "tintindex": 2,
+          "tintindex": 1,
           "uvlightmap": {"sky": 0.003, "block": 0.003}
         }
       }
@@ -24,7 +24,7 @@
       "faces": {
         "north": {
           "texture": "#lightsMedium",
-          "tintindex": 1,
+          "tintindex": 2,
           "uvlightmap": {"sky": 0.003, "block": 0.003}
         }
       }

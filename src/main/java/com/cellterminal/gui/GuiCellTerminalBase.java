@@ -183,6 +183,11 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
     // Modal search bar for expanded editing
     protected GuiModalSearchBar modalSearchBar = null;
+
+    // Guard to prevent style button from being retriggered while mouse is still down
+    private long lastStyleButtonClickTime = 0;
+    private static final long STYLE_BUTTON_COOLDOWN = 100;  // ms
+
     protected long lastSearchFieldClickTime = 0;
     protected static final long DOUBLE_CLICK_THRESHOLD = 500;  // ms
 
@@ -255,6 +260,9 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
     @Override
     public void initGui() {
+        // Reset button ID counter on each initGui call
+        this.nextButtonId = 10;
+
         // Recalculate rows based on screen size and terminal style
         this.rowsVisible = calculateRowsCount();
         this.ySize = MAGIC_HEIGHT_NUMBER + this.rowsVisible * ROW_HEIGHT;
@@ -1045,7 +1053,13 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     @Override
     protected void actionPerformed(GuiButton btn) throws IOException {
         if (btn == terminalStyleButton) {
+            // Guard against repeated clicks while mouse is still down after initGui recreates buttons
+            long now = System.currentTimeMillis();
+            if (now - lastStyleButtonClickTime < STYLE_BUTTON_COOLDOWN) return;
+
+            lastStyleButtonClickTime = now;
             terminalStyleButton.setStyle(CellTerminalClientConfig.getInstance().cycleTerminalStyle());
+            this.buttonList.clear();
             this.initGui();
 
             return;

@@ -1,0 +1,44 @@
+{
+  "conditions": [
+    {
+      "type": "forge:and",
+      "values": [
+        {
+          "type": "minecraft:item_exists",
+          "item": "cellterminal:cell_terminal"
+        },
+        {
+          "type": "appliedenergistics2:material_exists",
+          "material": "material.logic_processor"
+        },
+        {
+          "type": "appliedenergistics2:material_exists",
+          "material": "material.empty_storage_cell"
+        },
+        {
+          "type": "appliedenergistics2:part_exists",
+          "part": "part.terminal"
+        }
+      ]
+    }
+  ],
+  "type": "forge:ore_shapeless",
+  "ingredients": [
+    {
+      "type": "appliedenergistics2:part",
+      "part": "part.terminal"
+    },
+    {
+      "type": "appliedenergistics2:part",
+      "part": "material.logic_processor"
+    },
+    {
+      "type": "appliedenergistics2:part",
+      "part": "material.empty_storage_cell"
+    }
+  ],
+  "result": {
+    "item": "cellterminal:cell_terminal",
+    "count": 1
+  }
+}

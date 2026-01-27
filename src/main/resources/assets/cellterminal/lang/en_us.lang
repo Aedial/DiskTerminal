@@ -133,6 +133,11 @@ config.cellterminal.config.server.misc.upgrade_insert.tooltip=Allow inserting up
 config.cellterminal.config.server.misc.upgrade_extract=Allow Upgrade Extraction
 config.cellterminal.config.server.misc.upgrade_extract.tooltip=Allow extracting upgrades from cells and storage buses through the Cell Terminal.
 
+config.cellterminal.config.server.integration=Integration Settings
+config.cellterminal.config.server.integration.tooltip=Settings for integration with other mods.
+config.cellterminal.config.server.integration.wut_mode_id=WUT Mode ID
+config.cellterminal.config.server.integration.wut_mode_id.tooltip=Mode ID for Cell Terminal in the Wireless Universal Terminal (AE2WUT). Change this if another mod uses the same ID. Requires restart.
+
 # Server config error messages
 cellterminal.error.cell_eject_disabled=§cCell ejection is disabled on this server.
 cellterminal.error.cell_insert_disabled=§cCell insertion is disabled on this server.
