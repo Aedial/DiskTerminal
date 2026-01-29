@@ -24,9 +24,11 @@ import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IItemList;
 import appeng.helpers.IPriorityHost;
+import appeng.tile.grid.AENetworkInvTile;
 import appeng.tile.storage.TileChest;
 import appeng.tile.storage.TileDrive;
 
+import com.cellterminal.integration.ECOAEExtensionIntegration;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 
 
@@ -278,22 +280,34 @@ public class CellDataHandler {
     }
 
     private static String getStorageName(IChestOrDrive storage, String defaultName) {
-        if (storage instanceof TileDrive) {
-            TileDrive drive = (TileDrive) storage;
-            if (drive.hasCustomInventoryName()) return drive.getCustomInventoryName();
-        } else if (storage instanceof TileChest) {
-            TileChest chest = (TileChest) storage;
-            if (chest.hasCustomInventoryName()) return chest.getCustomInventoryName();
+        IItemHandler cellInv = getCellInventory(storage);
+        if (cellInv != null && storage instanceof AENetworkInvTile) {
+            AENetworkInvTile networkTile = (AENetworkInvTile) storage;
+            if (networkTile.hasCustomInventoryName()) return networkTile.getCustomInventoryName();
         }
 
         return defaultName;
     }
 
     public static IItemHandler getCellInventory(IChestOrDrive storage) {
-        if (storage instanceof TileDrive) return ((TileDrive) storage).getInternalInventory();
-        if (storage instanceof TileChest) return ((TileChest) storage).getInternalInventory();
+        // Modular handling of Storage Drive-like tiles via AENetworkInvTile
+        if (storage instanceof AENetworkInvTile) return ((AENetworkInvTile) storage).getInternalInventory();
+
+        if (storage instanceof ECOAEExtensionIntegration.EStorageDriveWrapper) {
+             return getEStorageDriveInventory((ECOAEExtensionIntegration.EStorageDriveWrapper) storage);
+        }
 
         return null;
+    }
+
+    /**
+     * Get cell inventory from ECOAEExtension's wrapped drive.
+     */
+    private static IItemHandler getEStorageDriveInventory(
+        ECOAEExtensionIntegration.EStorageDriveWrapper wrapper) {
+        if (!ECOAEExtensionIntegration.isModLoaded()) return null;
+
+        return ECOAEExtensionIntegration.getWrappedDriveInventory(wrapper);
     }
 
     private static ItemStack getBlockItem(TileEntity te) {

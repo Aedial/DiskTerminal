@@ -42,6 +42,7 @@ import com.cellterminal.container.handler.CellDataHandler;
 import com.cellterminal.container.handler.StorageBusDataHandler;
 import com.cellterminal.container.handler.StorageBusDataHandler.StorageBusTracker;
 import com.cellterminal.gui.overlay.MessageHelper;
+import com.cellterminal.integration.storage.StorageScannerRegistry;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketCellTerminalUpdate;
 import com.cellterminal.network.PacketExtractUpgrade;
@@ -186,19 +187,8 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
                 this.byId.put(id, tracker);
             };
 
-            // Scan ME Drives
-            for (IGridNode gn : this.grid.getMachines(TileDrive.class)) {
-                if (!gn.isActive()) continue;
-                storageList.appendTag(CellDataHandler.createStorageData((TileDrive) gn.getMachine(),
-                    "tile.appliedenergistics2.drive.name", callback));
-            }
-
-            // Scan ME Chests
-            for (IGridNode gn : this.grid.getMachines(TileChest.class)) {
-                if (!gn.isActive()) continue;
-                storageList.appendTag(CellDataHandler.createStorageData((TileChest) gn.getMachine(),
-                    "tile.appliedenergistics2.chest.name", callback));
-            }
+            // Use the registry-based scanner for all storage types
+            StorageScannerRegistry.scanAllStorages(this.grid, storageList, callback);
         } else {
             CellTerminal.LOGGER.warn("regenStorageList: grid is null!");
         }

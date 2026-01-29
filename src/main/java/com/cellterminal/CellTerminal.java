@@ -15,6 +15,11 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.gui.GuiHandler;
+import com.cellterminal.integration.CrazyAEIntegration;
+import com.cellterminal.integration.ECOAEExtensionIntegration;
+import com.cellterminal.integration.storage.AE2StorageScanner;
+import com.cellterminal.integration.storage.IStorageScanner;
+import com.cellterminal.integration.storage.StorageScannerRegistry;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.proxy.CommonProxy;
 
@@ -54,6 +59,24 @@ public class CellTerminal {
     @EventHandler
     public void init(FMLInitializationEvent event) {
         proxy.init(event);
+
+        // Register storage scanners
+        registerStorageScanners();
+    }
+
+    /**
+     * Register all storage scanners (built-in and optional mod integrations).
+     */
+    private void registerStorageScanners() {
+        // Always register the default AE2 scanner
+        StorageScannerRegistry.register(AE2StorageScanner.INSTANCE);
+
+        // Register CrazyAE scanner if mod is present
+        IStorageScanner crazyAEScanner = CrazyAEIntegration.createScanner();
+        if (crazyAEScanner != null) StorageScannerRegistry.register(crazyAEScanner);
+
+        IStorageScanner ecoAEScanner = ECOAEExtensionIntegration.createScanner();
+        if (ecoAEScanner != null) StorageScannerRegistry.register(ecoAEScanner);
     }
 
     @EventHandler

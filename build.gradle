@@ -14,7 +14,7 @@ buildscript {
 
 apply plugin: 'net.minecraftforge.gradle.forge'
 
-version = "1.1.0"
+version = "1.2.0"
 group = "com.cellterminal"
 archivesBaseName = "cell-terminal"
 
@@ -33,6 +33,13 @@ repositories {
     maven { url 'https://maven.minecraftforge.net' }
     maven { url 'https://maven.blamejared.com' }
     maven { url 'https://cursemaven.com' }
+
+    ivy {
+        url "https://github.com/sddsd2332/NovaEngineering-ECOAEExtension/releases/download/1.2.0/"
+        layout "pattern", {
+            artifact "[artifact].[ext]"
+        }
+    }
 }
 
 configurations {
@@ -51,8 +58,16 @@ dependencies {
     deobfCompile "curse.maven:thaumcraft-223628:2629023"
     deobfCompile "curse.maven:thaumic-energistics-223666:2915506"
 
+    // Optional: CrazyAE support
+    deobfCompile "curse.maven:crazyae-1111042:6840104"
+
+    // Optional: ECO AE Extension support
+    compile "curse.maven:modularmachinery-community-edition-817377:7372951"
+    compile "curse.maven:geckolib-388172:4020277"
+    compile name: "Nova-Engineering-ECO-AE-Extension-1.2.0", ext: "jar"
+
     // Test dependencies
-    testCompile 'junit:junit:4.13.2'
+    testCompile "junit:junit:4.13.2"
 }
 
 processResources {

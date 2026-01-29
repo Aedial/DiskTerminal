@@ -8,6 +8,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.2.0] - 2026-01-29
+### Added
+- Add CrazyAE's Drives support
+- Add ECOAEExtension's E-Storage Drives support (largely untested)
+
+
 ## [1.1.0] - 2026-01-27
 ### Added
 - Add integration with AE2 Wireless Universal Terminal mod:
