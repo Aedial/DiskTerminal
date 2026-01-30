@@ -46,6 +46,13 @@ gui.cellterminal.filter.state.show_all=显示全部
 gui.cellterminal.filter.state.show_only=仅显示
 gui.cellterminal.filter.state.hide=隐藏
 
+# Slot limit button
+gui.cellterminal.slot_limit=显示类型上限：%s
+gui.cellterminal.slot_limit.8=8
+gui.cellterminal.slot_limit.32=32
+gui.cellterminal.slot_limit.64=64
+gui.cellterminal.slot_limit.unlimited=无限制
+
 # Search error
 gui.cellterminal.search_error=§c搜索错误：§r
 
