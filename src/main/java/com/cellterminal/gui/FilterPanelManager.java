@@ -10,8 +10,11 @@ import net.minecraft.client.gui.GuiButton;
 
 import com.cellterminal.client.CellFilter;
 import com.cellterminal.client.CellFilter.State;
+import com.cellterminal.client.SlotLimit;
 import com.cellterminal.config.CellTerminalClientConfig;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
+import com.cellterminal.network.CellTerminalNetwork;
+import com.cellterminal.network.PacketSlotLimitChange;
 
 
 /**
@@ -38,11 +41,9 @@ public class FilterPanelManager {
     private final List<GuiFilterButton> filterButtons = new ArrayList<>();
     private final Map<CellFilter, GuiFilterButton> filterButtonMap = new EnumMap<>(CellFilter.class);
 
-    private int currentTab = 0;
+    private GuiSlotLimitButton slotLimitButton = null;
+
     private boolean forStorageBus = false;
-    private int panelTop = 0;
-    private int panelHeight = 0;
-    private int panelWidth = 0;
 
     /**
      * Initialize filter buttons for the given tab.
@@ -59,11 +60,23 @@ public class FilterPanelManager {
         filterButtons.clear();
         filterButtonMap.clear();
 
-        this.currentTab = currentTab;
+        // Remove old slot limit button
+        if (slotLimitButton != null) buttonList.remove(slotLimitButton);
+
         this.forStorageBus = currentTab >= 3;
         CellTerminalClientConfig config = CellTerminalClientConfig.getInstance();
 
         int buttonId = startButtonId;
+
+        // Create slot limit button first (only for tabs that show content)
+        if (currentTab == GuiConstants.TAB_INVENTORY || currentTab == GuiConstants.TAB_STORAGE_BUS_INVENTORY) {
+            SlotLimit limit = config.getSlotLimit(forStorageBus);
+            slotLimitButton = new GuiSlotLimitButton(buttonId++, 0, 0, limit);
+            buttonList.add(slotLimitButton);
+        } else {
+            slotLimitButton = null;
+        }
+
         List<CellFilter> applicableFilters = getApplicableFilters(currentTab);
 
         for (CellFilter filter : applicableFilters) {
@@ -114,9 +127,11 @@ public class FilterPanelManager {
      */
     public void updatePositions(int guiLeft, int guiTop, int ySize,
                                  int styleButtonY, int styleButtonBottom, Rectangle controlsHelpBounds) {
-        if (filterButtons.isEmpty()) return;
-
+        // Count all buttons (slot limit + filters)
         int buttonCount = filterButtons.size();
+        if (slotLimitButton != null) buttonCount++;
+
+        if (buttonCount == 0) return;
 
         // Available space calculation
         int panelX = guiLeft - BUTTON_SIZE - 2;  // Same X as terminal style button
@@ -136,9 +151,6 @@ public class FilterPanelManager {
         // Determine layout strategy
         LayoutResult layout = calculateLayout(buttonCount, availableHeight, guiLeft);
         applyLayout(layout, panelX, availableTop, availableBottom, styleButtonY, guiLeft);
-
-        // Store panel dimensions for exclusion area
-        updatePanelBounds(layout, panelX, availableTop, availableBottom, guiLeft);
     }
 
     private static class LayoutResult {
@@ -205,6 +217,10 @@ public class FilterPanelManager {
         int startY;
         int startX;
 
+        // Count total buttons for horizontal layout
+        int totalButtonCount = filterButtons.size();
+        if (slotLimitButton != null) totalButtonCount++;
+
         if (layout.pushUp) {
             // Start from bottom, going up
             startY = availableBottom - layout.requiredHeight;
@@ -216,7 +232,7 @@ public class FilterPanelManager {
             }
         } else if (layout.horizontal) {
             // Horizontal layout - center or right-align
-            int totalWidth = filterButtons.size() * BUTTON_WITH_SPACING - BUTTON_SPACING;
+            int totalWidth = totalButtonCount * BUTTON_WITH_SPACING - BUTTON_SPACING;
             startX = guiLeft - totalWidth - 2;
             startY = availableTop;
         } else {
@@ -235,82 +251,86 @@ public class FilterPanelManager {
         int styleButtonBottom = styleButtonY + BUTTON_SIZE + BUTTON_SPACING;
 
         int index = 0;
+
+        // Position slot limit button first (if present)
+        if (slotLimitButton != null) {
+            int[] pos = calculateButtonPosition(index, layout, startX, startY, guiLeft,
+                                                 styleButtonTop, styleButtonBottom);
+            slotLimitButton.x = pos[0];
+            slotLimitButton.y = pos[1];
+            index++;
+        }
+
+        // Position filter buttons
         for (GuiFilterButton button : filterButtons) {
-            int col, row;
-
-            if (layout.horizontal) {
-                col = index;
-                row = 0;
-            } else {
-                col = index % layout.columns;
-                row = index / layout.columns;
-            }
-
-            int buttonX, buttonY;
-
-            if (layout.horizontal) {
-                buttonX = startX + col * BUTTON_WITH_SPACING;
-                buttonY = startY;
-            } else {
-                // For vertical layout with 2 columns, right column is col 0
-                if (layout.columns == 2) {
-                    buttonX = startX + (1 - col) * BUTTON_WITH_SPACING;
-                } else {
-                    buttonX = startX;
-                }
-                buttonY = startY + row * BUTTON_WITH_SPACING;
-            }
-
-            // Check if button overlaps with style button forbidden zone
-            // If so, shift it above the style button
-            if (buttonY >= styleButtonTop && buttonY < styleButtonBottom) {
-                buttonY = styleButtonTop - BUTTON_SIZE;
-            } else if (buttonY + BUTTON_SIZE > styleButtonTop && buttonY + BUTTON_SIZE <= styleButtonBottom) {
-                buttonY = styleButtonTop - BUTTON_SIZE;
-            }
-
-            button.x = buttonX;
-            button.y = buttonY;
+            int[] pos = calculateButtonPosition(index, layout, startX, startY, guiLeft,
+                                                 styleButtonTop, styleButtonBottom);
+            button.x = pos[0];
+            button.y = pos[1];
             index++;
         }
     }
 
-    private void updatePanelBounds(LayoutResult layout, int panelX, int availableTop,
-                                    int availableBottom, int guiLeft) {
-        if (filterButtons.isEmpty()) {
-            panelTop = 0;
-            panelHeight = 0;
-            panelWidth = 0;
+    /**
+     * Calculate the position for a button at the given index.
+     * @return array of [x, y]
+     */
+    private int[] calculateButtonPosition(int index, LayoutResult layout, int startX, int startY, int guiLeft,
+                                           int styleButtonTop, int styleButtonBottom) {
+        int col, row;
 
-            return;
+        if (layout.horizontal) {
+            col = index;
+            row = 0;
+        } else {
+            col = index % layout.columns;
+            row = index / layout.columns;
         }
 
-        // Find actual bounds from button positions
-        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
-        int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
+        int buttonX, buttonY;
 
-        for (GuiFilterButton button : filterButtons) {
-            minX = Math.min(minX, button.x);
-            maxX = Math.max(maxX, button.x + BUTTON_SIZE);
-            minY = Math.min(minY, button.y);
-            maxY = Math.max(maxY, button.y + BUTTON_SIZE);
+        if (layout.horizontal) {
+            buttonX = startX + col * BUTTON_WITH_SPACING;
+            buttonY = startY;
+        } else {
+            // For vertical layout with 2 columns, right column is col 0
+            if (layout.columns == 2) {
+                buttonX = startX + (1 - col) * BUTTON_WITH_SPACING;
+            } else {
+                buttonX = startX;
+            }
+            buttonY = startY + row * BUTTON_WITH_SPACING;
         }
 
-        panelTop = minY;
-        panelHeight = maxY - minY;
-        panelWidth = maxX - minX;
+        // Check if button overlaps with style button forbidden zone
+        // If so, shift it above the style button
+        if (buttonY >= styleButtonTop && buttonY < styleButtonBottom) {
+            buttonY = styleButtonTop - BUTTON_SIZE;
+        } else if (buttonY + BUTTON_SIZE > styleButtonTop && buttonY + BUTTON_SIZE <= styleButtonBottom) {
+            buttonY = styleButtonTop - BUTTON_SIZE;
+        }
+
+        return new int[] { buttonX, buttonY };
     }
 
     /**
      * Get the bounding rectangle of the filter panel for JEI exclusion.
      */
     public Rectangle getBounds() {
-        if (filterButtons.isEmpty()) return new Rectangle(0, 0, 0, 0);
+        if (filterButtons.isEmpty() && slotLimitButton == null) return new Rectangle(0, 0, 0, 0);
 
         int minX = Integer.MAX_VALUE;
         int minY = Integer.MAX_VALUE;
         int maxX = Integer.MIN_VALUE;
         int maxY = Integer.MIN_VALUE;
+
+        // Include slot limit button
+        if (slotLimitButton != null && slotLimitButton.visible) {
+            minX = Math.min(minX, slotLimitButton.x);
+            minY = Math.min(minY, slotLimitButton.y);
+            maxX = Math.max(maxX, slotLimitButton.x + BUTTON_SIZE);
+            maxY = Math.max(maxY, slotLimitButton.y + BUTTON_SIZE);
+        }
 
         for (GuiFilterButton button : filterButtons) {
             if (!button.visible) continue;
@@ -373,6 +393,46 @@ public class FilterPanelManager {
         }
 
         return null;
+    }
+
+    /**
+     * Get the slot limit button, if present.
+     */
+    public GuiSlotLimitButton getSlotLimitButton() {
+        return slotLimitButton;
+    }
+
+    /**
+     * Handle a slot limit button click.
+     * @param button The clicked button
+     * @return true if it was the slot limit button
+     */
+    public boolean handleSlotLimitClick(GuiSlotLimitButton button) {
+        if (slotLimitButton != button) return false;
+
+        SlotLimit newLimit = button.cycleLimit();
+        CellTerminalClientConfig config = CellTerminalClientConfig.getInstance();
+
+        if (forStorageBus) {
+            config.setBusSlotLimit(newLimit);
+        } else {
+            config.setCellSlotLimit(newLimit);
+        }
+
+        // Send updated slot limits to server
+        CellTerminalNetwork.INSTANCE.sendToServer(new PacketSlotLimitChange(
+            config.getCellSlotLimit().getLimit(),
+            config.getBusSlotLimit().getLimit()
+        ));
+
+        return true;
+    }
+
+    /**
+     * Get the current slot limit based on the current tab.
+     */
+    public SlotLimit getCurrentSlotLimit() {
+        return CellTerminalClientConfig.getInstance().getSlotLimit(forStorageBus);
     }
 
     public List<GuiFilterButton> getButtons() {

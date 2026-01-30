@@ -71,6 +71,10 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
     // Current active tab on client - determines whether to poll storage bus data
     protected int activeTab = 0;
 
+    // Slot limits for controlling how many types are serialized (synced from client)
+    protected int cellSlotLimit = Integer.MAX_VALUE;
+    protected int busSlotLimit = Integer.MAX_VALUE;
+
     // Tick counter for storage bus polling (only poll every N ticks when on storage bus tab)
     protected int storageBusPollCounter = 0;
     protected boolean hasPolledOnce = false;  // Track if initial poll has been done for storage bus tab
@@ -158,6 +162,37 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
     }
 
     /**
+     * Set the slot limits for controlling how many types are serialized (called from packet handler).
+     * Triggers a full refresh so the new limits take effect.
+     * @param cellLimit Limit for cell contents (-1 for unlimited)
+     * @param busLimit Limit for storage bus contents (-1 for unlimited)
+     */
+    public void setSlotLimits(int cellLimit, int busLimit) {
+        // Convert -1 (unlimited) to MAX_VALUE for easier comparison
+        this.cellSlotLimit = cellLimit < 0 ? Integer.MAX_VALUE : cellLimit;
+        this.busSlotLimit = busLimit < 0 ? Integer.MAX_VALUE : busLimit;
+
+        // Trigger refresh to apply new limits
+        this.needsFullRefresh = true;
+    }
+
+    /**
+     * Get the current cell slot limit.
+     * @return The limit, or Integer.MAX_VALUE for unlimited
+     */
+    public int getCellSlotLimit() {
+        return cellSlotLimit;
+    }
+
+    /**
+     * Get the current storage bus slot limit.
+     * @return The limit, or Integer.MAX_VALUE for unlimited
+     */
+    public int getBusSlotLimit() {
+        return busSlotLimit;
+    }
+
+    /**
      * Check if the container is in a valid state to send updates.
      * Subclasses can override to add additional checks (e.g., power, range).
      */
@@ -187,8 +222,8 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
                 this.byId.put(id, tracker);
             };
 
-            // Use the registry-based scanner for all storage types
-            StorageScannerRegistry.scanAllStorages(this.grid, storageList, callback);
+            // Use the registry-based scanner for all storage types, with slot limit
+            StorageScannerRegistry.scanAllStorages(this.grid, storageList, callback, cellSlotLimit);
         } else {
             CellTerminal.LOGGER.warn("regenStorageList: grid is null!");
         }

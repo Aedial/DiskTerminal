@@ -128,5 +128,13 @@ public class CellTerminalNetwork {
             packetId++,
             Side.SERVER
         );
+
+        // Client -> Server: Slot limit preference change
+        INSTANCE.registerMessage(
+            PacketSlotLimitChange.Handler.class,
+            PacketSlotLimitChange.class,
+            packetId++,
+            Side.SERVER
+        );
     }
 }

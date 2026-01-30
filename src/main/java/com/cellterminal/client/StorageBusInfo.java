@@ -43,6 +43,7 @@ public class StorageBusInfo {
 
     /**
      * Calculate the number of available config slots for a given capacity upgrade count.
+     * FIXME: This should be provided by the scanner implementation instead of being hardcoded here.
      */
     public static int calculateAvailableSlots(int capacityUpgrades) {
         return Math.min(BASE_CONFIG_SLOTS + SLOTS_PER_CAPACITY_UPGRADE * capacityUpgrades, MAX_CONFIG_SLOTS);
@@ -55,10 +56,14 @@ public class StorageBusInfo {
     private final EnumFacing side;
     private final int priority;
     private final int capacityUpgrades;
+    private final int baseConfigSlots;
+    private final int slotsPerUpgrade;
+    private final int maxConfigSlots;
     private final boolean hasInverter;
     private final boolean hasSticky;
     private final boolean hasFuzzy;
-    private final boolean isFluid;  // True for fluid storage buses
+    private final boolean isItem;      // True for item storage buses
+    private final boolean isFluid;     // True for fluid storage buses
     private final boolean isEssentia;  // True for Thaumic Energistics essentia storage buses
     private final int accessRestriction;  // 0=NO_ACCESS, 1=READ, 2=WRITE, 3=READ_WRITE
     private final String connectedName;
@@ -69,6 +74,8 @@ public class StorageBusInfo {
     private final List<ItemStack> upgrades = new ArrayList<>();
     private final List<Integer> upgradeSlotIndices = new ArrayList<>();
     private boolean expanded = true;
+    private final boolean supportsPriorityFlag;
+    private final boolean supportsIOModeFlag;
 
     public StorageBusInfo(NBTTagCompound nbt) {
         this.id = nbt.getLong("id");
@@ -82,7 +89,19 @@ public class StorageBusInfo {
         this.hasFuzzy = nbt.getBoolean("hasFuzzy");
         this.isFluid = nbt.getBoolean("isFluid");
         this.isEssentia = nbt.getBoolean("isEssentia");
+        // Prefer explicit isItem flag; fallback to legacy inference if missing
+        this.isItem = nbt.hasKey("isItem") ? nbt.getBoolean("isItem") : (!this.isFluid && !this.isEssentia);
         this.accessRestriction = nbt.hasKey("access") ? nbt.getInteger("access") : 3;  // Default READ_WRITE
+
+        // Per-implementation slot parameters (optional; default to AE2 values)
+        this.baseConfigSlots = nbt.hasKey("baseConfigSlots") ? nbt.getInteger("baseConfigSlots") : BASE_CONFIG_SLOTS;
+        this.slotsPerUpgrade = nbt.hasKey("slotsPerUpgrade") ? nbt.getInteger("slotsPerUpgrade") : SLOTS_PER_CAPACITY_UPGRADE;
+        this.maxConfigSlots = nbt.hasKey("maxConfigSlots") ? nbt.getInteger("maxConfigSlots") : MAX_CONFIG_SLOTS;
+
+        // Capability flags provided by scanners
+        this.supportsPriorityFlag = nbt.hasKey("supportsPriority") ? nbt.getBoolean("supportsPriority") : true;
+        // If not provided, default to buses supporting IO mode
+        this.supportsIOModeFlag = nbt.hasKey("supportsIOMode") ? nbt.getBoolean("supportsIOMode") : true;
 
         // Connected inventory info
         this.connectedName = nbt.hasKey("connectedName") ? nbt.getString("connectedName") : null;
@@ -186,10 +205,9 @@ public class StorageBusInfo {
      * Essentia buses always have 63 slots (they don't use capacity upgrades).
      */
     public int getAvailableConfigSlots() {
-        // Essentia buses always have 63 config slots
-        if (isEssentia) return MAX_CONFIG_SLOTS;
+        int raw = baseConfigSlots + slotsPerUpgrade * Math.max(0, capacityUpgrades);
 
-        return Math.min(BASE_CONFIG_SLOTS + SLOTS_PER_CAPACITY_UPGRADE * capacityUpgrades, MAX_CONFIG_SLOTS);
+        return raw > maxConfigSlots ? maxConfigSlots : raw;
     }
 
     public boolean hasInverter() {
@@ -212,12 +230,22 @@ public class StorageBusInfo {
         return isEssentia;
     }
 
+    public boolean isItem() {
+        return isItem;
+    }
+
     /**
      * Check if this storage bus supports IO mode toggling.
-     * Essentia storage buses don't support config manager settings.
      */
     public boolean supportsIOMode() {
-        return true; //!isEssentia;
+        return supportsIOModeFlag;
+    }
+
+    /**
+     * Check if this storage bus supports priority editing.
+     */
+    public boolean supportsPriority() {
+        return supportsPriorityFlag;
     }
 
     /**

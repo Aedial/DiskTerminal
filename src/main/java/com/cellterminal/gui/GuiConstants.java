@@ -126,8 +126,8 @@ public final class GuiConstants {
     /** X position of partition button in terminal tab */
     public static final int BUTTON_PARTITION_X = 165;
 
-    /** X position of IO mode button in storage bus headers */
-    public static final int BUTTON_IO_MODE_X = 172;
+    /** X position of IO mode button in storage bus headers (before priority field) */
+    public static final int BUTTON_IO_MODE_X = 115;
 
     // ========================================
     // CONTROLS HELP WIDGET

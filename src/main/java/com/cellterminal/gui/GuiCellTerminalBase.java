@@ -35,6 +35,7 @@ import mezz.jei.api.gui.IGhostIngredientHandler;
 import com.cellterminal.client.CellContentRow;
 import com.cellterminal.client.CellFilter;
 import com.cellterminal.client.CellInfo;
+import com.cellterminal.client.TabStateManager;
 import com.cellterminal.config.CellTerminalClientConfig;
 import com.cellterminal.config.CellTerminalClientConfig.TerminalStyle;
 import com.cellterminal.client.KeyBindings;
@@ -67,6 +68,7 @@ import com.cellterminal.gui.tab.TabControllerRegistry;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketExtractUpgrade;
 import com.cellterminal.network.PacketPartitionAction;
+import com.cellterminal.network.PacketSlotLimitChange;
 import com.cellterminal.network.PacketStorageBusPartitionAction;
 import com.cellterminal.network.PacketTabChange;
 import com.cellterminal.network.PacketUpgradeCell;
@@ -194,6 +196,9 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     // Hovered upgrade icon for tooltip and extraction
     protected RenderContext.UpgradeIconTarget hoveredUpgradeIcon = null;
 
+    // Whether we've restored the saved scroll after the first data update
+    private boolean initialScrollRestored = false;
+
     public GuiCellTerminalBase(Container container) {
         super(container);
 
@@ -305,9 +310,25 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         // Update scrollbar range for current tab
         updateScrollbarForCurrentTab();
 
+        // Restore saved scroll position for the current tab (in-memory TabStateManager)
+        TabStateManager.TabType initialTabType = TabStateManager.TabType.fromIndex(this.currentTab);
+        int initialSavedScroll = TabStateManager.getInstance().getScrollPosition(initialTabType);
+        scrollToLine(initialSavedScroll);
+
+        // We'll also re-apply the saved scroll once when data arrives, in case
+        // the initial scrollbar range was limited during initGui().
+        this.initialScrollRestored = false;
+
         // Notify server of the current tab so it can start sending appropriate data
         // This is especially important for storage bus tabs which require server polling
         CellTerminalNetwork.INSTANCE.sendToServer(new PacketTabChange(currentTab));
+
+        // Send current slot limit preferences to server
+        CellTerminalClientConfig config = CellTerminalClientConfig.getInstance();
+        CellTerminalNetwork.INSTANCE.sendToServer(new PacketSlotLimitChange(
+            config.getCellSlotLimit().getLimit(),
+            config.getBusSlotLimit().getLimit()
+        ));
     }
 
     protected void initPriorityFieldManager() {
@@ -592,16 +613,21 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         // Update priority field positions based on visible storages
         if (priorityFieldManager != null) {
             for (RenderContext.VisibleStorageEntry entry : renderContext.visibleStorages) {
-                PriorityFieldManager.PriorityField field = priorityFieldManager.getOrCreateField(
-                    entry.storage, guiLeft, guiTop);
-                priorityFieldManager.updateFieldPosition(field, entry.y, guiLeft, guiTop);
+                // Only show priority field if the storage type supports it
+                if (entry.storage.supportsPriority()) {
+                    PriorityFieldManager.PriorityField field = priorityFieldManager.getOrCreateField(
+                        entry.storage, guiLeft, guiTop);
+                    priorityFieldManager.updateFieldPosition(field, entry.y, guiLeft, guiTop);
+                }
             }
 
             // Update storage bus priority field positions for tabs 4 and 5
             for (RenderContext.VisibleStorageBusEntry entry : renderContext.visibleStorageBuses) {
-                PriorityFieldManager.StorageBusPriorityField field = priorityFieldManager.getOrCreateStorageBusField(
-                    entry.storageBus, guiLeft, guiTop);
-                priorityFieldManager.updateStorageBusFieldPosition(field, entry.y, guiLeft, guiTop);
+                if (entry.storageBus.supportsPriority()) {
+                    PriorityFieldManager.StorageBusPriorityField field = priorityFieldManager.getOrCreateStorageBusField(
+                        entry.storageBus, guiLeft, guiTop);
+                    priorityFieldManager.updateStorageBusFieldPosition(field, entry.y, guiLeft, guiTop);
+                }
             }
 
             // Draw priority fields (in GUI-relative context)
@@ -952,7 +978,8 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         } else if (currentTab == TAB_INVENTORY || currentTab == TAB_PARTITION) {
             if (handleCellPartitionButtonClick(mouseButton)) return;
 
-            clickHandler.handleCellTabClick(currentTab, hoveredCellCell, hoveredContentSlotIndex,
+            int relMouseX = mouseX - guiLeft;
+            clickHandler.handleCellTabClick(currentTab, relMouseX, hoveredCellCell, hoveredContentSlotIndex,
                 hoveredPartitionCell, hoveredPartitionSlotIndex, hoveredCellStorage, hoveredCellSlotIndex,
                 hoveredStorageLine, hoveredLineIndex, dataManager.getStorageMap(), dataManager.getTerminalDimension(), createClickCallback());
         } else if (currentTab == TAB_STORAGE_BUS_INVENTORY || currentTab == TAB_STORAGE_BUS_PARTITION) {
@@ -989,18 +1016,25 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     protected void handleStorageBusTabClick(int mouseX, int mouseY, int mouseButton) {
         if (mouseButton == 0 && handleStorageBusUpgradeClick()) return;
 
+        int relMouseX = mouseX - guiLeft;
         StorageBusClickHandler.ClickContext ctx = StorageBusClickHandler.ClickContext.from(
-            currentTab, hoveredStorageBus, hoveredStorageBusPartitionSlot, hoveredStorageBusContentSlot,
+            currentTab, relMouseX, hoveredStorageBus, hoveredStorageBusPartitionSlot, hoveredStorageBusContentSlot,
             hoveredClearButtonStorageBus, hoveredIOModeButtonStorageBus, hoveredPartitionAllButtonStorageBus,
             hoveredContentStack, selectedStorageBusIds, dataManager.getStorageBusMap());
 
-        storageBusClickHandler.handleClick(ctx, mouseButton);
+        if (storageBusClickHandler.handleClick(ctx, mouseButton)) {
+            rebuildAndUpdateScrollbar();
+        }
     }
 
     protected TerminalClickHandler.Callback createClickCallback() {
         return new TerminalClickHandler.Callback() {
             @Override
             public void onTabChanged(int tab) {
+                // Save scroll position for current tab before switching
+                TabStateManager.TabType oldTabType = TabStateManager.TabType.fromIndex(currentTab);
+                TabStateManager.getInstance().setScrollPosition(oldTabType, getScrollBar().getCurrentScroll());
+
                 currentTab = tab;
                 getScrollBar().setRange(0, 0, 1);
                 updateScrollbarForCurrentTab();
@@ -1008,6 +1042,11 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
                 initFilterButtons();  // Reinitialize filter buttons for new tab
                 applyFiltersToDataManager();
                 onSearchTextChanged();  // Reapply filter with tab-specific mode
+
+                // Restore scroll position for new tab
+                TabStateManager.TabType newTabType = TabStateManager.TabType.fromIndex(tab);
+                int savedScroll = TabStateManager.getInstance().getScrollPosition(newTabType);
+                scrollToLine(savedScroll);
 
                 // Notify server of tab change for polling optimization
                 CellTerminalNetwork.INSTANCE.sendToServer(new PacketTabChange(tab));
@@ -1079,6 +1118,16 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             GuiFilterButton filterBtn = (GuiFilterButton) btn;
             if (filterPanelManager.handleClick(filterBtn)) {
                 applyFiltersToDataManager();
+                rebuildAndUpdateScrollbar();
+
+                return;
+            }
+        }
+
+        // Handle slot limit button clicks
+        if (btn instanceof GuiSlotLimitButton) {
+            GuiSlotLimitButton slotLimitBtn = (GuiSlotLimitButton) btn;
+            if (filterPanelManager.handleSlotLimitClick(slotLimitBtn)) {
                 rebuildAndUpdateScrollbar();
 
                 return;
@@ -1305,6 +1354,23 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     public void postUpdate(NBTTagCompound data) {
         dataManager.processUpdate(data);
         updateScrollbarForCurrentTab();
+
+        // Restore saved scroll after the first update that provides line counts.
+        if (!this.initialScrollRestored) {
+            TabStateManager.TabType tabType = TabStateManager.TabType.fromIndex(this.currentTab);
+            int saved = TabStateManager.getInstance().getScrollPosition(tabType);
+            scrollToLine(saved);
+            this.initialScrollRestored = true;
+        }
+    }
+
+    @Override
+    public void onGuiClosed() {
+        // Persist the current scroll position for the active tab so it is restored when the GUI is reopened.
+        TabStateManager.TabType tabType = TabStateManager.TabType.fromIndex(this.currentTab);
+        TabStateManager.getInstance().setScrollPosition(tabType, this.getScrollBar().getCurrentScroll());
+
+        super.onGuiClosed();
     }
 
     protected void updateScrollbarForCurrentTab() {

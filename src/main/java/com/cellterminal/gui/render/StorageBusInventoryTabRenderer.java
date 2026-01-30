@@ -8,6 +8,7 @@ import net.minecraft.client.renderer.RenderItem;
 
 import com.cellterminal.client.StorageBusContentRow;
 import com.cellterminal.client.StorageBusInfo;
+import com.cellterminal.client.TabStateManager;
 import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.storagebus.StorageBusRenderer;
 
@@ -67,6 +68,7 @@ public class StorageBusInventoryTabRenderer {
                 }
 
                 storageBusRenderer.drawStorageBusHeader(storageBus, y, inventoryLines, lineIndex,
+                    TabStateManager.TabType.STORAGE_BUS_INVENTORY,
                     relMouseX, relMouseY, absMouseX, absMouseY, ctx);
 
             } else if (line instanceof StorageBusContentRow) {

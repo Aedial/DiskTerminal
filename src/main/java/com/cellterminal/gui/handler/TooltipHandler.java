@@ -13,6 +13,7 @@ import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.gui.FilterPanelManager;
 import com.cellterminal.gui.GuiFilterButton;
+import com.cellterminal.gui.GuiSlotLimitButton;
 import com.cellterminal.gui.GuiSearchHelpButton;
 import com.cellterminal.gui.GuiSearchModeButton;
 import com.cellterminal.gui.GuiTerminalStyleButton;
@@ -166,6 +167,16 @@ public class TooltipHandler {
             GuiFilterButton hoveredFilter = ctx.filterPanelManager.getHoveredButton(mouseX, mouseY);
             if (hoveredFilter != null) {
                 renderer.drawHoveringText(hoveredFilter.getTooltip(), mouseX, mouseY);
+
+                return;
+            }
+
+            // Slot limit button tooltip
+            GuiSlotLimitButton slotBtn = ctx.filterPanelManager.getSlotLimitButton();
+            if (slotBtn != null && slotBtn.visible
+                    && mouseX >= slotBtn.x && mouseX < slotBtn.x + slotBtn.width
+                    && mouseY >= slotBtn.y && mouseY < slotBtn.y + slotBtn.height) {
+                renderer.drawHoveringText(slotBtn.getTooltip(), mouseX, mouseY);
 
                 return;
             }

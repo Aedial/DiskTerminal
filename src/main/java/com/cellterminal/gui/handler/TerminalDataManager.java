@@ -23,9 +23,12 @@ import com.cellterminal.client.CellFilter.State;
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.EmptySlotInfo;
 import com.cellterminal.client.SearchFilterMode;
+import com.cellterminal.client.SlotLimit;
 import com.cellterminal.client.StorageBusContentRow;
 import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.client.StorageInfo;
+import com.cellterminal.client.TabStateManager;
+import com.cellterminal.config.CellTerminalClientConfig;
 
 
 /**
@@ -317,7 +320,8 @@ public class TerminalDataManager {
                             addedToLines = true;
                         }
 
-                        if (storage.isExpanded()) this.lines.add(cell);
+                        // Use per-tab state manager for Terminal tab expansion so it follows saved state
+                        if (TabStateManager.getInstance().isExpanded(TabStateManager.TabType.TERMINAL, storage.getId())) this.lines.add(cell);
                     }
 
                     // Inventory tab
@@ -327,10 +331,14 @@ public class TerminalDataManager {
                             addedToInventoryLines = true;
                         }
 
-                        int contentCount = cell.getContents().size();
-                        int contentRows = Math.max(1, (contentCount + SLOTS_PER_ROW - 1) / SLOTS_PER_ROW);
-                        for (int row = 0; row < contentRows; row++) {
-                            this.inventoryLines.add(new CellContentRow(cell, row * SLOTS_PER_ROW, row == 0));
+                        // Only add content rows if storage is expanded in this tab
+                        if (TabStateManager.getInstance().isExpanded(TabStateManager.TabType.INVENTORY, storage.getId())) {
+                            SlotLimit slotLimit = CellTerminalClientConfig.getInstance().getCellSlotLimit();
+                            int contentCount = slotLimit.getEffectiveCount(cell.getContents().size());
+                            int contentRows = Math.max(1, (contentCount + SLOTS_PER_ROW - 1) / SLOTS_PER_ROW);
+                            for (int row = 0; row < contentRows; row++) {
+                                this.inventoryLines.add(new CellContentRow(cell, row * SLOTS_PER_ROW, row == 0));
+                            }
                         }
                     }
 
@@ -341,10 +349,13 @@ public class TerminalDataManager {
                             addedToPartitionLines = true;
                         }
 
-                        int highestSlot = getHighestNonEmptyPartitionSlot(cell);
-                        int partitionRows = Math.max(1, (highestSlot + SLOTS_PER_ROW) / SLOTS_PER_ROW);
-                        for (int row = 0; row < partitionRows; row++) {
-                            this.partitionLines.add(new CellContentRow(cell, row * SLOTS_PER_ROW, row == 0));
+                        // Only add content rows if storage is expanded in this tab
+                        if (TabStateManager.getInstance().isExpanded(TabStateManager.TabType.PARTITION, storage.getId())) {
+                            int highestSlot = getHighestNonEmptyPartitionSlot(cell);
+                            int partitionRows = Math.max(1, (highestSlot + SLOTS_PER_ROW) / SLOTS_PER_ROW);
+                            for (int row = 0; row < partitionRows; row++) {
+                                this.partitionLines.add(new CellContentRow(cell, row * SLOTS_PER_ROW, row == 0));
+                            }
                         }
                     }
                 } else {
@@ -360,9 +371,16 @@ public class TerminalDataManager {
                             addedToPartitionLines = true;
                         }
 
-                        EmptySlotInfo emptySlot = new EmptySlotInfo(storage.getId(), slot);
-                        this.inventoryLines.add(emptySlot);
-                        this.partitionLines.add(emptySlot);
+                        // Only add empty slot rows if the storage is expanded for that tab
+                        if (TabStateManager.getInstance().isExpanded(TabStateManager.TabType.INVENTORY, storage.getId())) {
+                            EmptySlotInfo emptySlot = new EmptySlotInfo(storage.getId(), slot);
+                            this.inventoryLines.add(emptySlot);
+                        }
+
+                        if (TabStateManager.getInstance().isExpanded(TabStateManager.TabType.PARTITION, storage.getId())) {
+                            EmptySlotInfo emptySlot2 = new EmptySlotInfo(storage.getId(), slot);
+                            this.partitionLines.add(emptySlot2);
+                        }
 
                         // Track empty slots in snapshot for consistency
                         visibleCellSnapshotInventory.add(cellKey);
@@ -375,8 +393,10 @@ public class TerminalDataManager {
                                 addedToInventoryLines = true;
                             }
 
-                            EmptySlotInfo emptySlot = new EmptySlotInfo(storage.getId(), slot);
-                            this.inventoryLines.add(emptySlot);
+                            if (TabStateManager.getInstance().isExpanded(TabStateManager.TabType.INVENTORY, storage.getId())) {
+                                EmptySlotInfo emptySlot = new EmptySlotInfo(storage.getId(), slot);
+                                this.inventoryLines.add(emptySlot);
+                            }
                         }
 
                         if (visibleCellSnapshotPartition.contains(cellKey)) {
@@ -385,8 +405,10 @@ public class TerminalDataManager {
                                 addedToPartitionLines = true;
                             }
 
-                            EmptySlotInfo emptySlot = new EmptySlotInfo(storage.getId(), slot);
-                            this.partitionLines.add(emptySlot);
+                            if (TabStateManager.getInstance().isExpanded(TabStateManager.TabType.PARTITION, storage.getId())) {
+                                EmptySlotInfo emptySlot = new EmptySlotInfo(storage.getId(), slot);
+                                this.partitionLines.add(emptySlot);
+                            }
                         }
                     }
                 }
@@ -445,7 +467,14 @@ public class TerminalDataManager {
      */
     private void addStorageBusToInventoryLines(StorageBusInfo bus) {
         this.storageBusInventoryLines.add(bus);  // Header row
-        int contentCount = bus.getContents().size();
+
+        // Only add content rows if storage bus is expanded in this tab
+        if (!TabStateManager.getInstance().isBusExpanded(TabStateManager.TabType.STORAGE_BUS_INVENTORY, bus.getId())) {
+            return;
+        }
+
+        SlotLimit slotLimit = CellTerminalClientConfig.getInstance().getBusSlotLimit();
+        int contentCount = slotLimit.getEffectiveCount(bus.getContents().size());
         int contentRows = Math.max(1, (contentCount + SLOTS_PER_ROW_BUS - 1) / SLOTS_PER_ROW_BUS);
 
         for (int row = 0; row < contentRows; row++) {
@@ -458,6 +487,12 @@ public class TerminalDataManager {
      */
     private void addStorageBusToPartitionLines(StorageBusInfo bus) {
         this.storageBusPartitionLines.add(bus);  // Header row
+
+        // Only add content rows if storage bus is expanded in this tab
+        if (!TabStateManager.getInstance().isBusExpanded(TabStateManager.TabType.STORAGE_BUS_PARTITION, bus.getId())) {
+            return;
+        }
+
         int availableSlots = bus.getAvailableConfigSlots();
         int highestSlot = getHighestNonEmptyStorageBusPartitionSlot(bus);
 
@@ -519,7 +554,7 @@ public class TerminalDataManager {
         // Item type filter
         State itemState = activeFilters.getOrDefault(CellFilter.ITEM_CELLS, State.SHOW_ALL);
         if (itemState != State.SHOW_ALL) {
-            boolean isItem = !bus.isFluid() && !bus.isEssentia();
+            boolean isItem = bus.isItem();
             if (itemState == State.SHOW_ONLY && !isItem) return false;
             if (itemState == State.HIDE && isItem) return false;
         }
@@ -644,7 +679,7 @@ public class TerminalDataManager {
         // Item type filter
         State itemState = activeFilters.getOrDefault(CellFilter.ITEM_CELLS, State.SHOW_ALL);
         if (itemState != State.SHOW_ALL) {
-            boolean isItem = !cell.isFluid() && !cell.isEssentia();
+            boolean isItem = cell.isItem();
             if (itemState == State.SHOW_ONLY && !isItem) return false;
             if (itemState == State.HIDE && isItem) return false;
         }

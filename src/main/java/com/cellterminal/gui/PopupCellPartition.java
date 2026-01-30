@@ -282,7 +282,7 @@ public class PopupCellPartition extends Gui {
 
         // EnchantmentData - JEI's deprecated hack for enchanted books (removed in 1.13+)
         if (ingredient instanceof EnchantmentData) {
-            if (cell.isFluid() || cell.isEssentia()) {
+            if (!cell.isItem()) {
                 MessageHelper.error(cell.isFluid() ? "cellterminal.error.fluid_cell_item" : "cellterminal.error.essentia_cell_item");
 
                 return ItemStack.EMPTY;

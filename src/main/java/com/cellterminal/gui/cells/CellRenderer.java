@@ -12,6 +12,7 @@ import com.cellterminal.client.CellContentRow;
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.EmptySlotInfo;
 import com.cellterminal.client.StorageInfo;
+import com.cellterminal.client.TabStateManager;
 import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.render.RenderContext;
 
@@ -68,14 +69,22 @@ public class CellRenderer {
      * @param y Y position
      * @param lines All lines in the list (for checking next line)
      * @param lineIndex Current line index
+     * @param tabType The tab type for determining expansion state
      * @param ctx Render context for tracking visible storages
      */
-    public void drawStorageHeader(StorageInfo storage, int y, List<Object> lines, int lineIndex, RenderContext ctx) {
+    public void drawStorageHeader(StorageInfo storage, int y, List<Object> lines, int lineIndex,
+                                   TabStateManager.TabType tabType, RenderContext ctx) {
         // Track this storage for priority field rendering
         ctx.visibleStorages.add(new RenderContext.VisibleStorageEntry(storage, y));
 
-        // Draw vertical tree line connecting to cells below
-        boolean hasCellsFollowing = lineIndex + 1 < lines.size()
+        // Draw expand/collapse indicator
+        boolean isExpanded = TabStateManager.getInstance().isExpanded(tabType, storage.getId());
+        String expandIcon = isExpanded ? "[-]" : "[+]";
+        fontRenderer.drawString(expandIcon, 167, y + 1, 0x606060);
+
+        // Draw vertical tree line connecting to cells below (only if expanded)
+        boolean hasCellsFollowing = isExpanded
+            && lineIndex + 1 < lines.size()
             && (lines.get(lineIndex + 1) instanceof CellContentRow
                 || lines.get(lineIndex + 1) instanceof EmptySlotInfo);
 

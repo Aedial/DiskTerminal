@@ -22,6 +22,7 @@ public class CellInfo {
     private long parentStorageId;
     private final int slot;
     private final int status;
+    private final boolean isItem;
     private final boolean isFluid;
     private final boolean isEssentia;
     private final ItemStack cellItem;
@@ -46,6 +47,8 @@ public class CellInfo {
         this.status = nbt.getInteger("status");
         this.isFluid = nbt.getBoolean("isFluid");
         this.isEssentia = nbt.getBoolean("isEssentia");
+        // Prefer explicit isItem flag; fallback to legacy inference if missing
+        this.isItem = nbt.hasKey("isItem") ? nbt.getBoolean("isItem") : (!this.isFluid && !this.isEssentia);
         this.cellItem = nbt.hasKey("cellItem") ? new ItemStack(nbt.getCompoundTag("cellItem")) : ItemStack.EMPTY;
         this.usedBytes = nbt.getLong("usedBytes");
         this.totalBytes = nbt.getLong("totalBytes");
@@ -151,6 +154,10 @@ public class CellInfo {
 
     public boolean isEssentia() {
         return isEssentia;
+    }
+
+    public boolean isItem() {
+        return isItem;
     }
 
     public ItemStack getCellItem() {

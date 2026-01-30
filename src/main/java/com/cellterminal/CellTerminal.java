@@ -20,6 +20,9 @@ import com.cellterminal.integration.ECOAEExtensionIntegration;
 import com.cellterminal.integration.storage.AE2StorageScanner;
 import com.cellterminal.integration.storage.IStorageScanner;
 import com.cellterminal.integration.storage.StorageScannerRegistry;
+import com.cellterminal.integration.storagebus.AE2StorageBusScanner;
+import com.cellterminal.integration.storagebus.StorageBusScannerRegistry;
+import com.cellterminal.integration.storagebus.ThaumicEnergisticsBusScanner;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.proxy.CommonProxy;
 
@@ -62,6 +65,9 @@ public class CellTerminal {
 
         // Register storage scanners
         registerStorageScanners();
+
+        // Register storage bus scanners
+        registerStorageBusScanners();
     }
 
     /**
@@ -77,6 +83,17 @@ public class CellTerminal {
 
         IStorageScanner ecoAEScanner = ECOAEExtensionIntegration.createScanner();
         if (ecoAEScanner != null) StorageScannerRegistry.register(ecoAEScanner);
+    }
+
+    /**
+     * Register all storage bus scanners (AE2 + optional integrations).
+     */
+    private void registerStorageBusScanners() {
+        // AE2 item/fluid buses
+        StorageBusScannerRegistry.register(AE2StorageBusScanner.INSTANCE);
+
+        // Thaumic Energistics essentia buses
+        StorageBusScannerRegistry.register(ThaumicEnergisticsBusScanner.INSTANCE);
     }
 
     @EventHandler

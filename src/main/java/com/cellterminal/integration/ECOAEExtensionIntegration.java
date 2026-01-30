@@ -26,6 +26,7 @@ import appeng.tile.inventory.AppEngCellInventory;
 
 import com.cellterminal.CellTerminal;
 import com.cellterminal.container.handler.CellDataHandler;
+import com.cellterminal.integration.storage.AbstractStorageScanner;
 import com.cellterminal.integration.storage.IStorageScanner;
 
 
@@ -39,6 +40,7 @@ import com.cellterminal.integration.storage.IStorageScanner;
  * - EStorageCellDrive holds a single cell per drive
  *
  * Each EStorageCellDrive is presented as a single-slot storage.
+ * TODO: Move to storage/
  */
 public class ECOAEExtensionIntegration {
 
@@ -72,11 +74,13 @@ public class ECOAEExtensionIntegration {
 
     /**
      * Storage scanner for ECOAEExtension's E-Storage Cell Drives.
+     *
+     * E-Storage drives have only 1 cell slot per drive (each drive holds one cell).
      */
     @Optional.InterfaceList({
         @Optional.Interface(iface = "com.cellterminal.integration.storage.IStorageScanner", modid = MODID)
     })
-    private static class ECOAEStorageScanner implements IStorageScanner {
+    private static class ECOAEStorageScanner extends AbstractStorageScanner {
 
         @Override
         public String getId() {
@@ -90,16 +94,18 @@ public class ECOAEExtensionIntegration {
 
         @Override
         @Optional.Method(modid = MODID)
-        public void scanStorages(IGrid grid, NBTTagList storageList, CellDataHandler.StorageTrackerCallback callback) {
+        public void scanStorages(IGrid grid, NBTTagList storageList, CellDataHandler.StorageTrackerCallback callback,
+                                  int slotLimit) {
             try {
-                scanEStorageChannels(grid, storageList, callback);
+                scanEStorageChannels(grid, storageList, callback, slotLimit);
             } catch (Exception e) {
                 CellTerminal.LOGGER.error("Error scanning ECOAEExtension E-Storage: {}", e.getMessage());
             }
         }
 
         @Optional.Method(modid = MODID)
-        private void scanEStorageChannels(IGrid grid, NBTTagList storageList, CellDataHandler.StorageTrackerCallback callback) {
+        private void scanEStorageChannels(IGrid grid, NBTTagList storageList, CellDataHandler.StorageTrackerCallback callback,
+                                           int slotLimit) {
             // EStorageMEChannel is the network-connected part
             for (IGridNode gn : grid.getMachines(github.kasuminova.ecoaeextension.common.tile.ecotech.estorage.EStorageMEChannel.class)) {
                 if (!gn.isActive()) continue;
@@ -114,7 +120,7 @@ public class ECOAEExtensionIntegration {
 
                 // Each drive in the multiblock is presented as a separate storage entry
                 for (github.kasuminova.ecoaeextension.common.tile.ecotech.estorage.EStorageCellDrive drive : controller.getCellDrives()) {
-                    NBTTagCompound driveData = createEStorageDriveData(drive, channelPriority, callback);
+                    NBTTagCompound driveData = createEStorageDriveData(drive, channelPriority, callback, slotLimit);
                     if (driveData != null) storageList.appendTag(driveData);
                 }
             }
@@ -122,7 +128,7 @@ public class ECOAEExtensionIntegration {
 
         @Optional.Method(modid = MODID)
         private NBTTagCompound createEStorageDriveData(Object driveObj, int channelPriority,
-                                                        CellDataHandler.StorageTrackerCallback callback) {
+                                                        CellDataHandler.StorageTrackerCallback callback, int slotLimit) {
             github.kasuminova.ecoaeextension.common.tile.ecotech.estorage.EStorageCellDrive drive =
                 (github.kasuminova.ecoaeextension.common.tile.ecotech.estorage.EStorageCellDrive) driveObj;
 
@@ -165,7 +171,7 @@ public class ECOAEExtensionIntegration {
 
             if (!cellStack.isEmpty()) {
                 int status = getCellStatusInternal(drive);
-                NBTTagCompound cellData = CellDataHandler.createCellData(0, cellStack, status);
+                NBTTagCompound cellData = CellDataHandler.createCellData(0, cellStack, status, slotLimit);
                 cellList.appendTag(cellData);
             }
 

@@ -50,11 +50,24 @@ public final class StorageScannerRegistry {
      * @param callback callback to register storage trackers
      */
     public static void scanAllStorages(IGrid grid, NBTTagList storageList, CellDataHandler.StorageTrackerCallback callback) {
+        scanAllStorages(grid, storageList, callback, Integer.MAX_VALUE);
+    }
+
+    /**
+     * Scan all storage devices from all registered scanners with a slot limit.
+     *
+     * @param grid the ME network grid to scan
+     * @param storageList the list to append storage data to
+     * @param callback callback to register storage trackers
+     * @param slotLimit maximum number of item types to include per cell
+     */
+    public static void scanAllStorages(IGrid grid, NBTTagList storageList, CellDataHandler.StorageTrackerCallback callback,
+                                        int slotLimit) {
         for (IStorageScanner scanner : scanners) {
             if (!scanner.isAvailable()) continue;
 
             try {
-                scanner.scanStorages(grid, storageList, callback);
+                scanner.scanStorages(grid, storageList, callback, slotLimit);
             } catch (Exception e) {
                 CellTerminal.LOGGER.error("Error scanning storage with {}: {}", scanner.getId(), e.getMessage());
             }

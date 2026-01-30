@@ -11,6 +11,7 @@ import net.minecraftforge.common.config.Property;
 
 import com.cellterminal.client.CellFilter;
 import com.cellterminal.client.SearchFilterMode;
+import com.cellterminal.client.SlotLimit;
 
 
 /**
@@ -39,10 +40,14 @@ public class CellTerminalClientConfig {
     private final Property terminalStyleProperty;
     private final Property searchFilterProperty;
     private final Property searchModeProperty;
+    private final Property cellSlotLimitProperty;
+    private final Property busSlotLimitProperty;
     private int selectedTab = 0;
     private TerminalStyle terminalStyle = TerminalStyle.SMALL;
     private String searchFilter = "";
     private SearchFilterMode searchMode = SearchFilterMode.MIXED;
+    private SlotLimit cellSlotLimit = SlotLimit.UNLIMITED;
+    private SlotLimit busSlotLimit = SlotLimit.UNLIMITED;
 
     // Filter states - separate maps for cells (tabs 0-2) and storage buses (tabs 3-4)
     private final Map<CellFilter, CellFilter.State> cellFilterStates = new EnumMap<>(CellFilter.class);
@@ -90,6 +95,16 @@ public class CellTerminalClientConfig {
             "Search filter mode: INVENTORY (search contents), PARTITION (search filters), MIXED (search both)");
         this.searchModeProperty.setLanguageKey("config.cellterminal.gui.searchMode");
         this.searchMode = SearchFilterMode.fromName(this.searchModeProperty.getString());
+
+        this.cellSlotLimitProperty = config.get(CATEGORY_GUI, "cellSlotLimit", SlotLimit.UNLIMITED.name(),
+            "Slot limit for cell content display: LIMIT_8, LIMIT_32, LIMIT_64, or UNLIMITED");
+        this.cellSlotLimitProperty.setLanguageKey("config.cellterminal.gui.cellSlotLimit");
+        this.cellSlotLimit = SlotLimit.fromName(this.cellSlotLimitProperty.getString());
+
+        this.busSlotLimitProperty = config.get(CATEGORY_GUI, "busSlotLimit", SlotLimit.UNLIMITED.name(),
+            "Slot limit for storage bus content display: LIMIT_8, LIMIT_32, LIMIT_64, or UNLIMITED");
+        this.busSlotLimitProperty.setLanguageKey("config.cellterminal.gui.busSlotLimit");
+        this.busSlotLimit = SlotLimit.fromName(this.busSlotLimitProperty.getString());
 
         // Load filter states for cells and storage buses separately
         config.setCategoryLanguageKey(CATEGORY_FILTERS, "config.cellterminal.filters");
@@ -190,6 +205,72 @@ public class CellTerminalClientConfig {
         setSearchMode(next);
 
         return next;
+    }
+
+    /**
+     * Get the slot limit for cells (tabs 0-2).
+     */
+    public SlotLimit getCellSlotLimit() {
+        return cellSlotLimit;
+    }
+
+    /**
+     * Set the slot limit for cells (tabs 0-2).
+     */
+    public void setCellSlotLimit(SlotLimit limit) {
+        if (this.cellSlotLimit == limit) return;
+
+        this.cellSlotLimit = limit;
+        this.cellSlotLimitProperty.set(limit.name());
+        config.save();
+    }
+
+    /**
+     * Cycle to the next cell slot limit.
+     * @return The new slot limit after cycling
+     */
+    public SlotLimit cycleCellSlotLimit() {
+        SlotLimit next = cellSlotLimit.next();
+        setCellSlotLimit(next);
+
+        return next;
+    }
+
+    /**
+     * Get the slot limit for storage buses (tabs 3-4).
+     */
+    public SlotLimit getBusSlotLimit() {
+        return busSlotLimit;
+    }
+
+    /**
+     * Set the slot limit for storage buses (tabs 3-4).
+     */
+    public void setBusSlotLimit(SlotLimit limit) {
+        if (this.busSlotLimit == limit) return;
+
+        this.busSlotLimit = limit;
+        this.busSlotLimitProperty.set(limit.name());
+        config.save();
+    }
+
+    /**
+     * Cycle to the next storage bus slot limit.
+     * @return The new slot limit after cycling
+     */
+    public SlotLimit cycleBusSlotLimit() {
+        SlotLimit next = busSlotLimit.next();
+        setBusSlotLimit(next);
+
+        return next;
+    }
+
+    /**
+     * Get the appropriate slot limit for the current tab.
+     * @param forStorageBus true for storage bus tabs (3-4), false for cell tabs (0-2)
+     */
+    public SlotLimit getSlotLimit(boolean forStorageBus) {
+        return forStorageBus ? busSlotLimit : cellSlotLimit;
     }
 
     /**

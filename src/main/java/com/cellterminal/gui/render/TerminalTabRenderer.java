@@ -8,6 +8,7 @@ import net.minecraft.client.renderer.RenderItem;
 
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.StorageInfo;
+import com.cellterminal.client.TabStateManager;
 import com.cellterminal.gui.GuiConstants;
 
 
@@ -89,14 +90,17 @@ public class TerminalTabRenderer extends CellTerminalRenderer {
         // Track this storage for priority field rendering
         ctx.visibleStorages.add(new RenderContext.VisibleStorageEntry(storage, y));
 
+        // Determine expansion state from TabStateManager so it's remembered per-tab
+        boolean isExpanded = TabStateManager.getInstance().isExpanded(TabStateManager.TabType.TERMINAL, storage.getId());
+
         // Draw expand/collapse indicator
-        String expandIcon = storage.isExpanded() ? "[-]" : "[+]";
+        String expandIcon = isExpanded ? "[-]" : "[+]";
         fontRenderer.drawString(expandIcon, 167, y + 1, 0x606060);
 
         // Draw vertical tree line connecting to cells below (if expanded and has cells following)
         // Terminal tab has no button covering the junction, so extend the line further up
         // to properly connect with the cell's tree line (which starts at y - 3 of the cell row)
-        boolean hasCellsFollowing = storage.isExpanded()
+        boolean hasCellsFollowing = isExpanded
             && lineIndex + 1 < lines.size()
             && lines.get(lineIndex + 1) instanceof CellInfo;
 

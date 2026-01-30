@@ -10,6 +10,7 @@ import net.minecraft.item.ItemStack;
 
 import com.cellterminal.client.StorageBusContentRow;
 import com.cellterminal.client.StorageBusInfo;
+import com.cellterminal.client.TabStateManager;
 import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.render.RenderContext;
 
@@ -63,6 +64,7 @@ public class StorageBusRenderer {
      * @param y Y position
      * @param lines All lines in the list
      * @param lineIndex Current line index
+     * @param tabType The tab type for determining expansion state
      * @param mouseX Relative mouse X
      * @param mouseY Relative mouse Y
      * @param absMouseX Absolute mouse X
@@ -71,14 +73,21 @@ public class StorageBusRenderer {
      */
     public void drawStorageBusHeader(StorageBusInfo storageBus, int y,
                                       List<Object> lines, int lineIndex,
+                                      TabStateManager.TabType tabType,
                                       int mouseX, int mouseY, int absMouseX, int absMouseY,
                                       RenderContext ctx) {
 
         // Track this storage bus for priority field rendering
         ctx.visibleStorageBuses.add(new RenderContext.VisibleStorageBusEntry(storageBus, y));
 
-        // Draw vertical tree line connecting to content rows below
-        boolean hasContentFollowing = lineIndex + 1 < lines.size()
+        // Draw expand/collapse indicator
+        boolean isExpanded = TabStateManager.getInstance().isBusExpanded(tabType, storageBus.getId());
+        String expandIcon = isExpanded ? "[-]" : "[+]";
+        fontRenderer.drawString(expandIcon, 167, y + 1, 0x606060);
+
+        // Draw vertical tree line connecting to content rows below (only if expanded)
+        boolean hasContentFollowing = isExpanded
+            && lineIndex + 1 < lines.size()
             && lines.get(lineIndex + 1) instanceof StorageBusContentRow;
 
         if (hasContentFollowing) {
@@ -111,13 +120,22 @@ public class StorageBusRenderer {
 
         if (ioModeHovered) ctx.hoveredIOModeButtonStorageBus = storageBus;
 
-        // Header hover detection
+        // Header hover detection (up to the expand button and IO mode area)
         int headerRightBound = buttonX;
         boolean headerHovered = mouseX >= GuiConstants.GUI_INDENT && mouseX < headerRightBound
             && mouseY >= y && mouseY < y + GuiConstants.ROW_HEIGHT;
 
+        // Also treat the expand/collapse icon area as part of the header for hover/click purposes
+        boolean expandIconHovered = mouseX >= 165 && mouseX < 180 && mouseY >= y && mouseY < y + GuiConstants.ROW_HEIGHT;
+
         if (headerHovered) {
             Gui.drawRect(GuiConstants.GUI_INDENT, y, headerRightBound, y + GuiConstants.ROW_HEIGHT, GuiConstants.COLOR_STORAGE_HEADER_HOVER);
+            ctx.hoveredStorageBus = storageBus;
+            ctx.hoveredContentStack = ItemStack.EMPTY;
+            ctx.hoveredContentX = absMouseX;
+            ctx.hoveredContentY = absMouseY;
+        } else if (expandIconHovered) {
+            // When hovering the expand icon we still want clicks to target this storage bus
             ctx.hoveredStorageBus = storageBus;
             ctx.hoveredContentStack = ItemStack.EMPTY;
             ctx.hoveredContentX = absMouseX;
@@ -132,21 +150,7 @@ public class StorageBusRenderer {
      * Draw IO mode button with colored dot.
      */
     private void drawIOModeDotButton(int x, int y, int size, int accessMode, boolean hovered) {
-        drawIOModeDotButton(x, y, size, accessMode, hovered, true);
-    }
-
-    /**
-     * Draw IO mode button with colored dot.
-     *
-     * @param supportsIOMode Whether the storage bus supports IO mode (essentia buses don't)
-     */
-    private void drawIOModeDotButton(int x, int y, int size, int accessMode, boolean hovered, boolean supportsIOMode) {
-        int btnColor;
-        if (supportsIOMode) {
-            btnColor = hovered ? GuiConstants.COLOR_BUTTON_HOVER : GuiConstants.COLOR_BUTTON_NORMAL;
-        } else {
-            btnColor = hovered ? 0xFF606060 : 0xFF707070;
-        }
+        int btnColor = hovered ? GuiConstants.COLOR_BUTTON_HOVER : GuiConstants.COLOR_BUTTON_NORMAL;
 
         Gui.drawRect(x, y, x + size, y + size, btnColor);
         Gui.drawRect(x, y, x + size, y + 1, GuiConstants.COLOR_BUTTON_SHADOW);
@@ -165,6 +169,7 @@ public class StorageBusRenderer {
      * @param y Y position
      * @param lines All lines in the list
      * @param lineIndex Current line index
+     * @param tabType The tab type for determining expansion state
      * @param mouseX Relative mouse X
      * @param mouseY Relative mouse Y
      * @param absMouseX Absolute mouse X
@@ -175,6 +180,7 @@ public class StorageBusRenderer {
      */
     public void drawStorageBusPartitionHeader(StorageBusInfo storageBus, int y,
                                                List<Object> lines, int lineIndex,
+                                               TabStateManager.TabType tabType,
                                                int mouseX, int mouseY, int absMouseX, int absMouseY,
                                                int guiLeft, int guiTop, RenderContext ctx) {
 
@@ -190,8 +196,14 @@ public class StorageBusRenderer {
             Gui.drawRect(GuiConstants.GUI_INDENT, y, GuiConstants.CONTENT_RIGHT_EDGE, y + GuiConstants.ROW_HEIGHT, GuiConstants.COLOR_SELECTION);
         }
 
-        // Draw vertical tree line connecting to content rows below
-        boolean hasContentFollowing = lineIndex + 1 < lines.size() && lines.get(lineIndex + 1) instanceof StorageBusContentRow;
+        // Draw expand/collapse indicator
+        boolean isExpanded = TabStateManager.getInstance().isBusExpanded(tabType, storageBus.getId());
+        String expandIcon = isExpanded ? "[-]" : "[+]";
+        fontRenderer.drawString(expandIcon, 167, y + 1, 0x606060);
+
+        // Draw vertical tree line connecting to content rows below (only if expanded)
+        boolean hasContentFollowing = isExpanded
+            && lineIndex + 1 < lines.size() && lines.get(lineIndex + 1) instanceof StorageBusContentRow;
 
         if (hasContentFollowing) {
             int lineX = GuiConstants.GUI_INDENT + 7;
@@ -221,17 +233,24 @@ public class StorageBusRenderer {
             && mouseY >= buttonY && mouseY < buttonY + buttonSize;
 
         drawIOModeDotButton(buttonX, buttonY, buttonSize, storageBus.getAccessRestriction(),
-                            ioModeHovered, storageBus.supportsIOMode());
+                            ioModeHovered);
 
         if (ioModeHovered) ctx.hoveredIOModeButtonStorageBus = storageBus;
 
-        // Header hover detection
+        // Header hover detection (up to the expand button, excluding IO mode button area)
         int headerRightBound = buttonX;
         boolean headerHovered = mouseX >= GuiConstants.GUI_INDENT && mouseX < headerRightBound
             && mouseY >= y && mouseY < y + GuiConstants.ROW_HEIGHT;
 
+        boolean expandIconHovered = mouseX >= 165 && mouseX < 180 && mouseY >= y && mouseY < y + GuiConstants.ROW_HEIGHT;
+
         if (headerHovered) {
             Gui.drawRect(GuiConstants.GUI_INDENT, y, headerRightBound, y + GuiConstants.ROW_HEIGHT, GuiConstants.COLOR_STORAGE_HEADER_HOVER);
+            ctx.hoveredStorageBus = storageBus;
+            ctx.hoveredContentStack = ItemStack.EMPTY;
+            ctx.hoveredContentX = absMouseX;
+            ctx.hoveredContentY = absMouseY;
+        } else if (expandIconHovered) {
             ctx.hoveredStorageBus = storageBus;
             ctx.hoveredContentStack = ItemStack.EMPTY;
             ctx.hoveredContentX = absMouseX;

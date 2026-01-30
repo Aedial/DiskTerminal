@@ -10,6 +10,7 @@ import net.minecraft.client.renderer.RenderItem;
 import com.cellterminal.client.CellContentRow;
 import com.cellterminal.client.EmptySlotInfo;
 import com.cellterminal.client.StorageInfo;
+import com.cellterminal.client.TabStateManager;
 import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.cells.CellRenderer;
 
@@ -83,7 +84,8 @@ public class PartitionTabRenderer {
 
             // Render the line
             if (line instanceof StorageInfo) {
-                cellRenderer.drawStorageHeader((StorageInfo) line, y, partitionLines, lineIndex, ctx);
+                cellRenderer.drawStorageHeader((StorageInfo) line, y, partitionLines, lineIndex,
+                    TabStateManager.TabType.PARTITION, ctx);
             } else if (line instanceof CellContentRow) {
                 CellContentRow row = (CellContentRow) line;
                 cellRenderer.drawCellPartitionLine(

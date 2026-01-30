@@ -47,6 +47,19 @@ public class CellDataHandler {
      */
     public static NBTTagCompound createStorageData(IChestOrDrive storage, String defaultName,
                                                     StorageTrackerCallback trackerCallback) {
+        return createStorageData(storage, defaultName, trackerCallback, Integer.MAX_VALUE);
+    }
+
+    /**
+     * Create NBT data for a storage device (ME Drive or ME Chest).
+     * @param storage The storage device
+     * @param defaultName The default localization key for the storage name
+     * @param trackerCallback Callback to register the storage tracker
+     * @param slotLimit Maximum number of item types to include per cell
+     * @return NBT data for the storage
+     */
+    public static NBTTagCompound createStorageData(IChestOrDrive storage, String defaultName,
+                                                    StorageTrackerCallback trackerCallback, int slotLimit) {
         TileEntity te = (TileEntity) storage;
         long id = te.getPos().toLong() ^ ((long) te.getWorld().provider.getDimension() << 48);
 
@@ -81,7 +94,7 @@ public class CellDataHandler {
                 ItemStack cellStack = cellInventory.getStackInSlot(slot);
                 if (cellStack.isEmpty()) continue;
 
-                NBTTagCompound cellData = createCellData(slot, cellStack, storage.getCellStatus(slot));
+                NBTTagCompound cellData = createCellData(slot, cellStack, storage.getCellStatus(slot), slotLimit);
                 cellList.appendTag(cellData);
             }
         }
@@ -95,6 +108,18 @@ public class CellDataHandler {
      * Create NBT data for a single cell.
      */
     public static NBTTagCompound createCellData(int slot, ItemStack cellStack, int status) {
+        return createCellData(slot, cellStack, status, Integer.MAX_VALUE);
+    }
+
+    /**
+     * Create NBT data for a single cell.
+     * @param slot The slot index in the storage device
+     * @param cellStack The cell ItemStack
+     * @param status The cell status
+     * @param slotLimit Maximum number of item types to include
+     * @return NBT data for the cell
+     */
+    public static NBTTagCompound createCellData(int slot, ItemStack cellStack, int status, int slotLimit) {
         NBTTagCompound cellData = new NBTTagCompound();
         cellData.setInteger("slot", slot);
         cellData.setInteger("status", status);
@@ -107,14 +132,15 @@ public class CellDataHandler {
         if (cellHandler == null) return cellData;
 
         // Try each channel type in order
-        if (tryPopulateItemCell(cellData, cellHandler, cellStack)) return cellData;
-        if (tryPopulateFluidCell(cellData, cellHandler, cellStack)) return cellData;
-        tryPopulateEssentiaCell(cellData, cellHandler, cellStack);
+        if (tryPopulateItemCell(cellData, cellHandler, cellStack, slotLimit)) return cellData;
+        if (tryPopulateFluidCell(cellData, cellHandler, cellStack, slotLimit)) return cellData;
+        tryPopulateEssentiaCell(cellData, cellHandler, cellStack, slotLimit);
 
         return cellData;
     }
 
-    private static boolean tryPopulateItemCell(NBTTagCompound cellData, ICellHandler cellHandler, ItemStack cellStack) {
+    private static boolean tryPopulateItemCell(NBTTagCompound cellData, ICellHandler cellHandler,
+                                                ItemStack cellStack, int slotLimit) {
         IStorageChannel<IAEItemStack> channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
         ICellInventoryHandler<IAEItemStack> handler = cellHandler.getCellInventory(cellStack, null, channel);
         if (handler == null) return false;
@@ -138,15 +164,17 @@ public class CellDataHandler {
             return true;
         }
 
+        cellData.setBoolean("isItem", true);
         populateCellStats(cellData, cellInv);
         populateConfigInventory(cellData, cellInv.getConfigInventory());
-        populateItemContents(cellData, cellInv, channel);
+        populateItemContents(cellData, cellInv, channel, slotLimit);
         populateCellUpgrades(cellData, cellInv.getUpgradesInventory());
 
         return true;
     }
 
-    private static boolean tryPopulateFluidCell(NBTTagCompound cellData, ICellHandler cellHandler, ItemStack cellStack) {
+    private static boolean tryPopulateFluidCell(NBTTagCompound cellData, ICellHandler cellHandler,
+                                                 ItemStack cellStack, int slotLimit) {
         IStorageChannel<IAEFluidStack> channel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
         ICellInventoryHandler<IAEFluidStack> handler = cellHandler.getCellInventory(cellStack, null, channel);
         if (handler == null) return false;
@@ -174,14 +202,16 @@ public class CellDataHandler {
         cellData.setBoolean("isFluid", true);
         populateCellStats(cellData, cellInv);
         populateConfigInventory(cellData, cellInv.getConfigInventory());
-        populateFluidContents(cellData, cellInv, channel);
+        populateFluidContents(cellData, cellInv, channel, slotLimit);
         populateCellUpgrades(cellData, cellInv.getUpgradesInventory());
 
         return true;
     }
 
-    private static void tryPopulateEssentiaCell(NBTTagCompound cellData, ICellHandler cellHandler, ItemStack cellStack) {
-        NBTTagCompound essentiaData = ThaumicEnergisticsIntegration.tryPopulateEssentiaCell(cellHandler, cellStack);
+    private static void tryPopulateEssentiaCell(NBTTagCompound cellData, ICellHandler cellHandler,
+                                                 ItemStack cellStack, int slotLimit) {
+        NBTTagCompound essentiaData = ThaumicEnergisticsIntegration.tryPopulateEssentiaCell(
+            cellHandler, cellStack, slotLimit);
         if (essentiaData != null) {
             for (String key : essentiaData.getKeySet()) {
                 cellData.setTag(key, essentiaData.getTag(key));
@@ -213,13 +243,14 @@ public class CellDataHandler {
     }
 
     private static void populateItemContents(NBTTagCompound cellData, ICellInventory<IAEItemStack> cellInv,
-                                              IStorageChannel<IAEItemStack> channel) {
+                                              IStorageChannel<IAEItemStack> channel, int slotLimit) {
         IItemList<IAEItemStack> contents = cellInv.getAvailableItems(channel.createList());
         NBTTagList contentsList = new NBTTagList();
         int count = 0;
 
         for (IAEItemStack stack : contents) {
-            if (count >= 63) break;
+            if (count >= slotLimit) break;
+
             NBTTagCompound stackNbt = new NBTTagCompound();
             stack.writeToNBT(stackNbt);
             contentsList.appendTag(stackNbt);
@@ -230,13 +261,14 @@ public class CellDataHandler {
     }
 
     private static void populateFluidContents(NBTTagCompound cellData, ICellInventory<IAEFluidStack> cellInv,
-                                               IStorageChannel<IAEFluidStack> channel) {
+                                               IStorageChannel<IAEFluidStack> channel, int slotLimit) {
         IItemList<IAEFluidStack> contents = cellInv.getAvailableItems(channel.createList());
         NBTTagList contentsList = new NBTTagList();
         int count = 0;
 
         for (IAEFluidStack stack : contents) {
-            if (count >= 63) break;
+            if (count >= slotLimit) break;
+
             ItemStack itemRep = stack.asItemStackRepresentation();
             if (itemRep.isEmpty()) continue;
 

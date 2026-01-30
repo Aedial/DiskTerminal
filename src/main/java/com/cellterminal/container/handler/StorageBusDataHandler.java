@@ -53,6 +53,7 @@ import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.integration.StorageDrawersIntegration;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 import com.cellterminal.network.PacketStorageBusPartitionAction;
+import com.cellterminal.integration.storagebus.StorageBusScannerRegistry;
 
 
 /**
@@ -88,43 +89,8 @@ public class StorageBusDataHandler {
 
         if (grid == null) return storageBusList;
 
-        // Collect all item storage buses
-        for (IGridNode gn : grid.getMachines(PartStorageBus.class)) {
-            if (!gn.isActive()) continue;
-
-            PartStorageBus storageBus = (PartStorageBus) gn.getMachine();
-            TileEntity hostTile = storageBus.getHost().getTile();
-            if (hostTile == null) continue;
-
-            long busId = createBusId(hostTile, storageBus.getSide().ordinal(), 0);
-
-            StorageBusTracker tracker = new StorageBusTracker(busId, storageBus, hostTile);
-            trackerMap.put(busId, tracker);
-
-            NBTTagCompound busData = createItemStorageBusData(storageBus, busId);
-            storageBusList.appendTag(busData);
-        }
-
-        // Collect all fluid storage buses
-        for (IGridNode gn : grid.getMachines(PartFluidStorageBus.class)) {
-            if (!gn.isActive()) continue;
-
-            PartFluidStorageBus storageBus = (PartFluidStorageBus) gn.getMachine();
-            TileEntity hostTile = storageBus.getHost().getTile();
-            if (hostTile == null) continue;
-
-            // Use bit flag 1 to distinguish fluid buses
-            long busId = createBusId(hostTile, storageBus.getSide().ordinal(), 1);
-
-            StorageBusTracker tracker = new StorageBusTracker(busId, storageBus, hostTile);
-            trackerMap.put(busId, tracker);
-
-            NBTTagCompound busData = createFluidStorageBusData(storageBus, busId);
-            storageBusList.appendTag(busData);
-        }
-
-        // Collect all essentia storage buses (from Thaumic Energistics)
-        collectEssentiaStorageBuses(grid, trackerMap, storageBusList);
+        // Delegate collection to registered scanners
+        StorageBusScannerRegistry.scanAll(grid, storageBusList, trackerMap);
 
         return storageBusList;
     }
@@ -132,69 +98,11 @@ public class StorageBusDataHandler {
     /**
      * Create a unique bus ID from position, dimension, side, and type flag.
      */
-    private static long createBusId(TileEntity hostTile, int sideOrdinal, int typeFlag) {
+    public static long createBusId(TileEntity hostTile, int sideOrdinal, int typeFlag) {
         return hostTile.getPos().toLong()
             ^ ((long) hostTile.getWorld().provider.getDimension() << 48)
             ^ ((long) sideOrdinal << 40)
             ^ ((long) typeFlag << 39);
-    }
-
-    /**
-     * Collect essentia storage buses from Thaumic Energistics if loaded.
-     */
-    @SuppressWarnings("unchecked")
-    private static void collectEssentiaStorageBuses(IGrid grid, Map<Long, StorageBusTracker> trackerMap,
-                                                     NBTTagList storageBusList) {
-        Class<?> essentiaStorageBusClass = ThaumicEnergisticsIntegration.getEssentiaStorageBusClass();
-        if (essentiaStorageBusClass == null) return;
-
-        Class<? extends IGridHost> busClass = (Class<? extends IGridHost>) essentiaStorageBusClass;
-
-        for (IGridNode gn : grid.getMachines(busClass)) {
-            if (!gn.isActive()) continue;
-
-            Object machine = gn.getMachine();
-            if (machine == null) continue;
-
-            TileEntity hostTile = getHostTileFromMachine(machine);
-            if (hostTile == null) continue;
-
-            EnumFacing side = getSideFromMachine(machine);
-            if (side == null) continue;
-
-            // Use bit flag 2 for essentia buses
-            long busId = createBusId(hostTile, side.ordinal(), 2);
-
-            StorageBusTracker tracker = new StorageBusTracker(busId, machine, hostTile);
-            trackerMap.put(busId, tracker);
-
-            NBTTagCompound busData = ThaumicEnergisticsIntegration.tryCreateEssentiaStorageBusData(machine, busId);
-            if (busData != null) storageBusList.appendTag(busData);
-        }
-    }
-
-    private static TileEntity getHostTileFromMachine(Object machine) {
-        try {
-            Method getTileMethod = machine.getClass().getMethod("getTile");
-            Object result = getTileMethod.invoke(machine);
-            if (result instanceof TileEntity) return (TileEntity) result;
-        } catch (Exception e) {
-            // Ignore
-        }
-
-        return null;
-    }
-
-    private static EnumFacing getSideFromMachine(Object machine) {
-        try {
-            Field sideField = machine.getClass().getField("side");
-            Object result = sideField.get(machine);
-            if (result instanceof AEPartLocation) return ((AEPartLocation) result).getFacing();
-        } catch (Exception e) {
-            // Ignore
-        }
-
-        return null;
     }
 
     /**
@@ -209,6 +117,8 @@ public class StorageBusDataHandler {
         busData.setInteger("dim", hostTile.getWorld().provider.getDimension());
         busData.setInteger("side", bus.getSide().ordinal());
         busData.setInteger("priority", bus.getPriority());
+        busData.setBoolean("isItem", true);
+        // Slot parameters are provided by the scanner implementation
 
         // Capacity upgrade count
         int capacityUpgrades = bus.getInstalledUpgrades(Upgrades.CAPACITY);
@@ -251,6 +161,7 @@ public class StorageBusDataHandler {
         busData.setInteger("side", bus.getSide().ordinal());
         busData.setInteger("priority", bus.getPriority());
         busData.setBoolean("isFluid", true);
+        // Slot parameters are provided by the scanner implementation
 
         // Capacity upgrade count
         int capacityUpgrades = bus.getInstalledUpgrades(Upgrades.CAPACITY);
@@ -299,7 +210,7 @@ public class StorageBusDataHandler {
     private static void addPartitionData(NBTTagCompound busData, IItemHandler configInv, int capacityUpgrades) {
         if (configInv == null) return;
 
-        int slotsToUse = StorageBusInfo.calculateAvailableSlots(capacityUpgrades);
+        int slotsToUse = computeAvailableSlotsFrom(busData, capacityUpgrades);
         NBTTagList partitionList = new NBTTagList();
 
         for (int i = 0; i < configInv.getSlots() && i < slotsToUse; i++) {
@@ -319,7 +230,7 @@ public class StorageBusDataHandler {
 
         NBTTagList partitionList = new NBTTagList();
         IFluidTankProperties[] tanks = fluidConfig.getTankProperties();
-        int slotsToUse = StorageBusInfo.calculateAvailableSlots(capacityUpgrades);
+        int slotsToUse = computeAvailableSlotsFrom(busData, capacityUpgrades);
 
         for (int i = 0; i < tanks.length && i < slotsToUse; i++) {
             FluidStack fluid = tanks[i].getContents();
@@ -348,6 +259,8 @@ public class StorageBusDataHandler {
         EnumFacing targetSide = facing.getOpposite();
         NBTTagList contentsList = new NBTTagList();
 
+        int slotsLimit = computeAvailableSlotsFrom(busData, busData.getInteger("capacityUpgrades"));
+
         // Try to use IItemRepository (Storage Drawers) first
         List<StorageDrawersIntegration.ItemRecordData> repoContents =
             StorageDrawersIntegration.tryGetItemRepositoryContents(target, targetSide);
@@ -355,7 +268,7 @@ public class StorageBusDataHandler {
         if (repoContents != null) {
             int count = 0;
             for (StorageDrawersIntegration.ItemRecordData record : repoContents) {
-                if (count >= 63) break;
+                if (count >= slotsLimit) break;
                 NBTTagCompound stackNbt = new NBTTagCompound();
                 record.itemPrototype.writeToNBT(stackNbt);
                 stackNbt.setLong("Cnt", record.count);
@@ -400,7 +313,7 @@ public class StorageBusDataHandler {
 
         int count = 0;
         for (Map.Entry<ItemStack, Long> entry : itemCounts.entrySet()) {
-            if (count >= 63) break;
+            if (count >= slotsLimit) break;
             NBTTagCompound stackNbt = new NBTTagCompound();
             entry.getKey().writeToNBT(stackNbt);
             stackNbt.setLong("Cnt", entry.getValue());
@@ -435,8 +348,9 @@ public class StorageBusDataHandler {
         }
 
         int count = 0;
+        int slotsLimit = computeAvailableSlotsFrom(busData, busData.getInteger("capacityUpgrades"));
         for (Map.Entry<String, Long> entry : fluidCounts.entrySet()) {
-            if (count >= 63) break;
+            if (count >= slotsLimit) break;
 
             FluidStack fluid = FluidRegistry.getFluidStack(entry.getKey(), 1000);
             if (fluid == null) continue;
@@ -456,6 +370,17 @@ public class StorageBusDataHandler {
         }
 
         busData.setTag("contents", contentsList);
+    }
+
+    private static int computeAvailableSlotsFrom(NBTTagCompound busData, int capacityUpgrades) {
+        int base = busData.hasKey("baseConfigSlots") ? busData.getInteger("baseConfigSlots") : StorageBusInfo.BASE_CONFIG_SLOTS;
+        int perUpg = busData.hasKey("slotsPerUpgrade") ? busData.getInteger("slotsPerUpgrade") : StorageBusInfo.SLOTS_PER_CAPACITY_UPGRADE;
+        int max = busData.hasKey("maxConfigSlots") ? busData.getInteger("maxConfigSlots") : StorageBusInfo.MAX_CONFIG_SLOTS;
+
+        int raw = base + perUpg * Math.max(0, capacityUpgrades);
+        if (raw > max) return max;
+
+        return raw;
     }
 
     private static void addUpgradesData(NBTTagCompound busData, IItemHandler upgradesInv) {

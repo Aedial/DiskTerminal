@@ -11,6 +11,7 @@ import com.cellterminal.client.CellContentRow;
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.EmptySlotInfo;
 import com.cellterminal.client.StorageInfo;
+import com.cellterminal.client.TabStateManager;
 import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.cells.CellRenderer;
 
@@ -75,7 +76,8 @@ public class InventoryTabRenderer {
 
             // Render the line
             if (line instanceof StorageInfo) {
-                cellRenderer.drawStorageHeader((StorageInfo) line, y, inventoryLines, lineIndex, ctx);
+                cellRenderer.drawStorageHeader((StorageInfo) line, y, inventoryLines, lineIndex,
+                    TabStateManager.TabType.INVENTORY, ctx);
             } else if (line instanceof CellContentRow) {
                 CellContentRow row = (CellContentRow) line;
                 cellRenderer.drawCellInventoryLine(

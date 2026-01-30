@@ -17,6 +17,7 @@ import appeng.api.storage.data.IItemList;
 import appeng.util.helpers.ItemHandlerUtil;
 
 import com.cellterminal.CellTerminal;
+import com.cellterminal.client.StorageBusInfo;
 
 
 /**
@@ -41,15 +42,21 @@ public class ThaumicEnergisticsIntegration {
     /**
      * Try to get cell data from an Essentia cell.
      * Returns null if not an Essentia cell or if Thaumic Energistics is not loaded.
+     * @param cellHandler The cell handler
+     * @param cellStack The cell ItemStack
+     * @param slotLimit Maximum number of item types to include
+     * @return NBT data for the cell, or null if not an Essentia cell
      */
-    public static NBTTagCompound tryPopulateEssentiaCell(ICellHandler cellHandler, ItemStack cellStack) {
+    public static NBTTagCompound tryPopulateEssentiaCell(ICellHandler cellHandler, ItemStack cellStack,
+                                                          int slotLimit) {
         if (!isModLoaded()) return null;
 
-        return tryPopulateEssentiaCellInternal(cellHandler, cellStack);
+        return tryPopulateEssentiaCellInternal(cellHandler, cellStack, slotLimit);
     }
 
     @Optional.Method(modid = MODID)
-    private static NBTTagCompound tryPopulateEssentiaCellInternal(ICellHandler cellHandler, ItemStack cellStack) {
+    private static NBTTagCompound tryPopulateEssentiaCellInternal(ICellHandler cellHandler, ItemStack cellStack,
+                                                                   int slotLimit) {
         try {
             // Get the Essentia storage channel
             IStorageChannel<thaumicenergistics.api.storage.IAEEssentiaStack> essentiaChannel =
@@ -101,7 +108,7 @@ public class ThaumicEnergisticsIntegration {
             NBTTagList contentsList = new NBTTagList();
             int count = 0;
             for (thaumicenergistics.api.storage.IAEEssentiaStack stack : contents) {
-                if (count >= 63) break;
+                if (count >= slotLimit) break;
 
                 // Convert to ItemStack representation (DummyAspect) for client display
                 ItemStack itemRep = stack.asItemStackRepresentation();
@@ -392,6 +399,10 @@ public class ThaumicEnergisticsIntegration {
             busData.setInteger("side", bus.side.ordinal());
             busData.setInteger("priority", bus.getPriority());
             busData.setBoolean("isEssentia", true);
+            // Essentia uses fixed config slots; provide explicit values
+            busData.setInteger("baseConfigSlots", com.cellterminal.client.StorageBusInfo.MAX_CONFIG_SLOTS);
+            busData.setInteger("slotsPerUpgrade", 0);
+            busData.setInteger("maxConfigSlots", com.cellterminal.client.StorageBusInfo.MAX_CONFIG_SLOTS);
 
             // Essentia storage buses don't have the same upgrade types as item storage buses
             // They use speed upgrades only
@@ -468,8 +479,12 @@ public class ThaumicEnergisticsIntegration {
                         AEApi.instance().storage().getStorageChannel(
                             thaumicenergistics.api.storage.IEssentiaStorageChannel.class);
 
+                    int limit = busData.hasKey("maxConfigSlots") ? busData.getInteger("maxConfigSlots")
+                        : StorageBusInfo.MAX_CONFIG_SLOTS;
+
                     for (thaumcraft.api.aspects.Aspect aspect : aspects.getAspects()) {
-                        if (count >= 63 || aspect == null) break;
+                        if (aspect == null) break;
+                        if (count >= limit) break;
 
                         int amount = aspects.getAmount(aspect);
                         if (amount <= 0) continue;

@@ -46,6 +46,13 @@ gui.cellterminal.filter.state.show_all=Show All
 gui.cellterminal.filter.state.show_only=Show Only
 gui.cellterminal.filter.state.hide=Hide
 
+# Slot limit button
+gui.cellterminal.slot_limit=Visual types limit: %s
+gui.cellterminal.slot_limit.8=8
+gui.cellterminal.slot_limit.32=32
+gui.cellterminal.slot_limit.64=64
+gui.cellterminal.slot_limit.unlimited=Unlimited
+
 # Search error
 gui.cellterminal.search_error=§cSearch Error:§r
 

@@ -9,6 +9,7 @@ import appeng.api.networking.IGridNode;
 
 import com.cellterminal.CellTerminal;
 import com.cellterminal.container.handler.CellDataHandler;
+import com.cellterminal.integration.storage.AbstractStorageScanner;
 import com.cellterminal.integration.storage.IStorageScanner;
 
 
@@ -18,6 +19,7 @@ import com.cellterminal.integration.storage.IStorageScanner;
  *
  * CrazyAE's TileImprovedDrive implements IChestOrDrive, so it works seamlessly
  * with the existing CellDataHandler infrastructure.
+ * TODO: Move to storage/
  */
 public class CrazyAEIntegration {
 
@@ -52,11 +54,13 @@ public class CrazyAEIntegration {
     /**
      * Storage scanner for CrazyAE's Improved Drive.
      * Must be inner class to use @Optional.Method properly.
+     *
+     * CrazyAE Improved Drive has 35 cell slots (vs 10 for vanilla).
      */
     @Optional.InterfaceList({
         @Optional.Interface(iface = "com.cellterminal.integration.storage.IStorageScanner", modid = MODID)
     })
-    private static class CrazyAEStorageScanner implements IStorageScanner {
+    private static class CrazyAEStorageScanner extends AbstractStorageScanner {
 
         @Override
         public String getId() {
@@ -70,16 +74,18 @@ public class CrazyAEIntegration {
 
         @Override
         @Optional.Method(modid = MODID)
-        public void scanStorages(IGrid grid, NBTTagList storageList, CellDataHandler.StorageTrackerCallback callback) {
+        public void scanStorages(IGrid grid, NBTTagList storageList, CellDataHandler.StorageTrackerCallback callback,
+                                  int slotLimit) {
             try {
-                scanImprovedDrives(grid, storageList, callback);
+                scanImprovedDrives(grid, storageList, callback, slotLimit);
             } catch (Exception e) {
                 CellTerminal.LOGGER.error("Error scanning CrazyAE improved drives: {}", e.getMessage());
             }
         }
 
         @Optional.Method(modid = MODID)
-        private void scanImprovedDrives(IGrid grid, NBTTagList storageList, CellDataHandler.StorageTrackerCallback callback) {
+        private void scanImprovedDrives(IGrid grid, NBTTagList storageList, CellDataHandler.StorageTrackerCallback callback,
+                                         int slotLimit) {
             // TileImprovedDrive implements IChestOrDrive, so we can use createStorageData directly
             for (IGridNode gn : grid.getMachines(dev.beecube31.crazyae2.common.tile.storage.TileImprovedDrive.class)) {
                 if (!gn.isActive()) continue;
@@ -90,7 +96,8 @@ public class CrazyAEIntegration {
                 storageList.appendTag(CellDataHandler.createStorageData(
                     drive,
                     "tile.crazyae.improved_drive.name",
-                    callback
+                    callback,
+                    slotLimit
                 ));
             }
         }

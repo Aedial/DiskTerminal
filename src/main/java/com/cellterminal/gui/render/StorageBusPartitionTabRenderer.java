@@ -8,6 +8,7 @@ import net.minecraft.client.renderer.RenderItem;
 
 import com.cellterminal.client.StorageBusContentRow;
 import com.cellterminal.client.StorageBusInfo;
+import com.cellterminal.client.TabStateManager;
 import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.storagebus.StorageBusRenderer;
 
@@ -71,6 +72,7 @@ public class StorageBusPartitionTabRenderer {
                 }
 
                 storageBusRenderer.drawStorageBusPartitionHeader(storageBus, y, partitionLines, lineIndex,
+                    TabStateManager.TabType.STORAGE_BUS_PARTITION,
                     relMouseX, relMouseY, absMouseX, absMouseY, guiLeft, guiTop, ctx);
 
             } else if (line instanceof StorageBusContentRow) {

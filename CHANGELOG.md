@@ -8,6 +8,16 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.2.1] - 2026-01-30
+### Added
+- Add a button to decide the max number of slots to show per cell/storage bus in inventory (8, 32, 64, or all)
+- Add [+]/[-] buttons to all storage entries to expand/collapse them, with persistent state until restart
+- Add persistent scroll position per tab until restart
+
+### Technical
+- Start refactoring integration into separate Scanners for better modularity and future extensibility
+
+
 ## [1.2.0] - 2026-01-29
 ### Added
 - Add CrazyAE's Drives support

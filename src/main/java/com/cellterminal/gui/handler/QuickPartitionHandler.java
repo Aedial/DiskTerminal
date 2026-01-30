@@ -353,7 +353,7 @@ public class QuickPartitionHandler {
     private static boolean matchesCellType(CellInfo cell, PartitionType type) {
         switch (type) {
             case ITEM:
-                return !cell.isFluid() && !cell.isEssentia();
+                return cell.isItem();
             case FLUID:
                 return cell.isFluid();
             case ESSENTIA:

@@ -9,6 +9,7 @@ import net.minecraft.item.ItemStack;
 
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.StorageInfo;
+import com.cellterminal.client.TabStateManager;
 import com.cellterminal.config.CellTerminalClientConfig;
 import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.gui.overlay.MessageHelper;
@@ -136,7 +137,8 @@ public class TerminalClickHandler {
             StorageInfo storage = (StorageInfo) line;
 
             if (relX >= 165 && relX < 180) {
-                storage.toggleExpanded();
+                boolean newState = TabStateManager.getInstance().toggleExpanded(TabStateManager.TabType.TERMINAL, storage.getId());
+                storage.setExpanded(newState);
                 callback.onStorageToggle(storage);
             }
 
@@ -148,11 +150,22 @@ public class TerminalClickHandler {
         }
     }
 
-    public void handleCellTabClick(int currentTab, CellInfo hoveredCellCell, int hoveredContentSlotIndex,
+    public void handleCellTabClick(int currentTab, int relMouseX, CellInfo hoveredCellCell, int hoveredContentSlotIndex,
             CellInfo hoveredPartitionCell, int hoveredPartitionSlotIndex,
             StorageInfo hoveredCellStorage, int hoveredCellSlotIndex,
             StorageInfo hoveredStorageLine, int hoveredLineIndex,
             Map<Long, StorageInfo> storageMap, int terminalDimension, Callback callback) {
+
+        // Check for expand/collapse button click on storage header
+        if (hoveredStorageLine != null && relMouseX >= 165 && relMouseX < 180) {
+            TabStateManager.TabType tabType = currentTab == TAB_INVENTORY
+                ? TabStateManager.TabType.INVENTORY
+                : TabStateManager.TabType.PARTITION;
+            TabStateManager.getInstance().toggleExpanded(tabType, hoveredStorageLine.getId());
+            callback.onStorageToggle(hoveredStorageLine);
+
+            return;
+        }
 
         // Check for double-click to highlight block
         long now = System.currentTimeMillis();

@@ -11,6 +11,7 @@ import net.minecraftforge.fluids.FluidStack;
 import appeng.fluids.items.FluidDummyItem;
 
 import com.cellterminal.client.StorageBusInfo;
+import com.cellterminal.client.TabStateManager;
 import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 import com.cellterminal.network.CellTerminalNetwork;
@@ -38,6 +39,7 @@ public class StorageBusClickHandler {
      */
     public static class ClickContext {
         public int currentTab;
+        public int relMouseX;  // Mouse X position relative to GUI left
         public StorageBusInfo hoveredStorageBus;
         public int hoveredStorageBusPartitionSlot = -1;
         public int hoveredStorageBusContentSlot = -1;
@@ -48,12 +50,13 @@ public class StorageBusClickHandler {
         public Set<Long> selectedStorageBusIds;
         public Map<Long, StorageBusInfo> storageBusMap;
 
-        public static ClickContext from(int currentTab, StorageBusInfo hoveredStorageBus,
+        public static ClickContext from(int currentTab, int relMouseX, StorageBusInfo hoveredStorageBus,
                 int hoveredPartitionSlot, int hoveredContentSlot,
                 StorageBusInfo clearButton, StorageBusInfo ioModeButton, StorageBusInfo partitionAllButton,
                 ItemStack hoveredContentStack, Set<Long> selectedStorageBusIds, Map<Long, StorageBusInfo> storageBusMap) {
             ClickContext ctx = new ClickContext();
             ctx.currentTab = currentTab;
+            ctx.relMouseX = relMouseX;
             ctx.hoveredStorageBus = hoveredStorageBus;
             ctx.hoveredStorageBusPartitionSlot = hoveredPartitionSlot;
             ctx.hoveredStorageBusContentSlot = hoveredContentSlot;
@@ -132,6 +135,15 @@ public class StorageBusClickHandler {
     private boolean handleInventoryTabClick(ClickContext ctx, int mouseButton) {
         if (mouseButton != 0) return false;
 
+        // Expand/collapse button click on storage bus header
+        if (ctx.hoveredStorageBus != null && ctx.relMouseX >= 165 && ctx.relMouseX < 180
+                && ctx.hoveredStorageBusContentSlot < 0) {
+            TabStateManager.getInstance().toggleBusExpanded(
+                TabStateManager.TabType.STORAGE_BUS_INVENTORY, ctx.hoveredStorageBus.getId());
+
+            return true;
+        }
+
         // IO Mode button
         if (ctx.hoveredIOModeButtonStorageBus != null && ctx.hoveredIOModeButtonStorageBus.supportsIOMode()) {
             CellTerminalNetwork.INSTANCE.sendToServer(
@@ -173,6 +185,15 @@ public class StorageBusClickHandler {
 
     private boolean handlePartitionTabClick(ClickContext ctx, int mouseButton, boolean wasDoubleClick) {
         if (mouseButton != 0) return false;
+
+        // Expand/collapse button click on storage bus header
+        if (ctx.hoveredStorageBus != null && ctx.relMouseX >= 165 && ctx.relMouseX < 180
+                && ctx.hoveredStorageBusPartitionSlot < 0) {
+            TabStateManager.getInstance().toggleBusExpanded(
+                TabStateManager.TabType.STORAGE_BUS_PARTITION, ctx.hoveredStorageBus.getId());
+
+            return true;
+        }
 
         // IO Mode button
         if (ctx.hoveredIOModeButtonStorageBus != null && ctx.hoveredIOModeButtonStorageBus.supportsIOMode()) {

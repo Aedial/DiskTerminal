@@ -23,6 +23,7 @@ public class StorageInfo {
     private final ItemStack blockItem;
     private final int slotCount;
     private final int priority;
+    private final boolean supportsPriorityFlag;
     private final List<CellInfo> cells = new ArrayList<>();
     private boolean expanded = true;
 
@@ -34,6 +35,7 @@ public class StorageInfo {
         this.blockItem = nbt.hasKey("blockItem") ? new ItemStack(nbt.getCompoundTag("blockItem")) : ItemStack.EMPTY;
         this.slotCount = nbt.getInteger("slotCount");
         this.priority = nbt.getInteger("priority");
+        this.supportsPriorityFlag = nbt.getBoolean("supportsPriority");
 
         if (nbt.hasKey("cells")) {
             NBTTagList cellList = nbt.getTagList("cells", Constants.NBT.TAG_COMPOUND);
@@ -127,5 +129,12 @@ public class StorageInfo {
         }
 
         return null;
+    }
+
+    /**
+     * Check if this storage supports priority editing.
+     */
+    public boolean supportsPriority() {
+        return supportsPriorityFlag;
     }
 }

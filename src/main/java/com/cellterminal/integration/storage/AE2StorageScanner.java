@@ -13,8 +13,11 @@ import com.cellterminal.container.handler.CellDataHandler;
 /**
  * Default storage scanner for vanilla AE2 storage devices.
  * Scans TileDrive (ME Drive) and TileChest (ME Chest) from the network.
+ *
+ * AE2 drives support priority and have standard 63-slot partition limits.
+ * Storage buses from AE2 support IO mode switching (read/write/both).
  */
-public class AE2StorageScanner implements IStorageScanner {
+public class AE2StorageScanner extends AbstractStorageScanner {
 
     public static final AE2StorageScanner INSTANCE = new AE2StorageScanner();
 
@@ -31,7 +34,8 @@ public class AE2StorageScanner implements IStorageScanner {
     }
 
     @Override
-    public void scanStorages(IGrid grid, NBTTagList storageList, CellDataHandler.StorageTrackerCallback callback) {
+    public void scanStorages(IGrid grid, NBTTagList storageList, CellDataHandler.StorageTrackerCallback callback,
+                              int slotLimit) {
         // Scan ME Drives
         for (IGridNode gn : grid.getMachines(TileDrive.class)) {
             if (!gn.isActive()) continue;
@@ -39,7 +43,8 @@ public class AE2StorageScanner implements IStorageScanner {
             storageList.appendTag(CellDataHandler.createStorageData(
                 (TileDrive) gn.getMachine(),
                 "tile.appliedenergistics2.drive.name",
-                callback
+                callback,
+                slotLimit
             ));
         }
 
@@ -50,7 +55,8 @@ public class AE2StorageScanner implements IStorageScanner {
             storageList.appendTag(CellDataHandler.createStorageData(
                 (TileChest) gn.getMachine(),
                 "tile.appliedenergistics2.chest.name",
-                callback
+                callback,
+                slotLimit
             ));
         }
     }
