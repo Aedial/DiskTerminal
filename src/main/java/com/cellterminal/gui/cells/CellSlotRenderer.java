@@ -233,7 +233,7 @@ public class CellSlotRenderer {
     public String formatItemCount(long count) {
         if (count < 1000) return String.valueOf(count);
 
-        return ReadableNumberConverter.INSTANCE.toSlimReadableForm(count);
+        return ReadableNumberConverter.INSTANCE.toWideReadableForm(count);
     }
 
     /**

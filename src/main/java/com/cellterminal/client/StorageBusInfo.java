@@ -99,9 +99,8 @@ public class StorageBusInfo {
         this.maxConfigSlots = nbt.hasKey("maxConfigSlots") ? nbt.getInteger("maxConfigSlots") : MAX_CONFIG_SLOTS;
 
         // Capability flags provided by scanners
-        this.supportsPriorityFlag = nbt.hasKey("supportsPriority") ? nbt.getBoolean("supportsPriority") : true;
-        // If not provided, default to buses supporting IO mode
-        this.supportsIOModeFlag = nbt.hasKey("supportsIOMode") ? nbt.getBoolean("supportsIOMode") : true;
+        this.supportsPriorityFlag = nbt.getBoolean("supportsPriority");
+        this.supportsIOModeFlag = nbt.getBoolean("supportsIOMode");
 
         // Connected inventory info
         this.connectedName = nbt.hasKey("connectedName") ? nbt.getString("connectedName") : null;

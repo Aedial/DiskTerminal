@@ -220,11 +220,7 @@ public class PopupCellInventory extends Gui {
     }
 
     private String formatItemCount(long count) {
-        if (count <= 0) return "";
         if (count < 1000) return String.valueOf(count);
-        if (AEConfig.instance().isUseColoredCraftingStatus()) {
-            return ReadableNumberConverter.INSTANCE.toSlimReadableForm(count);
-        }
 
         return ReadableNumberConverter.INSTANCE.toWideReadableForm(count);
     }

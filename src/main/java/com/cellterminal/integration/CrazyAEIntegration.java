@@ -1,5 +1,6 @@
 package com.cellterminal.integration;
 
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Optional;
@@ -93,12 +94,14 @@ public class CrazyAEIntegration {
                 dev.beecube31.crazyae2.common.tile.storage.TileImprovedDrive drive =
                     (dev.beecube31.crazyae2.common.tile.storage.TileImprovedDrive) gn.getMachine();
 
-                storageList.appendTag(CellDataHandler.createStorageData(
+                NBTTagCompound storageData = CellDataHandler.createStorageData(
                     drive,
                     "tile.crazyae.improved_drive.name",
                     callback,
                     slotLimit
-                ));
+                );
+                applyCapabilities(storageData);
+                storageList.appendTag(storageData);
             }
         }
     }
