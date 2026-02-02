@@ -120,15 +120,6 @@ public class StorageBusDataHandler {
         busData.setBoolean("isItem", true);
         // Slot parameters are provided by the scanner implementation
 
-        // Capacity upgrade count
-        int capacityUpgrades = bus.getInstalledUpgrades(Upgrades.CAPACITY);
-        busData.setInteger("capacityUpgrades", capacityUpgrades);
-
-        // Upgrade flags
-        busData.setBoolean("hasInverter", bus.getInstalledUpgrades(Upgrades.INVERTER) > 0);
-        busData.setBoolean("hasSticky", bus.getInstalledUpgrades(Upgrades.STICKY) > 0);
-        busData.setBoolean("hasFuzzy", bus.getInstalledUpgrades(Upgrades.FUZZY) > 0);
-
         // Access restriction (IO mode)
         AccessRestriction access = (AccessRestriction) bus.getConfigManager().getSetting(Settings.ACCESS);
         busData.setInteger("access", access.ordinal());
@@ -137,10 +128,11 @@ public class StorageBusDataHandler {
         addConnectedInventoryInfo(busData, hostTile, bus.getSide().getFacing());
 
         // Config slots (partition)
+        int capacityUpgrades = bus.getInstalledUpgrades(Upgrades.CAPACITY);
         addPartitionData(busData, bus.getInventoryByName("config"), capacityUpgrades);
 
         // Contents from the connected inventory
-        addItemContentsData(busData, hostTile, bus.getSide().getFacing());
+        addItemContentsData(busData, hostTile, bus.getSide().getFacing(), capacityUpgrades);
 
         // Upgrades list
         addUpgradesData(busData, bus.getInventoryByName("upgrades"));
@@ -163,15 +155,6 @@ public class StorageBusDataHandler {
         busData.setBoolean("isFluid", true);
         // Slot parameters are provided by the scanner implementation
 
-        // Capacity upgrade count
-        int capacityUpgrades = bus.getInstalledUpgrades(Upgrades.CAPACITY);
-        busData.setInteger("capacityUpgrades", capacityUpgrades);
-
-        // Upgrade flags (fluid bus doesn't support all upgrades)
-        busData.setBoolean("hasInverter", bus.getInstalledUpgrades(Upgrades.INVERTER) > 0);
-        busData.setBoolean("hasSticky", false);
-        busData.setBoolean("hasFuzzy", false);
-
         // Access restriction (IO mode)
         AccessRestriction access = (AccessRestriction) bus.getConfigManager().getSetting(Settings.ACCESS);
         busData.setInteger("access", access.ordinal());
@@ -180,10 +163,11 @@ public class StorageBusDataHandler {
         addConnectedInventoryInfo(busData, hostTile, bus.getSide().getFacing());
 
         // Fluid partition config
+        int capacityUpgrades = bus.getInstalledUpgrades(Upgrades.CAPACITY);
         addFluidPartitionData(busData, bus, capacityUpgrades);
 
         // Fluid contents from connected tank
-        addFluidContentsData(busData, hostTile, bus.getSide().getFacing());
+        addFluidContentsData(busData, hostTile, bus.getSide().getFacing(), capacityUpgrades);
 
         // Upgrades list
         addUpgradesData(busData, bus.getInventoryByName("upgrades"));
@@ -252,14 +236,15 @@ public class StorageBusDataHandler {
         busData.setTag("partition", partitionList);
     }
 
-    private static void addItemContentsData(NBTTagCompound busData, TileEntity hostTile, EnumFacing facing) {
+    private static void addItemContentsData(NBTTagCompound busData, TileEntity hostTile, EnumFacing facing,
+                                              int capacityUpgrades) {
         TileEntity target = hostTile.getWorld().getTileEntity(hostTile.getPos().offset(facing));
         if (target == null) return;
 
         EnumFacing targetSide = facing.getOpposite();
         NBTTagList contentsList = new NBTTagList();
 
-        int slotsLimit = computeAvailableSlotsFrom(busData, busData.getInteger("capacityUpgrades"));
+        int slotsLimit = computeAvailableSlotsFrom(busData, capacityUpgrades);
 
         // Try to use IItemRepository (Storage Drawers) first
         List<StorageDrawersIntegration.ItemRecordData> repoContents =
@@ -324,7 +309,8 @@ public class StorageBusDataHandler {
         busData.setTag("contents", contentsList);
     }
 
-    private static void addFluidContentsData(NBTTagCompound busData, TileEntity hostTile, EnumFacing facing) {
+    private static void addFluidContentsData(NBTTagCompound busData, TileEntity hostTile, EnumFacing facing,
+                                               int capacityUpgrades) {
         TileEntity targetTile = hostTile.getWorld().getTileEntity(hostTile.getPos().offset(facing));
         if (targetTile == null) return;
 
@@ -348,7 +334,7 @@ public class StorageBusDataHandler {
         }
 
         int count = 0;
-        int slotsLimit = computeAvailableSlotsFrom(busData, busData.getInteger("capacityUpgrades"));
+        int slotsLimit = computeAvailableSlotsFrom(busData, capacityUpgrades);
         for (Map.Entry<String, Long> entry : fluidCounts.entrySet()) {
             if (count >= slotsLimit) break;
 

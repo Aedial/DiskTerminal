@@ -18,8 +18,11 @@ import net.minecraftforge.items.IItemHandler;
 import appeng.api.AEApi;
 import appeng.api.config.Actionable;
 import appeng.api.networking.IGrid;
+import appeng.api.networking.events.MENetworkCellArrayUpdate;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.ICellHandler;
+
+import com.cells.api.IItemCompactingCell;
 import appeng.api.storage.ICellInventory;
 import appeng.api.storage.ICellInventoryHandler;
 import appeng.api.storage.IStorageChannel;
@@ -129,6 +132,9 @@ public final class NetworkToolActionHandler {
 
                 if (!matchesCellFilters(cellStack, activeFilters)) continue;
 
+                // Skip compacting cells - they use a special chain mechanism
+                if (cellStack.getItem() instanceof IItemCompactingCell) continue;
+
                 // Execute partition from contents
                 CellActionHandler.handlePartitionAction(
                     tracker.storage, tracker.tile, slot,
@@ -208,6 +214,8 @@ public final class NetworkToolActionHandler {
         }
 
         // Second pass: collect empty, non-partitioned cells of each type
+        // FIXME: Currently we just assume all cells can accept any item, which is kinda bad.
+        //        There should probably be a check for simulated insertion to verify compatibility.
         for (StorageTracker tracker : storageById.values()) {
             IItemHandler cellInventory = CellDataHandler.getCellInventory(tracker.storage);
             if (cellInventory == null) continue;
@@ -277,6 +285,9 @@ public final class NetworkToolActionHandler {
             totalMoved += result[0];
             totalCellsAffected += result[1];
         }
+
+        // Refresh all affected storage devices to update drive colors and network storage
+        refreshAffectedStorage(statsByType, grid);
 
         sendSuccess(player, "cellterminal.networktools.attribute_unique.success",
             totalMoved, totalCellsAffected);
@@ -356,6 +367,50 @@ public final class NetworkToolActionHandler {
         }
 
         return new int[] { itemTypesMoved, allCells.size() };
+    }
+
+    /**
+     * Refresh all storage devices that were affected by the redistribution.
+     * This forces drives to recalculate their cell state by simulating cell removal/reinsertion.
+     */
+    private static void refreshAffectedStorage(Map<CellType, TypeStats> statsByType, IGrid grid) {
+        // Collect all affected cell slots per storage tracker
+        Map<StorageTracker, Set<Integer>> affectedSlots = new java.util.LinkedHashMap<>();
+
+        for (TypeStats stats : statsByType.values()) {
+            for (CellTarget target : stats.filteredCells) {
+                affectedSlots.computeIfAbsent(target.tracker, k -> new HashSet<>()).add(target.slot);
+            }
+            for (CellTarget target : stats.emptyCells) {
+                affectedSlots.computeIfAbsent(target.tracker, k -> new HashSet<>()).add(target.slot);
+            }
+        }
+
+        // Force each affected storage device to recalculate by simulating cell swap
+        for (Map.Entry<StorageTracker, Set<Integer>> entry : affectedSlots.entrySet()) {
+            StorageTracker tracker = entry.getKey();
+            Set<Integer> slots = entry.getValue();
+
+            IItemHandler cellInventory = CellDataHandler.getCellInventory(tracker.storage);
+            if (cellInventory == null) continue;
+
+            // For each affected slot, extract and re-insert to trigger onChangeInventory
+            for (int slot : slots) {
+                ItemStack cellStack = cellInventory.extractItem(slot, 1, false);
+                if (!cellStack.isEmpty()) {
+                    cellInventory.insertItem(slot, cellStack, false);
+                }
+            }
+        }
+
+        // Post a network update event to refresh the grid storage
+        if (grid != null) {
+            try {
+                grid.postEvent(new MENetworkCellArrayUpdate());
+            } catch (Exception e) {
+                CellTerminal.LOGGER.warn("Failed to post MENetworkCellArrayUpdate: " + e.getMessage());
+            }
+        }
     }
 
     /**

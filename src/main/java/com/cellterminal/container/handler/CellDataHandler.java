@@ -10,8 +10,6 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.AEApi;
-import appeng.api.config.Upgrades;
-import appeng.api.implementations.items.IUpgradeModule;
 import appeng.api.implementations.tiles.IChestOrDrive;
 import appeng.api.storage.ICellHandler;
 import appeng.api.storage.ICellInventory;
@@ -286,7 +284,6 @@ public class CellDataHandler {
         if (upgradesInv == null) return;
 
         NBTTagList upgradeList = new NBTTagList();
-        boolean hasSticky = false, hasFuzzy = false, hasInverter = false;
 
         for (int i = 0; i < upgradesInv.getSlots(); i++) {
             ItemStack upgrade = upgradesInv.getStackInSlot(i);
@@ -296,19 +293,9 @@ public class CellDataHandler {
             upgrade.writeToNBT(upgradeNbt);
             upgradeNbt.setInteger("slot", i);
             upgradeList.appendTag(upgradeNbt);
-
-            if (upgrade.getItem() instanceof IUpgradeModule) {
-                Upgrades type = ((IUpgradeModule) upgrade.getItem()).getType(upgrade);
-                if (type == Upgrades.STICKY) hasSticky = true;
-                else if (type == Upgrades.FUZZY) hasFuzzy = true;
-                else if (type == Upgrades.INVERTER) hasInverter = true;
-            }
         }
 
         cellData.setTag("upgrades", upgradeList);
-        cellData.setBoolean("hasSticky", hasSticky);
-        cellData.setBoolean("hasFuzzy", hasFuzzy);
-        cellData.setBoolean("hasInverter", hasInverter);
     }
 
     private static String getStorageName(IChestOrDrive storage, String defaultName) {

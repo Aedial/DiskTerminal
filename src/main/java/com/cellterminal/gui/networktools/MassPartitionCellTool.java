@@ -10,6 +10,8 @@ import net.minecraft.item.ItemStack;
 
 import appeng.api.AEApi;
 
+import com.cells.api.IItemCompactingCell;
+
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketNetworkToolAction;
@@ -62,7 +64,7 @@ public class MassPartitionCellTool implements INetworkTool {
 
     @Override
     public ToolPreviewInfo getPreview(ToolContext context) {
-        List<FilteredCell> cells = context.getFilteredCells();
+        List<FilteredCell> cells = getPartitionableCells(context);
 
         // Count cells by type for the tooltip
         Map<String, Integer> cellTypeCount = new HashMap<>();
@@ -90,7 +92,7 @@ public class MassPartitionCellTool implements INetworkTool {
 
     @Override
     public String getExecutionError(ToolContext context) {
-        List<FilteredCell> cells = context.getFilteredCells();
+        List<FilteredCell> cells = getPartitionableCells(context);
         if (cells.isEmpty()) return I18n.format("gui.cellterminal.networktools.error.no_cells");
 
         return null;
@@ -98,9 +100,27 @@ public class MassPartitionCellTool implements INetworkTool {
 
     @Override
     public String getConfirmationMessage(ToolContext context) {
-        int count = context.getFilteredCells().size();
+        int count = getPartitionableCells(context).size();
 
         return I18n.format("gui.cellterminal.networktools.mass_partition_cell.confirm", count);
+    }
+
+    /**
+     * Get filtered cells that can be partitioned, excluding compacting cells.
+     */
+    private List<FilteredCell> getPartitionableCells(ToolContext context) {
+        List<FilteredCell> result = new ArrayList<>();
+
+        for (FilteredCell fc : context.getFilteredCells()) {
+            ItemStack cellItem = fc.getCell().getCellItem();
+
+            // Skip compacting cells - they use a special chain mechanism
+            if (cellItem.getItem() instanceof IItemCompactingCell) continue;
+
+            result.add(fc);
+        }
+
+        return result;
     }
 
     @Override

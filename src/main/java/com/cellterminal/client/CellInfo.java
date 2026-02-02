@@ -2,7 +2,6 @@ package com.cellterminal.client;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import net.minecraft.client.resources.I18n;
 import net.minecraft.item.ItemStack;
@@ -36,9 +35,6 @@ public class CellInfo {
     private final List<Long> contentCounts = new ArrayList<>();
 
     // Upgrade tracking
-    private final boolean hasSticky;
-    private final boolean hasFuzzy;
-    private final boolean hasInverter;
     private final List<ItemStack> upgrades = new ArrayList<>();
     private final List<Integer> upgradeSlotIndices = new ArrayList<>();
 
@@ -55,11 +51,6 @@ public class CellInfo {
         this.usedTypes = nbt.getLong("usedTypes");
         this.totalTypes = nbt.getLong("totalTypes");
         this.storedItemCount = nbt.getLong("storedItemCount");
-
-        // Parse upgrade flags
-        this.hasSticky = nbt.getBoolean("hasSticky");
-        this.hasFuzzy = nbt.getBoolean("hasFuzzy");
-        this.hasInverter = nbt.getBoolean("hasInverter");
 
         // Parse upgrade items for display
         if (nbt.hasKey("upgrades")) {
@@ -216,16 +207,17 @@ public class CellInfo {
         return I18n.format("gui.cellterminal.cell_empty");
     }
 
+    // TODO: replace with the ItemStack to avoid Type Squatting
     public boolean hasSticky() {
-        return hasSticky;
+        return getInstalledUpgrades(Upgrades.STICKY) > 0;
     }
 
     public boolean hasFuzzy() {
-        return hasFuzzy;
+        return getInstalledUpgrades(Upgrades.FUZZY) > 0;
     }
 
     public boolean hasInverter() {
-        return hasInverter;
+        return getInstalledUpgrades(Upgrades.INVERTER) > 0;
     }
 
     public List<ItemStack> getUpgrades() {
@@ -245,6 +237,7 @@ public class CellInfo {
 
     public int getUpgradeSlotCount() {
         // Standard AE2 cells have 2 upgrade slots
+        // TODO: adjust if supporting cells with different upgrade slot counts
         return 2;
     }
 
@@ -254,22 +247,6 @@ public class CellInfo {
 
     public boolean hasUpgradeSpace() {
         return upgrades.size() < getUpgradeSlotCount();
-    }
-
-    /**
-     * Check if a specific upgrade type is supported by this cell.
-     * @param upgradeType The upgrade type to check
-     * @return The maximum count of this upgrade the cell supports, or 0 if not supported
-     */
-    public int getMaxInstalled(Upgrades upgradeType) {
-        if (cellItem.isEmpty() || upgradeType == null) return 0;
-
-        Map<ItemStack, Integer> supported = upgradeType.getSupported();
-        for (Map.Entry<ItemStack, Integer> entry : supported.entrySet()) {
-            if (ItemStack.areItemsEqual(entry.getKey(), cellItem)) return entry.getValue();
-        }
-
-        return 0;
     }
 
     /**
@@ -292,25 +269,16 @@ public class CellInfo {
     }
 
     /**
-     * Check if this cell can accept the given upgrade item.
-     * Checks both compatibility and available space.
+     * Check if this cell can potentially accept the given upgrade item.
+     * This is a client-side heuristic only - actual validation happens server-side.
+     * Checks if item is an upgrade module and if there's space in the upgrade inventory.
      * @param upgradeStack The upgrade item to check
-     * @return true if the upgrade can be inserted
+     * @return true if the upgrade might be insertable
      */
     public boolean canAcceptUpgrade(ItemStack upgradeStack) {
         if (upgradeStack.isEmpty()) return false;
         if (!(upgradeStack.getItem() instanceof IUpgradeModule)) return false;
-        if (!hasUpgradeSpace()) return false;
 
-        IUpgradeModule upgradeModule = (IUpgradeModule) upgradeStack.getItem();
-        Upgrades upgradeType = upgradeModule.getType(upgradeStack);
-        if (upgradeType == null) return false;
-
-        int maxInstalled = getMaxInstalled(upgradeType);
-        if (maxInstalled == 0) return false;
-
-        int currentInstalled = getInstalledUpgrades(upgradeType);
-
-        return currentInstalled < maxInstalled;
+        return hasUpgradeSpace();
     }
 }

@@ -8,6 +8,15 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.3.0-rc2] - 2026-02-02
+### Added
+- Add exclusion of IICompactingCells from Partition Storage Cells from Content tool, as they should only have 1 partition, yet expose multiple item types
+
+### Fixed
+- Fix non-standard upgrade cards (not from base AE2) not being properly accepted for insertion into cells/storage buses
+- Fix Attribute Unique Tool not properly refreshing the network after execution, requiring manual cell re-insertion to see changes
+
+
 ## [1.3.0-rc1] - 2026-02-02
 ### Added
 - Add Network Tools as a 6th tab:
