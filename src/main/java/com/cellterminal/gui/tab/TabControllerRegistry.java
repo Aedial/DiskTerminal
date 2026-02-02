@@ -18,6 +18,7 @@ public class TabControllerRegistry {
         registerController(new PartitionTabController());
         registerController(new StorageBusInventoryTabController());
         registerController(new StorageBusPartitionTabController());
+        registerController(new NetworkToolsTabController());
     }
 
     private static void registerController(ITabController controller) {

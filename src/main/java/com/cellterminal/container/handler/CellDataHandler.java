@@ -322,6 +322,15 @@ public class CellDataHandler {
     }
 
     public static IItemHandler getCellInventory(IChestOrDrive storage) {
+        // TileChest has a combined internal inventory (input + cell), so we need special handling
+        // to return only the cell inventory portion.
+        if (storage instanceof TileChest) {
+            TileChest chest = (TileChest) storage;
+            IItemHandler wrapper = new TileChestCellInventoryWrapper(chest);
+
+            return wrapper;
+        }
+
         // Modular handling of Storage Drive-like tiles via AENetworkInvTile
         if (storage instanceof AENetworkInvTile) return ((AENetworkInvTile) storage).getInternalInventory();
 
@@ -330,6 +339,60 @@ public class CellDataHandler {
         }
 
         return null;
+    }
+
+    /**
+     * Wrapper for TileChest's cell inventory.
+     * TileChest has getInternalInventory() returning a combined inventory where:
+     * - slot 0 = input inventory (for items to be stored)
+     * - slot 1 = cell inventory (the actual storage cell)
+     *
+     * This wrapper maps slot 0 to the cell slot (slot 1 of the internal inventory).
+     */
+    private static class TileChestCellInventoryWrapper implements IItemHandler {
+        private final TileChest chest;
+        private final IItemHandler internalInv;
+
+        public TileChestCellInventoryWrapper(TileChest chest) {
+            this.chest = chest;
+            this.internalInv = chest.getInternalInventory();
+        }
+
+        @Override
+        public int getSlots() {
+            return 1;  // TileChest has exactly 1 cell slot
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int slot) {
+            if (slot != 0) return ItemStack.EMPTY;
+            // Slot 1 in the combined inventory is the cell slot
+            return internalInv.getStackInSlot(1);
+        }
+
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            if (slot != 0) return stack;
+            return internalInv.insertItem(1, stack, simulate);
+        }
+
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            if (slot != 0) return ItemStack.EMPTY;
+            return internalInv.extractItem(1, amount, simulate);
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            if (slot != 0) return 0;
+            return internalInv.getSlotLimit(1);
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            if (slot != 0) return false;
+            return internalInv.isItemValid(1, stack);
+        }
     }
 
     /**

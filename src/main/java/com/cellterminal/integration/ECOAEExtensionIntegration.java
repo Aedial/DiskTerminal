@@ -121,7 +121,10 @@ public class ECOAEExtensionIntegration {
                 // Each drive in the multiblock is presented as a separate storage entry
                 for (github.kasuminova.ecoaeextension.common.tile.ecotech.estorage.EStorageCellDrive drive : controller.getCellDrives()) {
                     NBTTagCompound driveData = createEStorageDriveData(drive, channelPriority, callback, slotLimit);
-                    if (driveData != null) storageList.appendTag(driveData);
+                    if (driveData != null) {
+                        applyCapabilities(driveData);
+                        storageList.appendTag(driveData);
+                    }
                 }
             }
         }

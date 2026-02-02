@@ -11,6 +11,7 @@ import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.StorageInfo;
 import com.cellterminal.client.TabStateManager;
 import com.cellterminal.config.CellTerminalClientConfig;
+import com.cellterminal.gui.tab.TabControllerRegistry;
 import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.network.CellTerminalNetwork;
@@ -30,7 +31,6 @@ public class TerminalClickHandler {
     public static final int TAB_TERMINAL = 0;
     public static final int TAB_INVENTORY = 1;
     public static final int TAB_PARTITION = 2;
-    public static final int TABS_COUNT = 5;
 
     // Layout constants
     private static final int TAB_WIDTH = 22;
@@ -64,7 +64,7 @@ public class TerminalClickHandler {
     public boolean handleTabClick(int mouseX, int mouseY, int guiLeft, int guiTop, int currentTab, Callback callback) {
         int tabY = guiTop + TAB_Y_OFFSET;
 
-        for (int i = 0; i < TABS_COUNT; i++) {
+        for (int i = 0; i < TabControllerRegistry.getTabCount(); i++) {
             int tabX = guiLeft + 4 + (i * (TAB_WIDTH + 2));
 
             if (mouseX >= tabX && mouseX < tabX + TAB_WIDTH

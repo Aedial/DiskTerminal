@@ -78,6 +78,12 @@ public class RenderContext {
     public final List<UpgradeIconTarget> upgradeIconTargets = new ArrayList<>();
     public UpgradeIconTarget hoveredUpgradeIcon = null;
 
+    // Network Tools tab hover state (Tab 5)
+    public com.cellterminal.gui.networktools.INetworkTool hoveredNetworkTool = null;
+    public com.cellterminal.gui.networktools.INetworkTool hoveredNetworkToolLaunchButton = null;
+    public com.cellterminal.gui.networktools.INetworkTool hoveredNetworkToolHelpButton = null;
+    public com.cellterminal.gui.networktools.INetworkTool.ToolPreviewInfo hoveredNetworkToolPreview = null;
+
     /**
      * Tracks a visible storage entry and its Y position for priority field placement.
      */
@@ -133,6 +139,10 @@ public class RenderContext {
         visibleStorageBuses.clear();
         upgradeIconTargets.clear();
         hoveredUpgradeIcon = null;
+        hoveredNetworkTool = null;
+        hoveredNetworkToolLaunchButton = null;
+        hoveredNetworkToolHelpButton = null;
+        hoveredNetworkToolPreview = null;
     }
 
     /**

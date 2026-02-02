@@ -36,12 +36,14 @@ public class CellTerminalServerConfig {
     private final Property tabPartitionEnabledProperty;
     private final Property tabStorageBusInventoryEnabledProperty;
     private final Property tabStorageBusPartitionEnabledProperty;
+    private final Property tabNetworkToolsEnabledProperty;
 
     private boolean tabTerminalEnabled = true;
     private boolean tabInventoryEnabled = true;
     private boolean tabPartitionEnabled = true;
     private boolean tabStorageBusInventoryEnabled = true;
     private boolean tabStorageBusPartitionEnabled = true;
+    private boolean tabNetworkToolsEnabled = true;
 
     // Polling settings
     private final Property storageBusPollingEnabledProperty;
@@ -109,6 +111,11 @@ public class CellTerminalServerConfig {
             "Enable the Storage Bus Partition tab (edit storage bus filters)");
         this.tabStorageBusPartitionEnabledProperty.setLanguageKey("config.cellterminal.config.server.tabs.storage_bus_partition");
         this.tabStorageBusPartitionEnabled = this.tabStorageBusPartitionEnabledProperty.getBoolean();
+
+        this.tabNetworkToolsEnabledProperty = config.get(CATEGORY_TABS, "networkToolsTabEnabled", true,
+            "Enable the Network Tools tab (mass operations on cells and storage buses)");
+        this.tabNetworkToolsEnabledProperty.setLanguageKey("config.cellterminal.config.server.tabs.network_tools");
+        this.tabNetworkToolsEnabled = this.tabNetworkToolsEnabledProperty.getBoolean();
 
         // Polling settings
         config.setCategoryComment(CATEGORY_POLLING,
@@ -233,6 +240,7 @@ public class CellTerminalServerConfig {
         this.tabPartitionEnabled = this.tabPartitionEnabledProperty.getBoolean();
         this.tabStorageBusInventoryEnabled = this.tabStorageBusInventoryEnabledProperty.getBoolean();
         this.tabStorageBusPartitionEnabled = this.tabStorageBusPartitionEnabledProperty.getBoolean();
+        this.tabNetworkToolsEnabled = this.tabNetworkToolsEnabledProperty.getBoolean();
 
         this.storageBusPollingEnabled = this.storageBusPollingEnabledProperty.getBoolean();
         this.pollingInterval = this.pollingIntervalProperty.getInt();
@@ -310,9 +318,13 @@ public class CellTerminalServerConfig {
         return tabStorageBusPartitionEnabled;
     }
 
+    public boolean isTabNetworkToolsEnabled() {
+        return tabNetworkToolsEnabled;
+    }
+
     /**
      * Check if a specific tab is enabled by its index.
-     * @param tabIndex The tab index (0-4)
+     * @param tabIndex The tab index (0-5)
      * @return true if the tab is enabled
      */
     public boolean isTabEnabled(int tabIndex) {
@@ -327,6 +339,8 @@ public class CellTerminalServerConfig {
                 return tabStorageBusInventoryEnabled;
             case 4:
                 return tabStorageBusPartitionEnabled;
+            case 5:
+                return tabNetworkToolsEnabled;
             default:
                 return false;
         }

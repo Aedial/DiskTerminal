@@ -8,6 +8,15 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.3.0-rc1] - 2026-02-02
+### Added
+- Add Network Tools as a 6th tab:
+  - Unique Content Distributor tool to partition unique each cell with a unique content type (from filtered cells) and move the existing content accordingly
+  - Mass Partition All Cells tool to set all filtered cells' partitions to match their current contents
+  - Mass Partition Storage Bus tool to set the filter of a Storage Bus to match its current inventory contents
+  - All tools come with heavy warnings and eager confirmation dialogs to avoid accidental usage
+
+
 ## [1.2.1] - 2026-01-30
 ### Added
 - Add a button to decide the max number of slots to show per cell/storage bus in inventory (8, 32, 64, or all)

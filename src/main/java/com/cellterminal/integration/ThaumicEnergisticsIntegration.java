@@ -165,6 +165,51 @@ public class ThaumicEnergisticsIntegration {
     }
 
     /**
+     * Check if an essentia cell is empty and has no partition.
+     * @param cellHandler The AE cell handler
+     * @param cellStack The cell ItemStack
+     * @return true if the cell is empty and has no partition, false otherwise
+     */
+    public static boolean isEssentiaEmptyAndNonPartitioned(ICellHandler cellHandler, ItemStack cellStack) {
+        if (!isModLoaded()) return false;
+
+        return isEssentiaEmptyAndNonPartitionedInternal(cellHandler, cellStack);
+    }
+
+    @Optional.Method(modid = MODID)
+    private static boolean isEssentiaEmptyAndNonPartitionedInternal(ICellHandler cellHandler, ItemStack cellStack) {
+        try {
+            IStorageChannel<thaumicenergistics.api.storage.IAEEssentiaStack> essentiaChannel =
+                AEApi.instance().storage().getStorageChannel(thaumicenergistics.api.storage.IEssentiaStorageChannel.class);
+
+            if (essentiaChannel == null) return false;
+
+            ICellInventoryHandler<thaumicenergistics.api.storage.IAEEssentiaStack> handler =
+                cellHandler.getCellInventory(cellStack, null, essentiaChannel);
+
+            if (handler == null || handler.getCellInv() == null) return false;
+
+            ICellInventory<thaumicenergistics.api.storage.IAEEssentiaStack> cellInv = handler.getCellInv();
+            boolean isEmpty = cellInv.getUsedBytes() == 0;
+
+            IItemHandler configInv = cellInv.getConfigInventory();
+            boolean hasPartition = false;
+            if (configInv != null) {
+                for (int i = 0; i < configInv.getSlots(); i++) {
+                    if (!configInv.getStackInSlot(i).isEmpty()) {
+                        hasPartition = true;
+                        break;
+                    }
+                }
+            }
+
+            return isEmpty && !hasPartition;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
      * Set all partition slots from cell contents for Essentia cells.
      */
     public static void setAllFromEssentiaContents(IItemHandler configInv, Object[] essentiaData) {
@@ -196,6 +241,181 @@ public class ThaumicEnergisticsIntegration {
         } catch (Exception e) {
             CellTerminal.LOGGER.debug("Failed to set Essentia partition from contents: " + e.getMessage());
         }
+    }
+
+    /**
+     * Collect unique essentia stacks from a cell for AttributeUnique tool.
+     * @param cellStack The essentia cell ItemStack
+     * @param uniqueKeys Set to track unique keys (will be modified)
+     * @param uniqueStacks List to add unique ItemStack representations to (will be modified)
+     */
+    public static void collectUniqueEssentiaFromCell(ItemStack cellStack,
+                                                      java.util.Set<String> uniqueKeys,
+                                                      java.util.List<ItemStack> uniqueStacks) {
+        if (!isModLoaded()) return;
+
+        collectUniqueEssentiaFromCellInternal(cellStack, uniqueKeys, uniqueStacks);
+    }
+
+    @Optional.Method(modid = MODID)
+    private static void collectUniqueEssentiaFromCellInternal(ItemStack cellStack,
+                                                               java.util.Set<String> uniqueKeys,
+                                                               java.util.List<ItemStack> uniqueStacks) {
+        try {
+            IStorageChannel<thaumicenergistics.api.storage.IAEEssentiaStack> essentiaChannel =
+                AEApi.instance().storage().getStorageChannel(thaumicenergistics.api.storage.IEssentiaStorageChannel.class);
+            if (essentiaChannel == null) return;
+
+            ICellHandler cellHandler = AEApi.instance().registries().cell().getHandler(cellStack);
+            if (cellHandler == null) return;
+
+            ICellInventoryHandler<thaumicenergistics.api.storage.IAEEssentiaStack> handler =
+                cellHandler.getCellInventory(cellStack, null, essentiaChannel);
+            if (handler == null || handler.getCellInv() == null) return;
+
+            IItemList<thaumicenergistics.api.storage.IAEEssentiaStack> available =
+                handler.getCellInv().getAvailableItems(essentiaChannel.createList());
+
+            for (thaumicenergistics.api.storage.IAEEssentiaStack stack : available) {
+                thaumcraft.api.aspects.Aspect aspect = stack.getAspect();
+                if (aspect == null) continue;
+
+                String key = "essentia:" + aspect.getTag();
+                if (uniqueKeys.add(key)) {
+                    uniqueStacks.add(stack.asItemStackRepresentation());
+                }
+            }
+        } catch (Exception e) {
+            CellTerminal.LOGGER.debug("Failed to collect unique essentia from cell: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Extract all essentia from a cell for AttributeUnique tool.
+     * @param cellStack The essentia cell ItemStack
+     * @param extractedStacks Map to store extracted stacks by key (will be modified)
+     */
+    public static void extractAllEssentiaFromCell(ItemStack cellStack,
+                                                   java.util.Map<String, Object> extractedStacks) {
+        if (!isModLoaded()) return;
+
+        extractAllEssentiaFromCellInternal(cellStack, extractedStacks);
+    }
+
+    @Optional.Method(modid = MODID)
+    private static void extractAllEssentiaFromCellInternal(ItemStack cellStack,
+                                                            java.util.Map<String, Object> extractedStacks) {
+        try {
+            IStorageChannel<thaumicenergistics.api.storage.IAEEssentiaStack> essentiaChannel =
+                AEApi.instance().storage().getStorageChannel(thaumicenergistics.api.storage.IEssentiaStorageChannel.class);
+            if (essentiaChannel == null) return;
+
+            ICellHandler cellHandler = AEApi.instance().registries().cell().getHandler(cellStack);
+            if (cellHandler == null) return;
+
+            ICellInventoryHandler<thaumicenergistics.api.storage.IAEEssentiaStack> handler =
+                cellHandler.getCellInventory(cellStack, null, essentiaChannel);
+            if (handler == null || handler.getCellInv() == null) return;
+
+            ICellInventory<thaumicenergistics.api.storage.IAEEssentiaStack> cellInv = handler.getCellInv();
+            IItemList<thaumicenergistics.api.storage.IAEEssentiaStack> available =
+                cellInv.getAvailableItems(essentiaChannel.createList());
+
+            for (thaumicenergistics.api.storage.IAEEssentiaStack stack : available) {
+                thaumicenergistics.api.storage.IAEEssentiaStack extracted =
+                    cellInv.extractItems(stack.copy(), appeng.api.config.Actionable.MODULATE, null);
+                if (extracted != null && extracted.getStackSize() > 0) {
+                    thaumcraft.api.aspects.Aspect aspect = extracted.getAspect();
+                    if (aspect == null) continue;
+
+                    String key = "essentia:" + aspect.getTag();
+                    Object existing = extractedStacks.get(key);
+                    if (existing instanceof thaumicenergistics.api.storage.IAEEssentiaStack) {
+                        ((thaumicenergistics.api.storage.IAEEssentiaStack) existing).incStackSize(extracted.getStackSize());
+                    } else {
+                        extractedStacks.put(key, extracted.copy());
+                    }
+                }
+            }
+
+            cellInv.persist();
+        } catch (Exception e) {
+            CellTerminal.LOGGER.debug("Failed to extract essentia from cell: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Inject an essentia stack into a cell for AttributeUnique tool.
+     * @param cellStack The essentia cell ItemStack
+     * @param essentiaStack The essentia stack to inject (must be IAEEssentiaStack)
+     */
+    public static void injectEssentiaIntoCell(ItemStack cellStack, Object essentiaStack) {
+        if (!isModLoaded()) return;
+
+        injectEssentiaIntoCellInternal(cellStack, essentiaStack);
+    }
+
+    @Optional.Method(modid = MODID)
+    private static void injectEssentiaIntoCellInternal(ItemStack cellStack, Object essentiaStack) {
+        try {
+            if (!(essentiaStack instanceof thaumicenergistics.api.storage.IAEEssentiaStack)) return;
+
+            IStorageChannel<thaumicenergistics.api.storage.IAEEssentiaStack> essentiaChannel =
+                AEApi.instance().storage().getStorageChannel(thaumicenergistics.api.storage.IEssentiaStorageChannel.class);
+            if (essentiaChannel == null) return;
+
+            ICellHandler cellHandler = AEApi.instance().registries().cell().getHandler(cellStack);
+            if (cellHandler == null) return;
+
+            ICellInventoryHandler<thaumicenergistics.api.storage.IAEEssentiaStack> handler =
+                cellHandler.getCellInventory(cellStack, null, essentiaChannel);
+            if (handler == null || handler.getCellInv() == null) return;
+
+            ICellInventory<thaumicenergistics.api.storage.IAEEssentiaStack> cellInv = handler.getCellInv();
+            cellInv.injectItems((thaumicenergistics.api.storage.IAEEssentiaStack) essentiaStack,
+                appeng.api.config.Actionable.MODULATE, null);
+            cellInv.persist();
+        } catch (Exception e) {
+            CellTerminal.LOGGER.debug("Failed to inject essentia into cell: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get an ItemStack representation for partition from an essentia stack.
+     * @param essentiaStack The essentia stack object (IAEEssentiaStack)
+     * @return ItemStack representation for partition, or empty if invalid
+     */
+    public static ItemStack getEssentiaPartitionItem(Object essentiaStack) {
+        if (!isModLoaded()) return ItemStack.EMPTY;
+
+        return getEssentiaPartitionItemInternal(essentiaStack);
+    }
+
+    @Optional.Method(modid = MODID)
+    private static ItemStack getEssentiaPartitionItemInternal(Object essentiaStack) {
+        try {
+            if (!(essentiaStack instanceof thaumicenergistics.api.storage.IAEEssentiaStack)) return ItemStack.EMPTY;
+
+            return ((thaumicenergistics.api.storage.IAEEssentiaStack) essentiaStack).asItemStackRepresentation();
+        } catch (Exception e) {
+            return ItemStack.EMPTY;
+        }
+    }
+
+    /**
+     * Check if a stack object is an IAEEssentiaStack.
+     * @param stack The object to check
+     * @return true if it's an essentia stack
+     */
+    public static boolean isEssentiaStack(Object stack) {
+        if (!isModLoaded()) return false;
+
+        return isEssentiaStackInternal(stack);
+    }
+
+    @Optional.Method(modid = MODID)
+    private static boolean isEssentiaStackInternal(Object stack) {
+        return stack instanceof thaumicenergistics.api.storage.IAEEssentiaStack;
     }
 
     /**
@@ -672,5 +892,56 @@ public class ThaumicEnergisticsIntegration {
     private static void clearAspectConfig(thaumicenergistics.util.EssentiaFilter config) {
         int slot = 0;
         for (thaumcraft.api.aspects.Aspect a : config) config.setAspect(null, slot++);
+    }
+
+    /**
+     * Check if an essentia storage bus has a connected inventory.
+     * @param storageBus The essentia storage bus object
+     * @return true if connected to an essentia-capable container
+     */
+    public static boolean essentiaStorageBusHasConnectedInventory(Object storageBus) {
+        if (!isModLoaded()) return false;
+
+        return essentiaStorageBusHasConnectedInventoryInternal(storageBus);
+    }
+
+    @Optional.Method(modid = MODID)
+    private static boolean essentiaStorageBusHasConnectedInventoryInternal(Object storageBus) {
+        // Essentia storage buses connect to essentia containers
+        // For simplicity, assume they have an inventory if they exist and are valid
+        if (storageBus instanceof thaumicenergistics.part.PartEssentiaStorageBus) return true;
+
+        return false;
+    }
+
+    /**
+     * Check if an essentia storage bus has a partition (filter) configured.
+     * @param storageBus The essentia storage bus object
+     * @return true if the bus has at least one aspect in its filter
+     */
+    public static boolean essentiaStorageBusHasPartition(Object storageBus) {
+        if (!isModLoaded()) return false;
+
+        return essentiaStorageBusHasPartitionInternal(storageBus);
+    }
+
+    @Optional.Method(modid = MODID)
+    private static boolean essentiaStorageBusHasPartitionInternal(Object storageBus) {
+        if (!(storageBus instanceof thaumicenergistics.part.PartEssentiaStorageBus)) return false;
+
+        try {
+            thaumicenergistics.part.PartEssentiaStorageBus bus =
+                (thaumicenergistics.part.PartEssentiaStorageBus) storageBus;
+            thaumicenergistics.util.EssentiaFilter config = bus.getConfig();
+            if (config == null) return false;
+
+            for (thaumcraft.api.aspects.Aspect a : config) {
+                if (a != null) return true;
+            }
+        } catch (Exception e) {
+            CellTerminal.LOGGER.debug("Error checking essentia storage bus partition: " + e.getMessage());
+        }
+
+        return false;
     }
 }

@@ -198,6 +198,27 @@ public class TerminalDataManager {
     }
 
     /**
+     * Get the current search filter text (lowercase, trimmed).
+     */
+    public String getSearchFilter() {
+        return searchFilter;
+    }
+
+    /**
+     * Check if advanced search is currently active.
+     */
+    public boolean isUsingAdvancedSearch() {
+        return useAdvancedSearch;
+    }
+
+    /**
+     * Get the advanced search matcher (may be null if not using advanced search).
+     */
+    public AdvancedSearchParser.SearchMatcher getAdvancedMatcher() {
+        return advancedMatcher;
+    }
+
+    /**
      * Set the active cell/storage bus filters and rebuild lines.
      */
     public void setActiveFilters(Map<CellFilter, State> filters) {

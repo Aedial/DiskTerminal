@@ -1,5 +1,6 @@
 package com.cellterminal.integration.storage;
 
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 
 import appeng.api.networking.IGrid;
@@ -40,24 +41,28 @@ public class AE2StorageScanner extends AbstractStorageScanner {
         for (IGridNode gn : grid.getMachines(TileDrive.class)) {
             if (!gn.isActive()) continue;
 
-            storageList.appendTag(CellDataHandler.createStorageData(
+            NBTTagCompound storageData = CellDataHandler.createStorageData(
                 (TileDrive) gn.getMachine(),
                 "tile.appliedenergistics2.drive.name",
                 callback,
                 slotLimit
-            ));
+            );
+            applyCapabilities(storageData);
+            storageList.appendTag(storageData);
         }
 
         // Scan ME Chests
         for (IGridNode gn : grid.getMachines(TileChest.class)) {
             if (!gn.isActive()) continue;
 
-            storageList.appendTag(CellDataHandler.createStorageData(
+            NBTTagCompound storageData = CellDataHandler.createStorageData(
                 (TileChest) gn.getMachine(),
                 "tile.appliedenergistics2.chest.name",
                 callback,
                 slotLimit
-            ));
+            );
+            applyCapabilities(storageData);
+            storageList.appendTag(storageData);
         }
     }
 }

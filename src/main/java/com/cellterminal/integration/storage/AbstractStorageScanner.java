@@ -1,6 +1,7 @@
 package com.cellterminal.integration.storage;
 
 import net.minecraft.nbt.NBTTagList;
+import net.minecraft.nbt.NBTTagCompound;
 
 import appeng.api.networking.IGrid;
 
@@ -47,5 +48,13 @@ public abstract class AbstractStorageScanner implements IStorageScanner {
      */
     public boolean supportsPriority() {
         return true;
+    }
+
+    /**
+     * Apply common capability flags to the provided NBT payload.
+     * @param nbt The storage NBT data to modify
+     */
+    protected void applyCapabilities(NBTTagCompound nbt) {
+        nbt.setBoolean("supportsPriority", supportsPriority());
     }
 }

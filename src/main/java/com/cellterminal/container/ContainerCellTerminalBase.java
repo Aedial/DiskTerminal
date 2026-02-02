@@ -36,9 +36,11 @@ import appeng.tile.storage.TileDrive;
 import appeng.util.Platform;
 
 import com.cellterminal.CellTerminal;
+import com.cellterminal.client.CellFilter;
 import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.container.handler.CellActionHandler;
 import com.cellterminal.container.handler.CellDataHandler;
+import com.cellterminal.container.handler.NetworkToolActionHandler;
 import com.cellterminal.container.handler.StorageBusDataHandler;
 import com.cellterminal.container.handler.StorageBusDataHandler.StorageBusTracker;
 import com.cellterminal.gui.overlay.MessageHelper;
@@ -716,10 +718,23 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         };
     }
 
-    protected static class StorageTracker {
-        protected final long id;
-        protected final TileEntity tile;
-        protected final IChestOrDrive storage;
+    /**
+     * Handle network tool action from client.
+     * This executes batch operations on cells and storage buses based on filters.
+     */
+    public void handleNetworkToolAction(String toolId, Map<CellFilter, CellFilter.State> activeFilters) {
+        EntityPlayer player = this.getPlayerInv().player;
+        NetworkToolActionHandler.handleAction(toolId, activeFilters, byId, storageBusById, grid, player);
+
+        // Trigger refresh after tool execution
+        this.needsFullRefresh = true;
+        this.needsStorageBusRefresh = true;
+    }
+
+    public static class StorageTracker {
+        public final long id;
+        public final TileEntity tile;
+        public final IChestOrDrive storage;
 
         public StorageTracker(long id, TileEntity tile, IChestOrDrive storage) {
             this.id = id;
