@@ -257,3 +257,76 @@ gui.cellterminal.controls.filter_indicator=§aP§r = 槽位已过滤。
 gui.cellterminal.controls.keybind_targets=绑定按键会为第一个未分区的元件设置分区。
 gui.cellterminal.controls.storage_bus_add_key=点击存储总线的顶部区域以选中，然后按§b%s§r以将光标处物品添加到该总线的过滤项中。
 gui.cellterminal.controls.storage_bus_capacity=可用槽位数取决于安装的容量卡升级。
+
+# Network Tools tab
+gui.cellterminal.tab.network_tools.tooltip=网络工具
+config.cellterminal.config.server.tabs.network_tools=网络工具标签页
+config.cellterminal.config.server.tabs.network_tools.tooltip=启用网络工具标签页（对元件和存储总线进行批量操作）
+
+# Network tools - general
+gui.cellterminal.networktools.warning.caution=§e⚠ 注意：§r该工具会对你的存储网络执行批量操作。使用预览功能可在运行工具前查看将做出的更改内容。
+gui.cellterminal.networktools.warning.irreversible=§c⚠ 警告：§r这些操作无法撤销。确保你清楚自己在做什么。
+gui.cellterminal.networktools.help.read_tooltip=将鼠标悬停在[?]图标上以获取关于每个工具的详细帮助。
+gui.cellterminal.networktools.preview=预览
+gui.cellterminal.networktools.affected_count=受影响：%d
+gui.cellterminal.networktools.launch=运行
+gui.cellterminal.networktools.confirm=确认
+gui.cellterminal.networktools.cancel=取消
+gui.cellterminal.networktools.warning=§c⚠ 该操作无法撤销。
+gui.cellterminal.networktools.no_targets=未找到目标（请检查过滤项）
+gui.cellterminal.networktools.target_breakdown=目标明细：
+gui.cellterminal.networktools.error.no_cells=没有符合当前筛选条件的元件
+gui.cellterminal.networktools.error.no_buses=没有符合当前筛选条件的存储总线
+gui.cellterminal.networktools.error.no_items=所选的元件中未找到物品
+
+# Network tools - server messages (sent via chat)
+cellterminal.networktools.error.no_items=§c所选的元件中未找到物品
+cellterminal.networktools.attribute_unique.error.not_enough_cells_by_type=§c对应类型的元件数量不足：%s
+cellterminal.networktools.attribute_unique.error.type_detail=%s：%d个元件，%d种类型
+cellterminal.networktools.attribute_unique.type.item=物品
+cellterminal.networktools.attribute_unique.type.fluid=流体
+cellterminal.networktools.attribute_unique.type.essentia=源质
+cellterminal.networktools.attribute_unique.success=§a已将%d种物品类型重新分配到%d个元件中
+
+# Network tools - confirmation modal
+gui.cellterminal.networktools.confirm.title=确认%s
+gui.cellterminal.networktools.confirm.message=确定运行该工具？
+gui.cellterminal.networktools.confirm.do_it=执行
+gui.cellterminal.networktools.confirm.cancel=取消
+
+# Network tools - Attribute Unique to Cells
+gui.cellterminal.networktools.attribute_unique.name=为元件分配唯一类型
+gui.cellterminal.networktools.attribute_unique.desc=将内容重新分配，使每个元件仅存储一种类型
+gui.cellterminal.networktools.attribute_unique.help.1=将所有唯一的内容重新分配到单个元件中，并据此设置分区。
+gui.cellterminal.networktools.attribute_unique.help.2=每种唯一类型仅会存入一个单独元件中。
+gui.cellterminal.networktools.attribute_unique.help.3=你需要有足够的对应类型的空闲元件才能使其生效。
+gui.cellterminal.networktools.attribute_unique.help.4=§e注意：§r无论筛选条件如何，只要是空的、未分区的元件都可能被使用。
+gui.cellterminal.networktools.attribute_unique.confirm=将把%d种唯一类型重新分配在%d个元件中。
+gui.cellterminal.networktools.attribute_unique.affected=%d种唯一类型分配在%d个元件中
+gui.cellterminal.networktools.attribute_unique.success=已将%d种唯一类型分配至%d个元件
+gui.cellterminal.networktools.attribute_unique.error.not_enough_cells=没有足够的元件来容纳所有唯一类型
+gui.cellterminal.networktools.attribute_unique.error.not_enough_cells_by_type=对应类型的元件数量不足：
+gui.cellterminal.networktools.attribute_unique.error.type_detail=%s：%d个元件，%d种类型
+gui.cellterminal.networktools.attribute_unique.none=没有可供分配的物品（未找到元件或物品）
+gui.cellterminal.networktools.attribute_unique.preview.title=可用元件 / 唯一类型
+gui.cellterminal.networktools.attribute_unique.preview.type.item=物品
+gui.cellterminal.networktools.attribute_unique.preview.type.fluid=流体
+gui.cellterminal.networktools.attribute_unique.preview.type.essentia=源质
+
+# Network tools - Mass Partition Cell
+gui.cellterminal.networktools.mass_partition_cell.name=根据内容批量分区（存储元件）
+gui.cellterminal.networktools.mass_partition_cell.help.1=根据其当前内容，为所有匹配的元件分区。
+gui.cellterminal.networktools.mass_partition_cell.help.2=§e注意：§r仅影响通过当前筛选条件的元件。
+gui.cellterminal.networktools.mass_partition_cell.confirm=将根据内容为%d个元件分区。
+gui.cellterminal.networktools.mass_partition_cell.affected=%d个元件将被分区
+gui.cellterminal.networktools.mass_partition_cell.success=已为%d个元件分区
+gui.cellterminal.networktools.mass_partition_cell.none=没有可分区的元件（筛选条件可能隐藏了所有元件）
+
+# Network tools - Mass Partition Bus
+gui.cellterminal.networktools.mass_partition_bus.name=根据内容批量分区（存储总线）
+gui.cellterminal.networktools.mass_partition_bus.help.1=根据其所连接容器的内容，为所有匹配的存储总线设置过滤项。
+gui.cellterminal.networktools.mass_partition_bus.help.2=§e注意：§r仅影响通过当前筛选条件的总线。
+gui.cellterminal.networktools.mass_partition_bus.confirm=将为%d个存储总线设置过滤项。
+gui.cellterminal.networktools.mass_partition_bus.affected=%d个总线将被设置过滤项
+gui.cellterminal.networktools.mass_partition_bus.success=已为%d个存储总线设置过滤项
+gui.cellterminal.networktools.mass_partition_bus.none=没有可设置过滤项的存储总线（筛选条件可能隐藏了所有总线）
