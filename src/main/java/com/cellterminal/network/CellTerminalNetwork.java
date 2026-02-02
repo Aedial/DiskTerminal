@@ -136,5 +136,13 @@ public class CellTerminalNetwork {
             packetId++,
             Side.SERVER
         );
+
+        // Client -> Server: Execute a network tool action
+        INSTANCE.registerMessage(
+            PacketNetworkToolAction.Handler.class,
+            PacketNetworkToolAction.class,
+            packetId++,
+            Side.SERVER
+        );
     }
 }

@@ -20,6 +20,7 @@ import com.cellterminal.gui.GuiTerminalStyleButton;
 import com.cellterminal.gui.PopupCellInventory;
 import com.cellterminal.gui.PopupCellPartition;
 import com.cellterminal.gui.PriorityFieldManager;
+import com.cellterminal.gui.networktools.INetworkTool;
 import com.cellterminal.gui.render.RenderContext;
 
 
@@ -34,6 +35,7 @@ public class TooltipHandler {
     public static final int TAB_PARTITION = 2;
     public static final int TAB_STORAGE_BUS_INVENTORY = 3;
     public static final int TAB_STORAGE_BUS_PARTITION = 4;
+    public static final int TAB_NETWORK_TOOLS = 5;
 
     /**
      * Context containing all the state needed for rendering tooltips.
@@ -77,6 +79,11 @@ public class TooltipHandler {
 
         // Upgrade icon hover state
         public RenderContext.UpgradeIconTarget hoveredUpgradeIcon = null;
+
+        // Network tools hover state
+        public INetworkTool hoveredNetworkTool = null;
+        public INetworkTool hoveredNetworkToolHelpButton = null;
+        public INetworkTool.ToolPreviewInfo hoveredNetworkToolPreview = null;
     }
 
     /**
@@ -91,6 +98,32 @@ public class TooltipHandler {
      * Draw all tooltips for the current state.
      */
     public static void drawTooltips(TooltipContext ctx, TooltipRenderer renderer, int mouseX, int mouseY) {
+
+        // Network tools help button tooltip
+        if (ctx.hoveredNetworkToolHelpButton != null) {
+            List<String> tooltip = new ArrayList<>();
+            tooltip.add("§e" + ctx.hoveredNetworkToolHelpButton.getName());
+            tooltip.add("");
+            for (String line : ctx.hoveredNetworkToolHelpButton.getHelpLines()) tooltip.add("§7" + line);
+
+            renderer.drawHoveringText(tooltip, mouseX, mouseY);
+
+            return;
+        }
+
+        // Network tools preview tooltip - show tooltip lines from the preview
+        if (ctx.hoveredNetworkToolPreview != null) {
+            List<String> tooltipLines = ctx.hoveredNetworkToolPreview.getTooltipLines();
+            if (tooltipLines != null && !tooltipLines.isEmpty()) {
+                List<String> lines = new ArrayList<>();
+                lines.add("§e" + ctx.hoveredNetworkTool.getName());
+                lines.add("");
+                lines.addAll(tooltipLines);
+                renderer.drawHoveringText(lines, mouseX, mouseY);
+
+                return;
+            }
+        }
 
         // Upgrade icon tooltips
         if (ctx.hoveredUpgradeIcon != null) {
@@ -240,6 +273,9 @@ public class TooltipHandler {
                 break;
             case TAB_STORAGE_BUS_PARTITION:
                 baseTooltip = I18n.format("gui.cellterminal.tab.storage_bus_partition.tooltip");
+                break;
+            case TAB_NETWORK_TOOLS:
+                baseTooltip = I18n.format("gui.cellterminal.tab.network_tools.tooltip");
                 break;
             default:
                 return "";

@@ -36,7 +36,6 @@ public class TabRenderingHandler {
         public final int offsetY;
         public final int mouseX;
         public final int mouseY;
-        public final int tabCount;
         public final int tabWidth;
         public final int tabHeight;
         public final int tabYOffset;
@@ -45,14 +44,13 @@ public class TabRenderingHandler {
         public final Minecraft mc;
 
         public TabRenderContext(int guiLeft, int offsetX, int offsetY, int mouseX, int mouseY,
-                                int tabCount, int tabWidth, int tabHeight, int tabYOffset,
+                                int tabWidth, int tabHeight, int tabYOffset,
                                 int currentTab, RenderItem itemRender, Minecraft mc) {
             this.guiLeft = guiLeft;
             this.offsetX = offsetX;
             this.offsetY = offsetY;
             this.mouseX = mouseX;
             this.mouseY = mouseY;
-            this.tabCount = tabCount;
             this.tabWidth = tabWidth;
             this.tabHeight = tabHeight;
             this.tabYOffset = tabYOffset;
@@ -104,7 +102,7 @@ public class TabRenderingHandler {
         int tabY = ctx.offsetY + ctx.tabYOffset;
         int hoveredTab = -1;
 
-        for (int i = 0; i < ctx.tabCount; i++) {
+        for (int i = 0; i < TabControllerRegistry.getTabCount(); i++) {
             int tabX = ctx.offsetX + 4 + (i * (ctx.tabWidth + 2));
             boolean isSelected = (i == ctx.currentTab);
             boolean isHovered = ctx.mouseX >= tabX && ctx.mouseX < tabX + ctx.tabWidth

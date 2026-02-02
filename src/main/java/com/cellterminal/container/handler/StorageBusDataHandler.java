@@ -748,4 +748,104 @@ public class StorageBusDataHandler {
 
         return ItemStack.EMPTY;
     }
+
+    /**
+     * Check if a storage bus has a connected inventory with items.
+     * @param tracker The storage bus tracker
+     * @return true if the bus has a connected inventory
+     */
+    public static boolean busHasConnectedInventory(StorageBusTracker tracker) {
+        if (tracker.storageBus instanceof PartStorageBus) {
+            PartStorageBus bus = (PartStorageBus) tracker.storageBus;
+            TileEntity facing = getFacingTile(bus);
+            if (facing == null) return false;
+
+            EnumFacing side = bus.getSide().getFacing().getOpposite();
+            IItemHandler itemHandler = facing.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, side);
+
+            return itemHandler != null && itemHandler.getSlots() > 0;
+        }
+
+        if (tracker.storageBus instanceof PartFluidStorageBus) {
+            PartFluidStorageBus bus = (PartFluidStorageBus) tracker.storageBus;
+            TileEntity facing = getFacingTile(bus);
+            if (facing == null) return false;
+
+            EnumFacing side = bus.getSide().getFacing().getOpposite();
+            IFluidHandler fluidHandler = facing.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, side);
+
+            return fluidHandler != null && fluidHandler.getTankProperties().length > 0;
+        }
+
+        // For essentia buses, check via reflection
+        if (ThaumicEnergisticsIntegration.isModLoaded()) {
+            return ThaumicEnergisticsIntegration.essentiaStorageBusHasConnectedInventory(tracker.storageBus);
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if a storage bus has a partition configured.
+     * @param tracker The storage bus tracker
+     * @return true if the bus has at least one item in its config inventory
+     */
+    public static boolean busHasPartition(StorageBusTracker tracker) {
+        if (tracker.storageBus instanceof PartStorageBus) {
+            PartStorageBus bus = (PartStorageBus) tracker.storageBus;
+            IItemHandler configInv = bus.getInventoryByName("config");
+            if (configInv == null) return false;
+
+            for (int i = 0; i < configInv.getSlots(); i++) {
+                if (!configInv.getStackInSlot(i).isEmpty()) return true;
+            }
+
+            return false;
+        }
+
+        if (tracker.storageBus instanceof PartFluidStorageBus) {
+            PartFluidStorageBus bus = (PartFluidStorageBus) tracker.storageBus;
+            IAEFluidTank configInv = bus.getConfig();
+            if (configInv == null) return false;
+
+            for (int i = 0; i < configInv.getSlots(); i++) {
+                if (configInv.getFluidInSlot(i) != null) return true;
+            }
+
+            return false;
+        }
+
+        // For essentia buses, check via reflection
+        if (ThaumicEnergisticsIntegration.isModLoaded()) {
+            return ThaumicEnergisticsIntegration.essentiaStorageBusHasPartition(tracker.storageBus);
+        }
+
+        return false;
+    }
+
+    private static TileEntity getFacingTile(PartStorageBus bus) {
+        try {
+            TileEntity host = bus.getHost().getTile();
+            if (host == null || host.getWorld() == null) return null;
+
+            BlockPos facingPos = host.getPos().offset(bus.getSide().getFacing());
+
+            return host.getWorld().getTileEntity(facingPos);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static TileEntity getFacingTile(PartFluidStorageBus bus) {
+        try {
+            TileEntity host = bus.getHost().getTile();
+            if (host == null || host.getWorld() == null) return null;
+
+            BlockPos facingPos = host.getPos().offset(bus.getSide().getFacing());
+
+            return host.getWorld().getTileEntity(facingPos);
+        } catch (Exception e) {
+            return null;
+        }
+    }
 }

@@ -52,9 +52,12 @@ import com.cellterminal.gui.handler.TerminalClickHandler;
 import com.cellterminal.gui.handler.TerminalDataManager;
 import com.cellterminal.gui.handler.TooltipHandler;
 import com.cellterminal.gui.handler.UpgradeClickHandler;
+import com.cellterminal.gui.networktools.INetworkTool;
+import com.cellterminal.gui.networktools.GuiToolConfirmationModal;
 import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.gui.overlay.OverlayMessageRenderer;
 import com.cellterminal.gui.render.InventoryTabRenderer;
+import com.cellterminal.gui.render.NetworkToolsTabRenderer;
 import com.cellterminal.gui.render.PartitionTabRenderer;
 import com.cellterminal.gui.render.RenderContext;
 import com.cellterminal.gui.render.StorageBusInventoryTabRenderer;
@@ -88,7 +91,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     public static final int TAB_PARTITION = 2;
     public static final int TAB_STORAGE_BUS_INVENTORY = 3;
     public static final int TAB_STORAGE_BUS_PARTITION = 4;
-    private static final int TAB_COUNT = 5;
+    public static final int TAB_NETWORK_TOOLS = 5;
     private static final int TAB_WIDTH = 22;
     private static final int TAB_HEIGHT = 22;
     private static final int TAB_Y_OFFSET = -22;
@@ -110,6 +113,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     protected PartitionTabRenderer partitionRenderer;
     protected StorageBusInventoryTabRenderer storageBusInventoryRenderer;
     protected StorageBusPartitionTabRenderer storageBusPartitionRenderer;
+    protected NetworkToolsTabRenderer networkToolsRenderer;
     protected RenderContext renderContext;
 
     // Handlers
@@ -138,6 +142,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     protected ItemStack tabIconInventory = null;
     protected ItemStack tabIconPartition = null;
     protected ItemStack tabIconStorageBus = null;  // Storage bus icon for composite rendering
+    protected ItemStack tabIconNetworkTool = null;  // Network Tools tab icon
 
     // Popup states
     protected PopupCellInventory inventoryPopup = null;
@@ -216,7 +221,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         // Load persisted settings
         CellTerminalClientConfig config = CellTerminalClientConfig.getInstance();
         this.currentTab = config.getSelectedTab();
-        if (this.currentTab < 0 || this.currentTab >= TAB_COUNT) this.currentTab = TAB_TERMINAL;
+        if (this.currentTab < 0 || this.currentTab >= TabControllerRegistry.getTabCount()) this.currentTab = TAB_TERMINAL;
 
         // If the persisted tab is disabled, redirect to the first enabled tab
         if (CellTerminalServerConfig.isInitialized() && !CellTerminalServerConfig.getInstance().isTabEnabled(this.currentTab)) {
@@ -253,7 +258,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
         CellTerminalServerConfig config = CellTerminalServerConfig.getInstance();
 
-        for (int i = 0; i < TAB_COUNT; i++) {
+        for (int i = 0; i < TabControllerRegistry.getTabCount(); i++) {
             if (config.isTabEnabled(i)) return i;
         }
 
@@ -341,6 +346,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         this.partitionRenderer = new PartitionTabRenderer(this.fontRenderer, this.itemRender);
         this.storageBusInventoryRenderer = new StorageBusInventoryTabRenderer(this.fontRenderer, this.itemRender);
         this.storageBusPartitionRenderer = new StorageBusPartitionTabRenderer(this.fontRenderer, this.itemRender);
+        this.networkToolsRenderer = new NetworkToolsTabRenderer(this.fontRenderer, this.itemRender);
     }
 
     protected void initTerminalStyleButton() {
@@ -455,6 +461,10 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         // Storage bus icon (used for composite rendering)
         tabIconStorageBus = AEApi.instance().definitions().parts().storageBus()
             .maybeStack(1).orElse(ItemStack.EMPTY);
+
+        // Network Tools icon
+        tabIconNetworkTool = AEApi.instance().definitions().items().networkTool()
+            .maybeStack(1).orElse(ItemStack.EMPTY);
     }
 
     protected void repositionSlots() {
@@ -495,6 +505,9 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         // Render modal search bar on top of everything else
         if (modalSearchBar != null && modalSearchBar.isVisible()) modalSearchBar.draw(mouseX, mouseY);
 
+        // Render network tool confirmation modal on top of everything else
+        if (networkToolModal != null) networkToolModal.draw(mouseX, mouseY);
+
         // Render overlay messages last (on top of everything)
         OverlayMessageRenderer.render();
     }
@@ -533,6 +546,12 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
         // Upgrade icon hover state
         ctx.hoveredUpgradeIcon = hoveredUpgradeIcon;
+
+        // Network tools hover state
+        RenderContext renderCtx = getRenderContext();
+        ctx.hoveredNetworkTool = renderCtx.hoveredNetworkTool;
+        ctx.hoveredNetworkToolHelpButton = renderCtx.hoveredNetworkToolHelpButton;
+        ctx.hoveredNetworkToolPreview = renderCtx.hoveredNetworkToolPreview;
 
         TooltipHandler.drawTooltips(ctx, new TooltipHandler.TooltipRenderer() {
             @Override
@@ -607,6 +626,10 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
                 storageBusPartitionRenderer.draw(dataManager.getStorageBusPartitionLines(), currentScroll, rowsVisible,
                     relMouseX, relMouseY, mouseX, mouseY,
                     this.guiLeft, this.guiTop, renderContext);
+                break;
+            case TAB_NETWORK_TOOLS:
+                networkToolsRenderer.draw(currentScroll, rowsVisible,
+                    relMouseX, relMouseY, createNetworkToolContext(), renderContext);
                 break;
         }
 
@@ -809,7 +832,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     protected void drawTabs(int offsetX, int offsetY, int mouseX, int mouseY) {
         TabRenderingHandler.TabRenderContext ctx = new TabRenderingHandler.TabRenderContext(
             this.guiLeft, offsetX, offsetY, mouseX, mouseY,
-            TAB_COUNT, TAB_WIDTH, TAB_HEIGHT, TAB_Y_OFFSET,
+            TAB_WIDTH, TAB_HEIGHT, TAB_Y_OFFSET,
             currentTab, this.itemRender, this.mc);
 
         TabRenderingHandler.TabIconProvider iconProvider = new TabRenderingHandler.TabIconProvider() {
@@ -849,6 +872,8 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             case TAB_STORAGE_BUS_PARTITION:
                 // These use composite icons, but return storage bus as fallback
                 return tabIconStorageBus;
+            case TAB_NETWORK_TOOLS:
+                return tabIconNetworkTool;
             default:
                 return ItemStack.EMPTY;
         }
@@ -912,6 +937,16 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         // Handle modal search bar clicks first
         if (modalSearchBar != null && modalSearchBar.isVisible()) {
             if (modalSearchBar.handleMouseClick(mouseX, mouseY, mouseButton)) return;
+        }
+
+        // Handle network tool confirmation modal first (blocks all other clicks)
+        if (networkToolModal != null) {
+            if (networkToolModal.handleClick(mouseX, mouseY, mouseButton)) return;
+
+            // Click outside modal cancels it
+            networkToolModal = null;
+
+            return;
         }
 
         // Handle search field clicks
@@ -984,6 +1019,21 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
                 hoveredStorageLine, hoveredLineIndex, dataManager.getStorageMap(), dataManager.getTerminalDimension(), createClickCallback());
         } else if (currentTab == TAB_STORAGE_BUS_INVENTORY || currentTab == TAB_STORAGE_BUS_PARTITION) {
             handleStorageBusTabClick(mouseX, mouseY, mouseButton);
+        } else if (currentTab == TAB_NETWORK_TOOLS) {
+            handleNetworkToolsTabClick(mouseButton);
+        }
+    }
+
+    /**
+     * Handle clicks on the Network Tools tab.
+     */
+    protected void handleNetworkToolsTabClick(int mouseButton) {
+        if (mouseButton != 0) return;
+
+        // Handle launch button click
+        RenderContext ctx = getRenderContext();
+        if (ctx.hoveredNetworkToolLaunchButton != null) {
+            showNetworkToolConfirmation(ctx.hoveredNetworkToolLaunchButton);
         }
     }
 
@@ -1139,6 +1189,11 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
+        // Handle network tool confirmation modal first (blocks all other input)
+        if (networkToolModal != null) {
+            if (networkToolModal.handleKeyTyped(keyCode)) return;
+        }
+
         // Handle modal search bar keyboard first
         if (modalSearchBar != null && modalSearchBar.isVisible()) {
             if (modalSearchBar.handleKeyTyped(typedChar, keyCode)) return;
@@ -1442,5 +1497,63 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
     public Map<Long, StorageInfo> getStorageMap() {
         return dataManager.getStorageMap();
+    }
+
+    public RenderContext getRenderContext() {
+        return renderContext;
+    }
+
+    /**
+     * Create a ToolContext for the Network Tools tab.
+     */
+    protected INetworkTool.ToolContext createNetworkToolContext() {
+        return new INetworkTool.ToolContext(
+            dataManager.getStorageMap(),
+            dataManager.getStorageBusMap(),
+            filterPanelManager.getAllFilterStates(),
+            getEffectiveSearchMode(),
+            new INetworkTool.NetworkToolCallback() {
+                @Override
+                public void sendToolPacket(String toolId, byte[] data) {
+                    // Handled by tools directly
+                }
+
+                @Override
+                public void showError(String message) {
+                    MessageHelper.error(message);
+                }
+
+                @Override
+                public void showSuccess(String message) {
+                    MessageHelper.success(message);
+                }
+            },
+            dataManager.getSearchFilter(),
+            dataManager.isUsingAdvancedSearch(),
+            dataManager.getAdvancedMatcher());
+    }
+
+    // Network Tools modal support
+    protected GuiToolConfirmationModal networkToolModal = null;
+
+    /**
+     * Show the confirmation modal for a network tool.
+     */
+    public void showNetworkToolConfirmation(INetworkTool tool) {
+        INetworkTool.ToolContext ctx = createNetworkToolContext();
+        String error = tool.getExecutionError(ctx);
+        if (error != null) {
+            MessageHelper.error(error);
+
+            return;
+        }
+
+        networkToolModal = new GuiToolConfirmationModal(
+            tool, ctx, this.fontRenderer, this.width, this.height,
+            () -> {
+                tool.execute(ctx);
+                networkToolModal = null;
+            },
+            () -> networkToolModal = null);
     }
 }

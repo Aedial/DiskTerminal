@@ -257,3 +257,76 @@ gui.cellterminal.controls.filter_indicator=§aP§r = slot is filtered.
 gui.cellterminal.controls.keybind_targets=Keybinds partition the 1st cell with no partition.
 gui.cellterminal.controls.storage_bus_add_key=Click on Storage Bus header(s) to select, then press §b%s§r to add the item under the cursor to the bus filter.
 gui.cellterminal.controls.storage_bus_capacity=Available slots depend on Capacity Card upgrades.
+
+# Network Tools tab
+gui.cellterminal.tab.network_tools.tooltip=Network Tools
+config.cellterminal.config.server.tabs.network_tools=Network Tools Tab
+config.cellterminal.config.server.tabs.network_tools.tooltip=Enable the Network Tools tab (bulk operations on cells and storage buses)
+
+# Network tools - general
+gui.cellterminal.networktools.warning.caution=§e⚠ Caution:§r This tool performs bulk operations on your storage network. Use the preview function to see what changes will be made before running the tool.
+gui.cellterminal.networktools.warning.irreversible=§c⚠ Warning:§r These operations cannot be undone. Make sure you know what you are doing.
+gui.cellterminal.networktools.help.read_tooltip=Hover the [?] icons for detailed help about each tool.
+gui.cellterminal.networktools.preview=Preview
+gui.cellterminal.networktools.affected_count=Affected: %d
+gui.cellterminal.networktools.launch=Run
+gui.cellterminal.networktools.confirm=Confirm
+gui.cellterminal.networktools.cancel=Cancel
+gui.cellterminal.networktools.warning=§c⚠ This operation cannot be undone!
+gui.cellterminal.networktools.no_targets=No targets found (check filters)
+gui.cellterminal.networktools.target_breakdown=Target breakdown:
+gui.cellterminal.networktools.error.no_cells=No cells match the current filters
+gui.cellterminal.networktools.error.no_buses=No storage buses match the current filters
+gui.cellterminal.networktools.error.no_items=No items found in the selected cells
+
+# Network tools - server messages (sent via chat)
+cellterminal.networktools.error.no_items=§cNo items found in the selected cells
+cellterminal.networktools.attribute_unique.error.not_enough_cells_by_type=§cNot enough cells of correct type:%s
+cellterminal.networktools.attribute_unique.error.type_detail=%s: %d cells, %d types
+cellterminal.networktools.attribute_unique.type.item=Items
+cellterminal.networktools.attribute_unique.type.fluid=Fluids
+cellterminal.networktools.attribute_unique.type.essentia=Essentia
+cellterminal.networktools.attribute_unique.success=§aRedistributed %d item types across %d cells
+
+# Network tools - confirmation modal
+gui.cellterminal.networktools.confirm.title=Confirm %s
+gui.cellterminal.networktools.confirm.message=Are you sure you want to run this tool?
+gui.cellterminal.networktools.confirm.do_it=Do it
+gui.cellterminal.networktools.confirm.cancel=Cancel
+
+# Network tools - Attribute Unique to Cells
+gui.cellterminal.networktools.attribute_unique.name=Attribute Unique to Cells
+gui.cellterminal.networktools.attribute_unique.desc=Redistributes content so each cell contains only one type
+gui.cellterminal.networktools.attribute_unique.help.1=Redistributes all unique content to individual cells and partition them to match.
+gui.cellterminal.networktools.attribute_unique.help.2=Each unique type will be moved to exactly one cell.
+gui.cellterminal.networktools.attribute_unique.help.3=You need enough free cells of each type for this to work.
+gui.cellterminal.networktools.attribute_unique.help.4=§eNote:§r Empty, non-partitioned cells may be used regardless of filter settings.
+gui.cellterminal.networktools.attribute_unique.confirm=This will redistribute %d unique types across %d cells.
+gui.cellterminal.networktools.attribute_unique.affected=%d unique types across %d cells
+gui.cellterminal.networktools.attribute_unique.success=Assigned %d unique types to %d cells
+gui.cellterminal.networktools.attribute_unique.error.not_enough_cells=Not enough cells for all unique types
+gui.cellterminal.networktools.attribute_unique.error.not_enough_cells_by_type=Not enough cells of correct type:
+gui.cellterminal.networktools.attribute_unique.error.type_detail=%s: %d cells, %d types
+gui.cellterminal.networktools.attribute_unique.none=No items to distribute (no cells or items found)
+gui.cellterminal.networktools.attribute_unique.preview.title=Cells Available / Unique Types
+gui.cellterminal.networktools.attribute_unique.preview.type.item=Items
+gui.cellterminal.networktools.attribute_unique.preview.type.fluid=Fluids
+gui.cellterminal.networktools.attribute_unique.preview.type.essentia=Essentia
+
+# Network tools - Mass Partition Cell
+gui.cellterminal.networktools.mass_partition_cell.name=Mass Partition from Content (Storage Cell)
+gui.cellterminal.networktools.mass_partition_cell.help.1=Partitions all matching cells based on their current contents.
+gui.cellterminal.networktools.mass_partition_cell.help.2=§eNote:§r Only affects cells that pass the current filter settings.
+gui.cellterminal.networktools.mass_partition_cell.confirm=This will partition %d cells based on their contents.
+gui.cellterminal.networktools.mass_partition_cell.affected=%d cells will be partitioned
+gui.cellterminal.networktools.mass_partition_cell.success=Partitioned %d cells
+gui.cellterminal.networktools.mass_partition_cell.none=No cells to partition (filters may hide all)
+
+# Network tools - Mass Partition Bus
+gui.cellterminal.networktools.mass_partition_bus.name=Mass Partition from Content (Storage Bus)
+gui.cellterminal.networktools.mass_partition_bus.help.1=Sets the filter of all matching storage buses based on their attached inventory's content.
+gui.cellterminal.networktools.mass_partition_bus.help.2=§eNote:§r Only affects buses that pass the current filter settings.
+gui.cellterminal.networktools.mass_partition_bus.confirm=This will set filters on %d storage buses.
+gui.cellterminal.networktools.mass_partition_bus.affected=%d buses will be filtered
+gui.cellterminal.networktools.mass_partition_bus.success=Filtered %d storage buses
+gui.cellterminal.networktools.mass_partition_bus.none=No storage buses to filter (filters may hide all)

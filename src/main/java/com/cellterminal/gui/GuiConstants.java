@@ -66,15 +66,13 @@ public final class GuiConstants {
     // TAB CONFIGURATION
     // ========================================
 
-    /** Number of tabs in the terminal */
-    public static final int TAB_COUNT = 5;
-
     /** Tab indices */
     public static final int TAB_TERMINAL = 0;
     public static final int TAB_INVENTORY = 1;
     public static final int TAB_PARTITION = 2;
     public static final int TAB_STORAGE_BUS_INVENTORY = 3;
     public static final int TAB_STORAGE_BUS_PARTITION = 4;
+    public static final int TAB_NETWORK_TOOLS = 5;
 
     /** Width of each tab */
     public static final int TAB_WIDTH = 22;
