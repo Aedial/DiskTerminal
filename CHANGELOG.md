@@ -8,6 +8,15 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.3.0] - 2026-02-11
+### Added
+- Add shift rigft-click handling for upgrade cards to Storage Buses, like Storage Cells, to insert them directly without dragging.
+
+### Fixed
+- Fix shift right-click on custom upgrades not working for cells.
+- Properly exclude Compacting Cells from Partitioning and Attribute Unique tools, as they should not change partition or content. They expose virtual items that do not actually exist in the cell, which can cause issues with the tools if they are included.
+
+
 ## [1.3.0-rc2] - 2026-02-02
 ### Added
 - Add exclusion of IICompactingCells from Partition Storage Cells from Content tool, as they should only have 1 partition, yet expose multiple item types

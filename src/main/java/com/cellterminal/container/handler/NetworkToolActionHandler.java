@@ -189,6 +189,9 @@ public final class NetworkToolActionHandler {
 
                 if (!matchesCellFilters(cellStack, activeFilters)) continue;
 
+                // Skip compacting cells - they use a special chain mechanism
+                if (cellStack.getItem() instanceof IItemCompactingCell) continue;
+
                 CellType type = getCellType(cellStack);
                 TypeStats stats = statsByType.get(type);
                 CellTarget target = new CellTarget(tracker, slot, cellStack);
@@ -223,6 +226,9 @@ public final class NetworkToolActionHandler {
             for (int slot = 0; slot < cellInventory.getSlots(); slot++) {
                 ItemStack cellStack = cellInventory.getStackInSlot(slot);
                 if (cellStack.isEmpty()) continue;
+
+                // Skip compacting cells - they use a special chain mechanism
+                if (cellStack.getItem() instanceof IItemCompactingCell) continue;
 
                 CellType type = getCellType(cellStack);
                 TypeStats stats = statsByType.get(type);
@@ -304,6 +310,10 @@ public final class NetworkToolActionHandler {
 
         // Phase 1: Extract all items from all cells of this type
         Map<String, IAEStack<?>> extractedStacks = new java.util.LinkedHashMap<>();
+
+        // FIXME: Some sanity checks are needed here to ensure the cells can actually accept the items.
+        //       Currently, if cells cannot accept items, these items are just lost.
+        //       Same for any overflow, they will be voided, instead of being left in the original cell.
 
         for (CellTarget target : stats.filteredCells) {
             extractAllFromCell(target.cellStack, type, extractedStacks, source);

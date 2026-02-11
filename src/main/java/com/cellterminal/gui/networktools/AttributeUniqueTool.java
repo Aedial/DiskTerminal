@@ -14,6 +14,8 @@ import net.minecraft.item.ItemStack;
 
 import appeng.api.AEApi;
 
+import com.cells.api.IItemCompactingCell;
+
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketNetworkToolAction;
@@ -119,6 +121,10 @@ public class AttributeUniqueTool implements INetworkTool {
 
         for (FilteredCell fc : filteredCells) {
             CellInfo cell = fc.getCell();
+
+            // Skip compacting cells - they use a special chain mechanism
+            if (cell.getCellItem().getItem() instanceof IItemCompactingCell) continue;
+
             filteredCellSet.add(cell);
             CellType type = getCellType(cell);
             TypeStats stats = statsByType.get(type);
@@ -140,6 +146,10 @@ public class AttributeUniqueTool implements INetworkTool {
                                                                         type == CellType.FLUID,
                                                                         type == CellType.ESSENTIA)) {
                 CellInfo cell = fc.getCell();
+
+                // Skip compacting cells - they use a special chain mechanism
+                if (cell.getCellItem().getItem() instanceof IItemCompactingCell) continue;
+
                 if (getCellType(cell) == type && !filteredCellSet.contains(cell)) {
                     stats.emptyCellCount++;
                 }

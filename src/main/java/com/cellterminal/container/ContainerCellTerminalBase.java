@@ -398,10 +398,36 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
             return;
         }
 
+        ItemStack upgradeStack = fromSlot >= 0 ? player.inventory.getStackInSlot(fromSlot) : player.inventory.getItemStack();
+
+        // For shift-click, iterate through all cells to find one that actually accepts this upgrade
+        // The client's guess might be wrong if the cell doesn't support this specific upgrade type
+        // Sort by distance to match visual order on client
+        if (shiftClick) {
+            int terminalDim = getTerminalDimension();
+            List<StorageTracker> sortedTrackers = new ArrayList<>(this.byId.values());
+            sortedTrackers.sort(createTrackerComparator(BlockPos.ORIGIN, terminalDim));
+
+            for (StorageTracker tracker : sortedTrackers) {
+                IItemHandler cellInventory = CellDataHandler.getCellInventory(tracker.storage);
+                if (cellInventory == null) continue;
+
+                for (int slot = 0; slot < cellInventory.getSlots(); slot++) {
+                    if (CellActionHandler.upgradeCell(tracker.storage, tracker.tile, slot, upgradeStack, player, fromSlot)) {
+                        this.needsFullRefresh = true;
+
+                        return;
+                    }
+                }
+            }
+
+            return;
+        }
+
+        // Regular click: use the specific cell
         StorageTracker tracker = this.byId.get(storageId);
         if (tracker == null) return;
 
-        ItemStack upgradeStack = fromSlot >= 0 ? player.inventory.getStackInSlot(fromSlot) : player.inventory.getItemStack();
         if (CellActionHandler.upgradeCell(tracker.storage, tracker.tile, cellSlot, upgradeStack, player, fromSlot)) {
             this.needsFullRefresh = true;
         }
@@ -419,9 +445,10 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
      * Takes the upgrade from the player's held item or a specific inventory slot and inserts it into the storage bus.
      * @param player The player holding the upgrade
      * @param storageBusId The storage bus to upgrade
+     * @param shiftClick If true, find first storage bus that accepts this upgrade
      * @param fromSlot Inventory slot to take upgrade from (-1 = cursor)
      */
-    public void handleUpgradeStorageBus(EntityPlayer player, long storageBusId, int fromSlot) {
+    public void handleUpgradeStorageBus(EntityPlayer player, long storageBusId, boolean shiftClick, int fromSlot) {
         // Check if upgrade insertion is enabled in server config
         if (!CellTerminalServerConfig.getInstance().isUpgradeInsertEnabled()) {
             MessageHelper.error("cellterminal.error.upgrade_insert_disabled");
@@ -440,18 +467,44 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         if (upgradeStack.isEmpty()) return;
         if (!(upgradeStack.getItem() instanceof IUpgradeModule)) return;
 
-        IUpgradeModule upgradeModule = (IUpgradeModule) upgradeStack.getItem();
-        Upgrades upgradeType = upgradeModule.getType(upgradeStack);
-        if (upgradeType == null) return;
+        // For shift-click, iterate through all storage buses to find one that accepts this upgrade
+        // Sort by distance to match visual order on client
+        if (shiftClick) {
+            int terminalDim = getTerminalDimension();
+            List<StorageBusTracker> sortedTrackers = new ArrayList<>(this.storageBusById.values());
+            sortedTrackers.sort(createStorageBusTrackerComparator(BlockPos.ORIGIN, terminalDim));
 
+            for (StorageBusTracker tracker : sortedTrackers) {
+                if (tryInsertUpgradeIntoStorageBus(tracker, upgradeStack, player, fromSlot)) {
+                    this.needsStorageBusRefresh = true;
+
+                    return;
+                }
+            }
+
+            return;
+        }
+
+        // Regular click: use the specific storage bus
         StorageBusTracker tracker = this.storageBusById.get(storageBusId);
         if (tracker == null) return;
 
+        if (tryInsertUpgradeIntoStorageBus(tracker, upgradeStack, player, fromSlot)) {
+            this.needsStorageBusRefresh = true;
+        }
+    }
+
+    /**
+     * Try to insert an upgrade into a storage bus.
+     * @return true if the upgrade was successfully inserted
+     */
+    private boolean tryInsertUpgradeIntoStorageBus(StorageBusTracker tracker, ItemStack upgradeStack,
+                                                    EntityPlayer player, int fromSlot) {
         // Only item and fluid storage buses support upgrades
-        if (!(tracker.storageBus instanceof PartUpgradeable)) return;
+        if (!(tracker.storageBus instanceof PartUpgradeable)) return false;
 
         IItemHandler upgradesInv = ((PartUpgradeable) tracker.storageBus).getInventoryByName("upgrades");
-        if (upgradesInv == null) return;
+        if (upgradesInv == null) return false;
 
         // Try to insert the upgrade
         ItemStack toInsert = upgradeStack.copy();
@@ -468,11 +521,11 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
                     ((EntityPlayerMP) player).updateHeldItem();
                 }
 
-                this.needsStorageBusRefresh = true;
-
-                return;
+                return true;
             }
         }
+
+        return false;
     }
 
     /**
@@ -713,6 +766,27 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
             // Sort by distance to terminal
             double distA = terminalPos.distanceSq(a.tile.getPos());
             double distB = terminalPos.distanceSq(b.tile.getPos());
+
+            return Double.compare(distA, distB);
+        };
+    }
+
+    protected Comparator<StorageBusTracker> createStorageBusTrackerComparator(BlockPos terminalPos, int terminalDim) {
+        return (a, b) -> {
+            int dimA = a.hostTile.getWorld().provider.getDimension();
+            int dimB = b.hostTile.getWorld().provider.getDimension();
+
+            // Same dimension as terminal comes first
+            boolean aInDim = dimA == terminalDim;
+            boolean bInDim = dimB == terminalDim;
+            if (aInDim != bInDim) return aInDim ? -1 : 1;
+
+            // Sort by dimension
+            if (dimA != dimB) return Integer.compare(dimA, dimB);
+
+            // Sort by distance to terminal
+            double distA = terminalPos.distanceSq(a.hostTile.getPos());
+            double distB = terminalPos.distanceSq(b.hostTile.getPos());
 
             return Double.compare(distA, distB);
         };

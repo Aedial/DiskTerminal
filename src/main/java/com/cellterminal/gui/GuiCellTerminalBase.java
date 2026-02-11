@@ -901,6 +901,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
                     if (targetBus != null) {
                         CellTerminalNetwork.INSTANCE.sendToServer(new PacketUpgradeStorageBus(
                             targetBus.getId(),
+                            true,
                             slot.getSlotIndex()
                         ));
 
