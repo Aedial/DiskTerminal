@@ -54,7 +54,14 @@ public class AE2WUTIntegration {
      * Check if AE2WUT is loaded.
      */
     public static boolean isModLoaded() {
-        if (modLoaded == null) modLoaded = Loader.isModLoaded(MODID);
+        if (modLoaded == null) {
+            boolean loaded = Loader.isModLoaded(MODID);
+            if (loaded && CellTerminalServerConfig.isInitialized()) {
+                loaded = CellTerminalServerConfig.getInstance().isIntegrationAE2WUTEnabled();
+            }
+
+            modLoaded = loaded;
+        }
 
         return modLoaded;
     }

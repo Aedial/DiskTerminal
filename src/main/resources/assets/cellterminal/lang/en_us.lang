@@ -145,6 +145,25 @@ config.cellterminal.config.server.integration.tooltip=Settings for integration w
 config.cellterminal.config.server.integration.wut_mode_id=WUT Mode ID
 config.cellterminal.config.server.integration.wut_mode_id.tooltip=Mode ID for Cell Terminal in the Wireless Universal Terminal (AE2WUT). Change this if another mod uses the same ID. Requires restart.
 
+# Per-integration enable flags
+config.cellterminal.config.server.integration.enable_ae2wut=AE2WUT Integration
+config.cellterminal.config.server.integration.enable_ae2wut.tooltip=Enable integration with AE2WUT (Wireless Universal Terminal). Set to false to disable Universal Terminal registration.
+
+config.cellterminal.config.server.integration.enable_crazyae=CrazyAE Integration
+config.cellterminal.config.server.integration.enable_crazyae.tooltip=Enable integration with CrazyAE (improved drives). Set to false to disable CrazyAE handling.
+
+config.cellterminal.config.server.integration.enable_ecoae=ECOAEExtension Integration
+config.cellterminal.config.server.integration.enable_ecoae.tooltip=Enable integration with ECOAEExtension (E-Storage drives). Set to false to disable ECOAEExtension handling.
+
+config.cellterminal.config.server.integration.enable_storagedrawers=Storage Drawers Integration
+config.cellterminal.config.server.integration.enable_storagedrawers.tooltip=Enable integration with Storage Drawers. Set to false to disable Storage Drawers faster lookup.
+
+config.cellterminal.config.server.integration.enable_thaumicenergistics=Thaumic Energistics Integration
+config.cellterminal.config.server.integration.enable_thaumicenergistics.tooltip=Enable integration with Thaumic Energistics (essentia cells). Set to false to disable Thaumic Energistics-specific behavior.
+
+config.cellterminal.config.server.integration.enable_jei=JEI Integration
+config.cellterminal.config.server.integration.enable_jei.tooltip=Enable integration with JEI (ghost ingredients and GUI handlers). Set to false to disable JEI integration.
+
 # Server config error messages
 cellterminal.error.cell_eject_disabled=§cCell ejection is disabled on this server.
 cellterminal.error.cell_insert_disabled=§cCell insertion is disabled on this server.
@@ -283,16 +302,25 @@ gui.cellterminal.networktools.error.no_items=No items found in the selected cell
 cellterminal.networktools.error.no_items=§cNo items found in the selected cells
 cellterminal.networktools.attribute_unique.error.not_enough_cells_by_type=§cNot enough cells of correct type:%s
 cellterminal.networktools.attribute_unique.error.type_detail=%s: %d cells, %d types
+cellterminal.networktools.attribute_unique.error.redistribution_failed=§cRedistribution failed - no items could be moved. Check cell compatibility.
 cellterminal.networktools.attribute_unique.type.item=Items
 cellterminal.networktools.attribute_unique.type.fluid=Fluids
 cellterminal.networktools.attribute_unique.type.essentia=Essentia
 cellterminal.networktools.attribute_unique.success=§aRedistributed %d item types across %d cells
+cellterminal.networktools.attribute_unique.success_with_consolidated=§aRedistributed %d item types across %d cells. §e%d types were consolidated (not unique) due to capacity constraints.
+cellterminal.networktools.attribute_unique.partial_success=§eRedistributed %d item types across %d cells. §c%d types could not be moved due to capacity or compatibility issues.
 
 # Network tools - confirmation modal
 gui.cellterminal.networktools.confirm.title=Confirm %s
 gui.cellterminal.networktools.confirm.message=Are you sure you want to run this tool?
 gui.cellterminal.networktools.confirm.do_it=Do it
 gui.cellterminal.networktools.confirm.cancel=Cancel
+
+# Network tools - server warnings (localized messages used for runtime warnings)
+cellterminal.networktools.warning.partial=§ePartial: %s - %d/%d moved
+cellterminal.networktools.warning.failed=§cFailed: %s - no compatible cell found
+cellterminal.networktools.warning.missing_extracted=§cError: Could not find extracted stack for %s
+cellterminal.networktools.warning.lost=§4CRITICAL: Lost %dx %s! Report to the Cell Terminal developer.
 
 # Network tools - Attribute Unique to Cells
 gui.cellterminal.networktools.attribute_unique.name=Attribute Unique to Cells

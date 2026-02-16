@@ -74,8 +74,21 @@ public class CellTerminalServerConfig {
 
     // Integration settings
     private final Property wutModeIdProperty;
+    private final Property integrationAE2WUTProperty;
+    private final Property integrationCrazyAEProperty;
+    private final Property integrationECOAEProperty;
+    private final Property integrationStorageDrawersProperty;
+    private final Property integrationThaumicEnergisticsProperty;
+    private final Property integrationJeiProperty;
 
     private int wutModeId = 11;
+
+    private boolean integrationAE2WUTEnabled = true;
+    private boolean integrationCrazyAEEnabled = true;
+    private boolean integrationECOAEEnabled = true;
+    private boolean integrationStorageDrawersEnabled = true;
+    private boolean integrationThaumicEnergisticsEnabled = true;
+    private boolean integrationJeiEnabled = true;
 
     private CellTerminalServerConfig(File configDir) {
         File configFile = new File(configDir, CONFIG_FILE);
@@ -206,6 +219,43 @@ public class CellTerminalServerConfig {
         this.wutModeIdProperty.setLanguageKey("config.cellterminal.config.server.integration.wut_mode_id");
         this.wutModeId = this.wutModeIdProperty.getInt();
 
+        // Per-integration enable/disable flags
+        this.integrationAE2WUTProperty = config.get(CATEGORY_INTEGRATION, "enableAE2WUT", true,
+            "Enable integration with AE2WUT (Wireless Universal Terminal).\n" +
+            "Set to false to completely disable AE2WUT-specific code in this mod.");
+        this.integrationAE2WUTProperty.setLanguageKey("config.cellterminal.config.server.integration.enable_ae2wut");
+        this.integrationAE2WUTEnabled = this.integrationAE2WUTProperty.getBoolean();
+
+        this.integrationCrazyAEProperty = config.get(CATEGORY_INTEGRATION, "enableCrazyAE", true,
+            "Enable integration with CrazyAE (improved drives).\n" +
+            "Set to false to disable CrazyAE-specific code.");
+        this.integrationCrazyAEProperty.setLanguageKey("config.cellterminal.config.server.integration.enable_crazyae");
+        this.integrationCrazyAEEnabled = this.integrationCrazyAEProperty.getBoolean();
+
+        this.integrationECOAEProperty = config.get(CATEGORY_INTEGRATION, "enableECOAEExtension", true,
+            "Enable integration with ECOAEExtension (E-Storage drives).\n" +
+            "Set to false to disable ECOAEExtension-specific code.");
+        this.integrationECOAEProperty.setLanguageKey("config.cellterminal.config.server.integration.enable_ecoae");
+        this.integrationECOAEEnabled = this.integrationECOAEProperty.getBoolean();
+
+        this.integrationStorageDrawersProperty = config.get(CATEGORY_INTEGRATION, "enableStorageDrawers", true,
+            "Enable integration with Storage Drawers.\n" +
+            "Set to false to disable Storage Drawers-specific code.");
+        this.integrationStorageDrawersProperty.setLanguageKey("config.cellterminal.config.server.integration.enable_storagedrawers");
+        this.integrationStorageDrawersEnabled = this.integrationStorageDrawersProperty.getBoolean();
+
+        this.integrationThaumicEnergisticsProperty = config.get(CATEGORY_INTEGRATION, "enableThaumicEnergistics", true,
+            "Enable integration with Thaumic Energistics (essentia cells).\n" +
+            "Set to false to disable Thaumic Energistics-specific code.");
+        this.integrationThaumicEnergisticsProperty.setLanguageKey("config.cellterminal.config.server.integration.enable_thaumicenergistics");
+        this.integrationThaumicEnergisticsEnabled = this.integrationThaumicEnergisticsProperty.getBoolean();
+
+        this.integrationJeiProperty = config.get(CATEGORY_INTEGRATION, "enableJEI", true,
+            "Enable JEI integration (ghost ingredients, GUI handlers).\n" +
+            "Set to false to disable JEI integration.");
+        this.integrationJeiProperty.setLanguageKey("config.cellterminal.config.server.integration.enable_jei");
+        this.integrationJeiEnabled = this.integrationJeiProperty.getBoolean();
+
         if (config.hasChanged()) config.save();
     }
 
@@ -256,6 +306,12 @@ public class CellTerminalServerConfig {
 
         // Integration settings (require restart, but sync for consistency)
         this.wutModeId = this.wutModeIdProperty.getInt();
+        this.integrationAE2WUTEnabled = this.integrationAE2WUTProperty.getBoolean();
+        this.integrationCrazyAEEnabled = this.integrationCrazyAEProperty.getBoolean();
+        this.integrationECOAEEnabled = this.integrationECOAEProperty.getBoolean();
+        this.integrationStorageDrawersEnabled = this.integrationStorageDrawersProperty.getBoolean();
+        this.integrationThaumicEnergisticsEnabled = this.integrationThaumicEnergisticsProperty.getBoolean();
+        this.integrationJeiEnabled = this.integrationJeiProperty.getBoolean();
 
         if (config.hasChanged()) config.save();
     }
@@ -397,5 +453,29 @@ public class CellTerminalServerConfig {
      */
     public byte getWutModeId() {
         return (byte) wutModeId;
+    }
+
+    public boolean isIntegrationAE2WUTEnabled() {
+        return integrationAE2WUTEnabled;
+    }
+
+    public boolean isIntegrationCrazyAEEnabled() {
+        return integrationCrazyAEEnabled;
+    }
+
+    public boolean isIntegrationECOAEEnabled() {
+        return integrationECOAEEnabled;
+    }
+
+    public boolean isIntegrationStorageDrawersEnabled() {
+        return integrationStorageDrawersEnabled;
+    }
+
+    public boolean isIntegrationThaumicEnergisticsEnabled() {
+        return integrationThaumicEnergisticsEnabled;
+    }
+
+    public boolean isIntegrationJeiEnabled() {
+        return integrationJeiEnabled;
     }
 }

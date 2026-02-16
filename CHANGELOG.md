@@ -11,8 +11,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ## [1.3.0] - 2026-02-11
 ### Added
 - Add shift rigft-click handling for upgrade cards to Storage Buses, like Storage Cells, to insert them directly without dragging.
+- Add individual config options to disable the integration with other mods (CrazyAE, ECOAEExtension, WUT) for better compatibility with different versions of those mods.
 
 ### Fixed
+- Fix "Attribute Uniques" Network Tool not having proper failsafes, resulting in potential item loss if space was insufficient for the redistribution.
+- Fix "Attribute Uniques" not handling Long overflows when calculating the distribution, which could silently cause item loss if a cell had a very large amount of items.
 - Fix shift right-click on custom upgrades not working for cells.
 - Properly exclude Compacting Cells from Partitioning and Attribute Unique tools, as they should not change partition or content. They expose virtual items that do not actually exist in the cell, which can cause issues with the tools if they are included.
 

@@ -138,7 +138,7 @@ public class NetworkToolsTabRenderer {
             GlStateManager.disableLighting();
         }
 
-        // Draw preview count after icon (TODO: just deletegate it to preview)
+        // Draw preview count after icon (TODO: just delegate the rendering to preview)
         String countText = preview.getCountText();
         int countColor = preview.getCountColor();
         int countX = iconX + ICON_SIZE + 4;
