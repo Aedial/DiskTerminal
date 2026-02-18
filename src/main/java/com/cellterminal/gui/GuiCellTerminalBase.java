@@ -12,6 +12,7 @@ import java.util.Set;
 import org.lwjgl.input.Keyboard;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
@@ -35,6 +36,9 @@ import mezz.jei.api.gui.IGhostIngredientHandler;
 import com.cellterminal.client.CellContentRow;
 import com.cellterminal.client.CellFilter;
 import com.cellterminal.client.CellInfo;
+import com.cellterminal.client.SubnetConnectionRow;
+import com.cellterminal.client.SubnetInfo;
+import com.cellterminal.client.SubnetVisibility;
 import com.cellterminal.client.TabStateManager;
 import com.cellterminal.config.CellTerminalClientConfig;
 import com.cellterminal.config.CellTerminalClientConfig.TerminalStyle;
@@ -67,9 +71,15 @@ import com.cellterminal.gui.tab.ITabController;
 import com.cellterminal.gui.tab.PartitionTabController;
 import com.cellterminal.gui.tab.StorageBusPartitionTabController;
 import com.cellterminal.gui.tab.TabContext;
+import com.cellterminal.gui.subnet.GuiBackButton;
+import com.cellterminal.gui.subnet.SubnetOverviewRenderer;
 import com.cellterminal.gui.tab.TabControllerRegistry;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketExtractUpgrade;
+import com.cellterminal.network.PacketHighlightBlock;
+import com.cellterminal.network.PacketSubnetAction;
+import com.cellterminal.network.PacketSubnetListRequest;
+import com.cellterminal.network.PacketSwitchNetwork;
 import com.cellterminal.network.PacketPartitionAction;
 import com.cellterminal.network.PacketSlotLimitChange;
 import com.cellterminal.network.PacketStorageBusPartitionAction;
@@ -114,6 +124,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     protected StorageBusInventoryTabRenderer storageBusInventoryRenderer;
     protected StorageBusPartitionTabRenderer storageBusPartitionRenderer;
     protected NetworkToolsTabRenderer networkToolsRenderer;
+    protected SubnetOverviewRenderer subnetOverviewRenderer;
     protected RenderContext renderContext;
 
     // Handlers
@@ -132,7 +143,10 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     protected MEGuiTextField searchField;
     protected GuiSearchModeButton searchModeButton;
     protected GuiSearchHelpButton searchHelpButton;
+    protected GuiBackButton subnetBackButton;
+    protected GuiSubnetVisibilityButton subnetVisibilityButton;
     protected SearchFilterMode currentSearchMode = SearchFilterMode.MIXED;
+    protected SubnetVisibility currentSubnetVisibility = SubnetVisibility.DONT_SHOW;
 
     // Current tab
     protected int currentTab;
@@ -204,6 +218,16 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     // Whether we've restored the saved scroll after the first data update
     private boolean initialScrollRestored = false;
 
+    // Subnet view state
+    // FIXME: subnet flickers when opening the terminal
+    protected final List<SubnetInfo> subnetList = new ArrayList<>();
+    protected final List<Object> subnetLines = new ArrayList<>();  // Flattened list of SubnetInfo + SubnetConnectionRow
+    protected boolean isInSubnetOverviewMode = false;
+    protected long currentNetworkId = 0;  // 0 = main network, >0 = subnet ID
+    protected int hoveredSubnetEntryIndex = -1;  // Index of hovered subnet in overview mode
+    protected long lastSubnetClickTime = 0;  // For double-click detection
+    protected long lastSubnetClickId = -1;  // Track which subnet was clicked for double-click
+
     public GuiCellTerminalBase(Container container) {
         super(container);
 
@@ -228,6 +252,10 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             this.currentTab = findFirstEnabledTab();
         }
         this.currentSearchMode = config.getSearchMode();
+        this.currentSubnetVisibility = config.getSubnetVisibility();
+
+        // Load persisted network ID (will attempt to switch to this subnet on open)
+        this.currentNetworkId = config.getLastViewedNetworkId();
     }
 
     /**
@@ -305,6 +333,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         initTabIcons();
         initRenderers();
         initTerminalStyleButton();
+        initSubnetBackButton();
         initFilterButtons();
         initSearchField();
         initPriorityFieldManager();
@@ -334,6 +363,13 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             config.getCellSlotLimit().getLimit(),
             config.getBusSlotLimit().getLimit()
         ));
+
+        // If a subnet was previously being viewed, tell the server to switch to it
+        // Also reset data manager to avoid showing stale data from a previous session
+        if (this.currentNetworkId != 0) {
+            this.dataManager.resetForNetworkSwitch();
+            CellTerminalNetwork.INSTANCE.sendToServer(new PacketSwitchNetwork(this.currentNetworkId));
+        }
     }
 
     protected void initPriorityFieldManager() {
@@ -347,6 +383,18 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         this.storageBusInventoryRenderer = new StorageBusInventoryTabRenderer(this.fontRenderer, this.itemRender);
         this.storageBusPartitionRenderer = new StorageBusPartitionTabRenderer(this.fontRenderer, this.itemRender);
         this.networkToolsRenderer = new NetworkToolsTabRenderer(this.fontRenderer, this.itemRender);
+        this.subnetOverviewRenderer = new SubnetOverviewRenderer(this.fontRenderer, this.itemRender);
+    }
+
+    protected void initSubnetBackButton() {
+        if (this.subnetBackButton != null) this.buttonList.remove(this.subnetBackButton);
+
+        // Position the back button at the left side of the header, before the title
+        int buttonX = this.guiLeft + 4;
+        int buttonY = this.guiTop + 4;
+        this.subnetBackButton = new GuiBackButton(3, buttonX, buttonY);
+        this.subnetBackButton.setInOverviewMode(this.isInSubnetOverviewMode);
+        this.buttonList.add(this.subnetBackButton);
     }
 
     protected void initTerminalStyleButton() {
@@ -408,6 +456,11 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         this.searchModeButton = new GuiSearchModeButton(1, this.guiLeft + 189, this.guiTop + 4, currentSearchMode);
         this.buttonList.add(this.searchModeButton);
         updateSearchModeButtonVisibility();
+
+        // Subnet visibility button: positioned next to search mode button
+        if (this.subnetVisibilityButton != null) this.buttonList.remove(this.subnetVisibilityButton);
+        this.subnetVisibilityButton = new GuiSubnetVisibilityButton(4, this.guiLeft + 189 - 14, this.guiTop + 4, currentSubnetVisibility);
+        this.buttonList.add(this.subnetVisibilityButton);
 
         // Initialize modal search bar
         this.modalSearchBar = new GuiModalSearchBar(this.fontRenderer, this.searchField, this::onSearchTextChanged);
@@ -502,6 +555,37 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
         drawTooltips(mouseX, mouseY);
 
+        // Draw subnet overview tooltips
+        if (this.isInSubnetOverviewMode && this.hoveredSubnetEntryIndex >= 0
+                && this.hoveredSubnetEntryIndex < this.subnetLines.size()) {
+            Object line = this.subnetLines.get(this.hoveredSubnetEntryIndex);
+
+            // Handle filter item tooltips separately (for SubnetConnectionRow)
+            if (line instanceof SubnetConnectionRow) {
+                SubnetOverviewRenderer.HoverZone zone = this.subnetOverviewRenderer.getHoveredZone();
+                if (zone == SubnetOverviewRenderer.HoverZone.FILTER_SLOT) {
+                    ItemStack filterStack = this.subnetOverviewRenderer.getHoveredFilterStack();
+                    if (!filterStack.isEmpty()) {
+                        this.renderToolTip(filterStack, mouseX, mouseY);
+
+                        // Skip regular tooltip
+                        line = null;
+                    }
+                }
+            }
+
+            if (line != null) {
+                List<String> tooltip = this.subnetOverviewRenderer.getTooltip(line);
+                if (!tooltip.isEmpty()) this.drawHoveringText(tooltip, mouseX, mouseY);
+            }
+        }
+
+        // Draw back button tooltip
+        if (this.subnetBackButton != null && this.subnetBackButton.isMouseOver()) {
+            List<String> tooltip = this.subnetBackButton.getTooltip();
+            if (!tooltip.isEmpty()) this.drawHoveringText(tooltip, mouseX, mouseY);
+        }
+
         // Render modal search bar on top of everything else
         if (modalSearchBar != null && modalSearchBar.isVisible()) modalSearchBar.draw(mouseX, mouseY);
 
@@ -531,6 +615,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         ctx.terminalStyleButton = terminalStyleButton;
         ctx.searchModeButton = searchModeButton;
         ctx.searchHelpButton = searchHelpButton;
+        ctx.subnetVisibilityButton = subnetVisibilityButton;
         ctx.priorityFieldManager = priorityFieldManager;
         ctx.filterPanelManager = filterPanelManager;
 
@@ -603,6 +688,15 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
         // Reset priority field visibility before rendering
         if (priorityFieldManager != null) priorityFieldManager.resetVisibility();
+
+        // Subnet overview mode takes over the content area
+        if (this.isInSubnetOverviewMode) {
+            drawSubnetOverviewContent(relMouseX, relMouseY, currentScroll);
+            syncHoverStateFromContext(relMouseX, relMouseY);
+            drawControlsHelpForCurrentTab();
+
+            return;
+        }
 
         // Draw based on current tab using renderers
         switch (currentTab) {
@@ -684,6 +778,14 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
      */
     protected void drawControlsHelpForCurrentTab() {
         TerminalStyle style = CellTerminalClientConfig.getInstance().getTerminalStyle();
+
+        // In subnet overview mode, show subnet-specific controls
+        if (this.isInSubnetOverviewMode) {
+            drawSubnetControlsHelp(style);
+            updateFilterButtonPositions();
+            return;
+        }
+
         TabRenderingHandler.ControlsHelpContext ctx = new TabRenderingHandler.ControlsHelpContext(
             this.guiLeft, this.guiTop, this.ySize, this.height, currentTab, this.fontRenderer, style);
 
@@ -696,15 +798,105 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     }
 
     /**
+     * Draw controls help widget for subnet overview mode.
+     */
+    protected void drawSubnetControlsHelp(TerminalStyle style) {
+        List<String> lines = new ArrayList<>();
+        lines.add(I18n.format("cellterminal.subnet.controls.title"));
+        lines.add("");
+        lines.add(I18n.format("cellterminal.subnet.controls.click"));
+        lines.add(I18n.format("cellterminal.subnet.controls.dblclick"));
+        lines.add(I18n.format("cellterminal.subnet.controls.star"));
+        lines.add(I18n.format("cellterminal.subnet.controls.rename"));
+        lines.add(I18n.format("cellterminal.subnet.controls.esc"));
+
+        // Calculate panel width
+        int panelWidth = this.guiLeft - CONTROLS_HELP_RIGHT_MARGIN - CONTROLS_HELP_LEFT_MARGIN;
+        if (panelWidth < 60) panelWidth = 60;
+        int textWidth = panelWidth - (CONTROLS_HELP_PADDING * 2);
+
+        // Wrap all lines
+        List<String> wrappedLines = new ArrayList<>();
+        for (String line : lines) {
+            if (line.isEmpty()) {
+                wrappedLines.add("");
+            } else {
+                wrappedLines.addAll(this.fontRenderer.listFormattedStringToWidth(line, textWidth));
+            }
+        }
+
+        // Calculate positions
+        int panelRight = -CONTROLS_HELP_RIGHT_MARGIN;
+        int panelLeft = -this.guiLeft + CONTROLS_HELP_LEFT_MARGIN;
+        int contentHeight = wrappedLines.size() * CONTROLS_HELP_LINE_HEIGHT;
+        int panelHeight = contentHeight + (CONTROLS_HELP_PADDING * 2);
+
+        // Position relative to screen bottom
+        int bottomOffset = 28;
+        int panelBottom = this.height - this.guiTop - bottomOffset;
+        int panelTop = panelBottom - panelHeight;
+
+        // Draw AE2-style panel background
+        Gui.drawRect(panelLeft, panelTop, panelRight, panelBottom, 0xC0000000);
+
+        // Border
+        Gui.drawRect(panelLeft, panelTop, panelRight, panelTop + 1, 0xFF606060);
+        Gui.drawRect(panelLeft, panelTop, panelLeft + 1, panelBottom, 0xFF606060);
+        Gui.drawRect(panelLeft, panelBottom - 1, panelRight, panelBottom, 0xFF303030);
+        Gui.drawRect(panelRight - 1, panelTop, panelRight, panelBottom, 0xFF303030);
+
+        // Draw text
+        int textX = panelLeft + CONTROLS_HELP_PADDING;
+        int textY = panelTop + CONTROLS_HELP_PADDING;
+        for (int i = 0; i < wrappedLines.size(); i++) {
+            String line = wrappedLines.get(i);
+            if (!line.isEmpty()) {
+                this.fontRenderer.drawString(line, textX, textY + (i * CONTROLS_HELP_LINE_HEIGHT), 0xCCCCCC);
+            }
+        }
+
+        this.cachedControlsHelpLines = wrappedLines;
+        this.cachedControlsHelpTab = -1;  // Mark as subnet mode
+    }
+
+    /**
+     * Draw the subnet overview content.
+     * Shows a list of connected subnets with their info and connection details.
+     */
+    protected void drawSubnetOverviewContent(int relMouseX, int relMouseY, int currentScroll) {
+        if (this.subnetOverviewRenderer == null) return;
+
+        // Update scrollbar for subnet lines (headers + connection rows)
+        int totalLines = this.subnetLines.size();
+        int maxScroll = Math.max(0, totalLines - this.rowsVisible);
+        this.getScrollBar().setRange(0, maxScroll, 1);
+
+        // Draw the subnet list with connection rows
+        this.hoveredSubnetEntryIndex = this.subnetOverviewRenderer.draw(
+            this.subnetLines,
+            currentScroll,
+            this.rowsVisible,
+            relMouseX,
+            relMouseY,
+            this.guiLeft,
+            this.guiTop
+        );
+
+        // Draw rename field overlay if editing
+        if (this.subnetOverviewRenderer.isEditing()) this.subnetOverviewRenderer.drawRenameField();
+    }
+
+    /**
      * Get the bounding rectangle for the controls help widget.
      * Uses cached wrapped lines from the last render for accurate sizing.
      * Used for JEI exclusion areas.
      */
     protected Rectangle getControlsHelpBounds() {
-        // Use cached lines if available and for the current tab
-        if (cachedControlsHelpLines.isEmpty() || cachedControlsHelpTab != currentTab) {
-            return new Rectangle(0, 0, 0, 0);
-        }
+        // Use cached lines if available
+        // For subnet overview mode, cachedControlsHelpTab is -1 and we're not in a tab, so check isInSubnetOverviewMode
+        boolean isCacheValid = !cachedControlsHelpLines.isEmpty()
+            && (cachedControlsHelpTab == currentTab || (cachedControlsHelpTab == -1 && isInSubnetOverviewMode));
+        if (!isCacheValid) return new Rectangle(0, 0, 0, 0);
 
         int lineCount = cachedControlsHelpLines.size();
         int contentHeight = lineCount * CONTROLS_HELP_LINE_HEIGHT;
@@ -744,6 +936,16 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         // Add filter panel bounds
         Rectangle filterBounds = filterPanelManager.getBounds();
         if (filterBounds.width > 0) areas.add(filterBounds);
+
+        // Add terminal style button bounds
+        if (this.terminalStyleButton != null && this.terminalStyleButton.visible) {
+            areas.add(new Rectangle(
+                this.terminalStyleButton.x,
+                this.terminalStyleButton.y,
+                this.terminalStyleButton.width,
+                this.terminalStyleButton.height
+            ));
+        }
 
         return areas;
     }
@@ -950,6 +1152,49 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             return;
         }
 
+        // Handle rename field - click outside saves and closes
+        if (this.subnetOverviewRenderer != null && this.subnetOverviewRenderer.isEditing()) {
+            SubnetOverviewRenderer.HoverZone zone = this.subnetOverviewRenderer.getHoveredZone();
+            SubnetInfo hoveredSubnet = this.subnetOverviewRenderer.getHoveredSubnet();
+            SubnetInfo editingSubnet = this.subnetOverviewRenderer.getEditingSubnet();
+
+            // If clicking on a different zone or different subnet, save and close
+            boolean isClickOnEditedName = zone == SubnetOverviewRenderer.HoverZone.NAME
+                && hoveredSubnet != null
+                && editingSubnet != null
+                && hoveredSubnet.getId() == editingSubnet.getId();
+
+            if (!isClickOnEditedName) {
+                // Save the rename
+                SubnetInfo subnet = this.subnetOverviewRenderer.getEditingSubnet();
+                String newName = this.subnetOverviewRenderer.stopEditing();
+                if (newName != null && subnet != null) sendSubnetRenamePacket(subnet, newName);
+                // Continue processing the click
+            }
+        }
+
+        // Handle subnet overview mode clicks
+        if (this.isInSubnetOverviewMode && this.hoveredSubnetEntryIndex >= 0) {
+            if (this.hoveredSubnetEntryIndex < this.subnetLines.size()) {
+                Object line = this.subnetLines.get(this.hoveredSubnetEntryIndex);
+                SubnetOverviewRenderer.HoverZone zone = this.subnetOverviewRenderer.getHoveredZone();
+
+                // Get the subnet from either the header or connection row
+                SubnetInfo subnet = null;
+                if (line instanceof SubnetInfo) {
+                    subnet = (SubnetInfo) line;
+                } else if (line instanceof SubnetConnectionRow) {
+                    subnet = ((SubnetConnectionRow) line).getSubnet();
+                }
+
+                if (subnet != null) {
+                    handleSubnetEntryClick(subnet, zone, mouseButton);
+
+                    return;
+                }
+            }
+        }
+
         // Handle search field clicks
         if (this.searchField != null) {
             // Right-click clears the field and focuses it
@@ -1082,6 +1327,9 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         return new TerminalClickHandler.Callback() {
             @Override
             public void onTabChanged(int tab) {
+                // Exit subnet overview mode when switching tabs
+                if (isInSubnetOverviewMode) exitSubnetOverviewMode();
+
                 // Save scroll position for current tab before switching
                 TabStateManager.TabType oldTabType = TabStateManager.TabType.fromIndex(currentTab);
                 TabStateManager.getInstance().setScrollPosition(oldTabType, getScrollBar().getCurrentScroll());
@@ -1164,6 +1412,20 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             return;
         }
 
+        if (btn == subnetBackButton) {
+            handleSubnetBackButtonClick();
+
+            return;
+        }
+
+        if (btn == subnetVisibilityButton) {
+            // Cycle subnet visibility mode and persist it
+            currentSubnetVisibility = subnetVisibilityButton.cycleMode();
+            CellTerminalClientConfig.getInstance().setSubnetVisibility(currentSubnetVisibility);
+
+            return;
+        }
+
         // Handle filter button clicks
         if (btn instanceof GuiFilterButton) {
             GuiFilterButton filterBtn = (GuiFilterButton) btn;
@@ -1190,6 +1452,25 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
+        // Handle subnet rename field first (blocks other input when editing)
+        if (this.subnetOverviewRenderer != null && this.subnetOverviewRenderer.isEditing()) {
+            if (keyCode == Keyboard.KEY_ESCAPE) {
+                this.subnetOverviewRenderer.cancelEditing();
+                return;
+            }
+
+            if (keyCode == Keyboard.KEY_RETURN || keyCode == Keyboard.KEY_NUMPADENTER) {
+                // Confirm rename - get subnet before stopping (stopEditing clears it)
+                SubnetInfo subnet = this.subnetOverviewRenderer.getEditingSubnet();
+                String newName = this.subnetOverviewRenderer.stopEditing();
+                if (newName != null && subnet != null) sendSubnetRenamePacket(subnet, newName);
+
+                return;
+            }
+
+            if (this.subnetOverviewRenderer.handleKeyTyped(typedChar, keyCode)) return;
+        }
+
         // Handle network tool confirmation modal first (blocks all other input)
         if (networkToolModal != null) {
             if (networkToolModal.handleKeyTyped(keyCode)) return;
@@ -1201,8 +1482,8 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         }
 
         // Handle priority field keyboard first
-        if (priorityFieldManager != null && priorityFieldManager.handleKeyTyped(typedChar, keyCode)) {
-            return;
+        if (priorityFieldManager != null) {
+            if (priorityFieldManager.handleKeyTyped(typedChar, keyCode)) return;
         }
 
         // Esc key should close modals first
@@ -1221,6 +1502,12 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
                 this.searchField.setFocused(false);
                 return;
             }
+        }
+
+        // Backspace key toggles subnet overview
+        if (keyCode == Keyboard.KEY_BACK) {
+            handleSubnetBackButtonClick();
+            return;
         }
 
         // Delegate keybind handling to the active tab controller (only when search is not focused)
@@ -1418,6 +1705,265 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             scrollToLine(saved);
             this.initialScrollRestored = true;
         }
+    }
+
+    /**
+     * Handle subnet list update from server.
+     * Called when the server sends updated subnet connection data.
+     */
+    public void handleSubnetListUpdate(NBTTagCompound data) {
+        this.subnetList.clear();
+
+        // Always add the main network as first entry
+        this.subnetList.add(SubnetInfo.createMainNetwork());
+
+        if (data.hasKey("subnets")) {
+            net.minecraft.nbt.NBTTagList subnetNbtList = data.getTagList("subnets", net.minecraftforge.common.util.Constants.NBT.TAG_COMPOUND);
+            for (int i = 0; i < subnetNbtList.tagCount(); i++) {
+                NBTTagCompound subnetNbt = subnetNbtList.getCompoundTagAt(i);
+                this.subnetList.add(new SubnetInfo(subnetNbt));
+            }
+        }
+
+        // Sort subnets: main network first, then favorites, then by position
+        this.subnetList.sort((a, b) -> {
+            // Main network always first
+            if (a.isMainNetwork()) return -1;
+            if (b.isMainNetwork()) return 1;
+
+            // Favorites next
+            if (a.isFavorite() != b.isFavorite()) return a.isFavorite() ? -1 : 1;
+
+            // Then by dimension
+            if (a.getDimension() != b.getDimension()) {
+                return Integer.compare(a.getDimension(), b.getDimension());
+            }
+
+            // Then by distance from origin
+            double distA = a.getPrimaryPos().distanceSq(0, 0, 0);
+            double distB = b.getPrimaryPos().distanceSq(0, 0, 0);
+
+            return Double.compare(distA, distB);
+        });
+
+        // Build flattened line list for display (headers + connection rows)
+        buildSubnetLines();
+    }
+
+    /**
+     * Build the flattened subnet lines list from the sorted subnet list.
+     * Each subnet becomes a header row, followed by connection rows showing filters.
+     */
+    private void buildSubnetLines() {
+        this.subnetLines.clear();
+
+        for (SubnetInfo subnet : this.subnetList) {
+            // Add header row
+            this.subnetLines.add(subnet);
+
+            // Skip connection rows for main network
+            if (subnet.isMainNetwork()) continue;
+
+            // Add connection rows with filters
+            List<SubnetConnectionRow> connectionRows = subnet.buildConnectionRows(9);
+            this.subnetLines.addAll(connectionRows);
+        }
+    }
+
+    /**
+     * Get the list of subnets connected to the current network.
+     */
+    public List<SubnetInfo> getSubnetList() {
+        return subnetList;
+    }
+
+    /**
+     * Check if currently in subnet overview mode.
+     */
+    public boolean isInSubnetOverviewMode() {
+        return isInSubnetOverviewMode;
+    }
+
+    /**
+     * Enter subnet overview mode.
+     */
+    public void enterSubnetOverviewMode() {
+        this.isInSubnetOverviewMode = true;
+
+        // Update back button to show left arrow (back)
+        if (this.subnetBackButton != null) this.subnetBackButton.setInOverviewMode(true);
+
+        // If we already have subnet data from a previous visit, rebuild lines and update scrollbar
+        // This prevents the flicker that occurs while waiting for server response
+        if (!this.subnetList.isEmpty()) {
+            buildSubnetLines();
+            int totalLines = this.subnetLines.size();
+            int maxScroll = Math.max(0, totalLines - this.rowsVisible);
+            this.getScrollBar().setRange(0, maxScroll, 1);
+        }
+
+        // Request subnet list from server (will update with fresh data)
+        CellTerminalNetwork.INSTANCE.sendToServer(new com.cellterminal.network.PacketSubnetListRequest());
+    }
+
+    /**
+     * Exit subnet overview mode and return to normal terminal view.
+     */
+    public void exitSubnetOverviewMode() {
+        this.isInSubnetOverviewMode = false;
+
+        // Update back button to show right arrow (to overview)
+        if (this.subnetBackButton != null) this.subnetBackButton.setInOverviewMode(false);
+    }
+
+    /**
+     * Handle back button click - toggle overview.
+     */
+    protected void handleSubnetBackButtonClick() {
+        if (this.isInSubnetOverviewMode) {
+            // In overview mode - go back to the last viewed network (main or subnet)
+            switchToNetwork(currentNetworkId);
+        } else {
+            enterSubnetOverviewMode();
+        }
+    }
+
+    /**
+     * Switch to viewing a different network (main or subnet).
+     * @param networkId 0 for main network, subnet ID for subnets
+     */
+    public void switchToNetwork(long networkId) {
+        this.currentNetworkId = networkId;
+        this.isInSubnetOverviewMode = false;
+
+        // Persist the last viewed network for next time the terminal is opened
+        CellTerminalClientConfig.getInstance().setLastViewedNetworkId(networkId);
+
+        // Reset data manager so the next update does a full rebuild with proper filters
+        // instead of using snapshots from the old network context
+        this.dataManager.resetForNetworkSwitch();
+
+        // Update back button state - now we're in normal view, not overview
+        if (this.subnetBackButton != null) this.subnetBackButton.setInOverviewMode(false);
+
+        // Tell server to switch network context
+        CellTerminalNetwork.INSTANCE.sendToServer(new PacketSwitchNetwork(networkId));
+    }
+
+    /**
+     * Handle click on a subnet entry in the overview.
+     */
+    protected void handleSubnetEntryClick(SubnetInfo subnet, SubnetOverviewRenderer.HoverZone zone, int mouseButton) {
+        if (subnet == null) return;
+
+        switch (zone) {
+            case STAR:
+                // Toggle favorite (including main network)
+                if (mouseButton == 0) {
+                    boolean newFavorite = !subnet.isFavorite();
+                    subnet.setFavorite(newFavorite);
+                    CellTerminalNetwork.INSTANCE.sendToServer(PacketSubnetAction.toggleFavorite(subnet.getId(), newFavorite));
+                    // Re-sort subnet list to reflect favorite change and rebuild display
+                    this.subnetList.sort((a, b) -> {
+                        if (a.isMainNetwork()) return -1;
+                        if (b.isMainNetwork()) return 1;
+                        if (a.isFavorite() != b.isFavorite()) return a.isFavorite() ? -1 : 1;
+                        if (a.getDimension() != b.getDimension()) {
+                            return Integer.compare(a.getDimension(), b.getDimension());
+                        }
+                        double distA = a.getPrimaryPos().distanceSq(0, 0, 0);
+                        double distB = b.getPrimaryPos().distanceSq(0, 0, 0);
+
+                        return Double.compare(distA, distB);
+                    });
+                    buildSubnetLines();
+                    updateScrollbarForCurrentTab();
+                }
+                break;
+
+            case NAME:
+                if (mouseButton == 1 && !subnet.isMainNetwork()) {
+                    // Right-click - start renaming
+                    int rowY = this.subnetOverviewRenderer.getRowYForSubnet(subnet, this.subnetLines, getScrollBar().getCurrentScroll());
+                    if (rowY >= 0) this.subnetOverviewRenderer.startEditing(subnet, rowY);
+                } else if (mouseButton == 0 && !subnet.isMainNetwork()) {
+                    // Left-click - double-click highlights in world
+                    long currentTime = System.currentTimeMillis();
+                    if (subnet.getId() == lastSubnetClickId
+                        && currentTime - lastSubnetClickTime < DOUBLE_CLICK_THRESHOLD) {
+                        highlightSubnetInWorld(subnet);
+                        lastSubnetClickTime = 0;
+                        lastSubnetClickId = -1;
+                    } else {
+                        lastSubnetClickTime = currentTime;
+                        lastSubnetClickId = subnet.getId();
+                    }
+                }
+                break;
+
+            case LOAD_BUTTON:
+                // Load button clicked - switch to this subnet (including main network)
+                if (mouseButton == 0 && subnet.isAccessible() && subnet.hasPower()) {
+                    switchToNetwork(subnet.getId());
+                }
+                break;
+
+            case ENTRY:
+            default:
+                // Double-click on entry highlights in world (not for main network)
+                if (mouseButton == 0 && !subnet.isMainNetwork()) {
+                    long currentTime = System.currentTimeMillis();
+                    if (subnet.getId() == lastSubnetClickId
+                        && currentTime - lastSubnetClickTime < DOUBLE_CLICK_THRESHOLD) {
+                        // Double-click - highlight in world
+                        highlightSubnetInWorld(subnet);
+                        lastSubnetClickTime = 0;
+                        lastSubnetClickId = -1;
+                    } else {
+                        // First click - track for potential double-click
+                        lastSubnetClickTime = currentTime;
+                        lastSubnetClickId = subnet.getId();
+                    }
+                }
+                break;
+        }
+    }
+
+    /**
+     * Highlight a subnet's primary position in the world.
+     */
+    protected void highlightSubnetInWorld(SubnetInfo subnet) {
+        if (subnet == null || subnet.isMainNetwork()) return;
+
+        // Check if in different dimension
+        if (subnet.getDimension() != Minecraft.getMinecraft().player.dimension) {
+            MessageHelper.error("cellterminal.error.different_dimension");
+
+            return;
+        }
+
+        CellTerminalNetwork.INSTANCE.sendToServer(
+            new PacketHighlightBlock(subnet.getPrimaryPos(), subnet.getDimension())
+        );
+
+        // Send green chat message with block name and coordinates
+        MessageHelper.success("gui.cellterminal.highlighted",
+            subnet.getPrimaryPos().getX(),
+            subnet.getPrimaryPos().getY(),
+            subnet.getPrimaryPos().getZ(),
+            subnet.getDisplayName());
+    }
+
+    /**
+     * Send a packet to rename a subnet.
+     */
+    protected void sendSubnetRenamePacket(SubnetInfo subnet, String newName) {
+        if (subnet == null || subnet.isMainNetwork()) return;
+
+        CellTerminalNetwork.INSTANCE.sendToServer(PacketSubnetAction.rename(subnet.getId(), newName));
+
+        // Update local name immediately for responsiveness
+        subnet.setCustomName(newName.isEmpty() ? null : newName);
     }
 
     @Override

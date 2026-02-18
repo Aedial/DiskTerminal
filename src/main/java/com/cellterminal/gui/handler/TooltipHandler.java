@@ -16,6 +16,7 @@ import com.cellterminal.gui.GuiFilterButton;
 import com.cellterminal.gui.GuiSlotLimitButton;
 import com.cellterminal.gui.GuiSearchHelpButton;
 import com.cellterminal.gui.GuiSearchModeButton;
+import com.cellterminal.gui.GuiSubnetVisibilityButton;
 import com.cellterminal.gui.GuiTerminalStyleButton;
 import com.cellterminal.gui.PopupCellInventory;
 import com.cellterminal.gui.PopupCellPartition;
@@ -69,6 +70,7 @@ public class TooltipHandler {
         public GuiTerminalStyleButton terminalStyleButton;
         public GuiSearchModeButton searchModeButton;
         public GuiSearchHelpButton searchHelpButton;
+        public GuiSubnetVisibilityButton subnetVisibilityButton;
         public PriorityFieldManager priorityFieldManager;
         public FilterPanelManager filterPanelManager;
 
@@ -171,6 +173,12 @@ public class TooltipHandler {
 
         if (ctx.searchHelpButton != null && ctx.searchHelpButton.visible && ctx.searchHelpButton.isMouseOver()) {
             renderer.drawHoveringText(ctx.searchHelpButton.getTooltip(), mouseX, mouseY);
+
+            return;
+        }
+
+        if (ctx.subnetVisibilityButton != null && ctx.subnetVisibilityButton.visible && ctx.subnetVisibilityButton.isMouseOver()) {
+            renderer.drawHoveringText(ctx.subnetVisibilityButton.getTooltip(), mouseX, mouseY);
 
             return;
         }

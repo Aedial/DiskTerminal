@@ -98,6 +98,16 @@ config.cellterminal.config.client.settings.max_highlight_distance=Max Highlight 
 config.cellterminal.config.client.settings.max_highlight_distance.tooltip=Maximum distance (in blocks) from the player for block highlighting. Set to -1 for unlimited.
 config.cellterminal.config.client.settings.highlight_duration=Highlight Duration
 config.cellterminal.config.client.settings.highlight_duration.tooltip=Duration (in seconds) for block highlighting when double-clicking entries.
+config.cellterminal.config.client.settings.arrow_scale=Arrow Scale
+config.cellterminal.config.client.settings.arrow_scale.tooltip=Scale percentage for directional arrows pointing to distant highlights (100 = normal size).
+config.cellterminal.config.client.settings.text_scale=Arrow Text Scale
+config.cellterminal.config.client.settings.text_scale.tooltip=Scale percentage for distance text on directional arrows.
+config.cellterminal.config.client.settings.adaptive_text_scale=Adaptive Text Scale
+config.cellterminal.config.client.settings.adaptive_text_scale.tooltip=Whether to automatically scale arrow text based on distance from camera for better readability.
+config.cellterminal.config.client.settings.adaptive_text_scale_min=Adaptive Scale Min
+config.cellterminal.config.client.settings.adaptive_text_scale_min.tooltip=Minimum text scale multiplier (in percent) when using adaptive scaling.
+config.cellterminal.config.client.settings.adaptive_text_scale_max=Adaptive Scale Max
+config.cellterminal.config.client.settings.adaptive_text_scale_max.tooltip=Maximum text scale multiplier (in percent) when using adaptive scaling.
 
 # Server config
 config.cellterminal.config.server.tabs=Tab Settings
@@ -358,3 +368,73 @@ gui.cellterminal.networktools.mass_partition_bus.confirm=This will set filters o
 gui.cellterminal.networktools.mass_partition_bus.affected=%d buses will be filtered
 gui.cellterminal.networktools.mass_partition_bus.success=Filtered %d storage buses
 gui.cellterminal.networktools.mass_partition_bus.none=No storage buses to filter (filters may hide all)
+
+# Subnet View
+gui.cellterminal.subnet.title=Connected Subnets
+gui.cellterminal.subnet.none=No subnets connected
+gui.cellterminal.subnet.back=Back to main network
+gui.cellterminal.subnet.switch=Click to view subnet
+gui.cellterminal.subnet.highlight=Double-click to highlight
+gui.cellterminal.subnet.rename=Right-click to rename
+gui.cellterminal.subnet.favorite=Click star to toggle favorite
+gui.cellterminal.subnet.connections=%d connection(s)
+gui.cellterminal.subnet.outbound=Outbound: Storage Bus → Interface
+gui.cellterminal.subnet.inbound=Inbound: Interface ← Storage Bus
+gui.cellterminal.subnet.no_power=§c(No Power)§r
+gui.cellterminal.subnet.locked=§c(Access Denied)§r
+gui.cellterminal.subnet.storage=%s / %s bytes
+gui.cellterminal.subnet.types=%d / %d types
+gui.cellterminal.subnet.channels=%d / %d channels
+gui.cellterminal.subnet.default_name=%d, %d, %d
+gui.cellterminal.subnet.viewing=Viewing: %s
+gui.cellterminal.subnet.main_network=Main Network
+
+# Subnet View - Used by SubnetOverviewRenderer and GuiBackButton
+cellterminal.subnet.none=No subnets connected
+cellterminal.subnet.column.name=Name
+cellterminal.subnet.column.connections=Conn
+cellterminal.subnet.column.usage=Usage
+cellterminal.subnet.unfavorite=Unfavorite
+cellterminal.subnet.favorite=Favorite
+cellterminal.subnet.original_name=Original name
+cellterminal.subnet.click_to_view=Click to view subnet
+cellterminal.subnet.double_click_highlight=Double-click to highlight in world
+cellterminal.subnet.right_click_rename=Right-click to rename
+cellterminal.subnet.connections=Connections
+cellterminal.subnet.outbound=%d outbound (Storage Bus → Subnet)
+cellterminal.subnet.inbound=%d inbound (Subnet → Interface)
+cellterminal.subnet.pos=Position: %d, %d, %d
+cellterminal.subnet.dim=Dimension: %d
+cellterminal.subnet.no_power=No Power
+cellterminal.subnet.no_access=Access Denied (Security)
+cellterminal.subnet.back=Back
+cellterminal.subnet.back.desc=Return to previous network view
+cellterminal.subnet.overview=Subnet Overview
+cellterminal.subnet.overview.desc=View connected subnets
+cellterminal.subnet.rename=Right-click to rename
+cellterminal.subnet.main_network=Main Network
+cellterminal.subnet.load=Load
+cellterminal.subnet.load.tooltip=Load this subnet's storage view
+cellterminal.subnet.click_load_main=Click Load to return to main network
+
+# Connection Row
+cellterminal.subnet.direction.outbound=Outbound Connection (Storage Bus → Subnet)
+cellterminal.subnet.direction.inbound=Inbound Connection (Subnet → Interface)
+cellterminal.subnet.connection.pos=Connection at: %d, %d, %d
+cellterminal.subnet.filter_count=%d filter item(s)
+cellterminal.subnet.no_filter=No filter configured
+
+# Subnet Controls Help
+cellterminal.subnet.controls.title=§lSubnet Controls
+cellterminal.subnet.controls.click=Load Button: View subnet
+cellterminal.subnet.controls.dblclick=Double-click: Highlight in world
+cellterminal.subnet.controls.star=Star: Toggle favorite
+cellterminal.subnet.controls.rename=Name (R-click): Rename
+cellterminal.subnet.controls.esc=ESC: Return to view
+
+# Subnet Visibility Button
+gui.cellterminal.subnet_visibility=Subnet Content Visibility
+cellterminal.subnet_visibility.dont_show=Don't show subnet content
+cellterminal.subnet_visibility.favorites=Show favorites only
+cellterminal.subnet_visibility.all=Show all subnets
+gui.cellterminal.click_to_cycle=Click to cycle

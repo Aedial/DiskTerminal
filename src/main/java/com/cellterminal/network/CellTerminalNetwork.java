@@ -144,5 +144,37 @@ public class CellTerminalNetwork {
             packetId++,
             Side.SERVER
         );
+
+        // Client -> Server: Request subnet list refresh
+        INSTANCE.registerMessage(
+            PacketSubnetListRequest.Handler.class,
+            PacketSubnetListRequest.class,
+            packetId++,
+            Side.SERVER
+        );
+
+        // Server -> Client: Subnet list update
+        INSTANCE.registerMessage(
+            PacketSubnetListUpdate.Handler.class,
+            PacketSubnetListUpdate.class,
+            packetId++,
+            Side.CLIENT
+        );
+
+        // Client -> Server: Subnet action (rename, favorite)
+        INSTANCE.registerMessage(
+            PacketSubnetAction.Handler.class,
+            PacketSubnetAction.class,
+            packetId++,
+            Side.SERVER
+        );
+
+        // Client -> Server: Switch network view (main or subnet)
+        INSTANCE.registerMessage(
+            PacketSwitchNetwork.Handler.class,
+            PacketSwitchNetwork.class,
+            packetId++,
+            Side.SERVER
+        );
     }
 }

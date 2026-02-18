@@ -8,7 +8,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
-## [1.3.0] - 2026-02-11
+## [1.4.0-rc1] - 2026-02-18
+### Added
+- Add subnet overview screen, showing all connected subnets and allowing to load them in the main terminal view. This allows better management of multiple subnets, instead of having a different terminal for each subnet and no way to see the overall structure of the network.
+
+
+## [1.3.0] - 2026-02-16
 ### Added
 - Add shift rigft-click handling for upgrade cards to Storage Buses, like Storage Cells, to insert them directly without dragging.
 - Add individual config options to disable the integration with other mods (CrazyAE, ECOAEExtension, WUT) for better compatibility with different versions of those mods.

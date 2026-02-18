@@ -801,4 +801,20 @@ public class TerminalDataManager {
                 return lines.size();
         }
     }
+
+    /**
+     * Reset the data manager for a network switch.
+     * This clears the hasInitialData flag so the next update does a full rebuild
+     * instead of using snapshots from the old network context.
+     */
+    public void resetForNetworkSwitch() {
+        this.hasInitialData = false;
+
+        // Clear all snapshots since they're from the old network
+        this.visibleCellSnapshot.clear();
+        this.visibleCellSnapshotInventory.clear();
+        this.visibleCellSnapshotPartition.clear();
+        this.visibleBusSnapshotInventory.clear();
+        this.visibleBusSnapshotPartition.clear();
+    }
 }
