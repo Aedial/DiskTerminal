@@ -12,11 +12,14 @@ import net.minecraftforge.common.util.Constants;
 import appeng.api.config.Upgrades;
 import appeng.api.implementations.items.IUpgradeModule;
 
+import com.cellterminal.gui.rename.Renameable;
+import com.cellterminal.gui.rename.RenameTargetType;
+
 
 /**
  * Client-side data holder for cell information received from server.
  */
-public class CellInfo {
+public class CellInfo implements Renameable {
 
     private long parentStorageId;
     private final int slot;
@@ -280,5 +283,54 @@ public class CellInfo {
         if (!(upgradeStack.getItem() instanceof IUpgradeModule)) return false;
 
         return hasUpgradeSpace();
+    }
+
+    // ========================================
+    // Renameable implementation
+    // ========================================
+
+    @Override
+    public boolean isRenameable() {
+        return !cellItem.isEmpty();
+    }
+
+    @Override
+    public String getCustomName() {
+        if (cellItem.isEmpty()) return null;
+        if (cellItem.hasDisplayName()) return cellItem.getDisplayName();
+
+        return null;
+    }
+
+    @Override
+    public boolean hasCustomName() {
+        return !cellItem.isEmpty() && cellItem.hasDisplayName();
+    }
+
+    @Override
+    public void setCustomName(String name) {
+        // Client-side optimistic update for the ItemStack display name
+        if (cellItem.isEmpty()) return;
+
+        if (name == null || name.isEmpty()) {
+            cellItem.clearCustomName();
+        } else {
+            cellItem.setStackDisplayName(name);
+        }
+    }
+
+    @Override
+    public RenameTargetType getRenameTargetType() {
+        return RenameTargetType.CELL;
+    }
+
+    @Override
+    public long getRenameId() {
+        return parentStorageId;
+    }
+
+    @Override
+    public int getRenameSecondaryId() {
+        return slot;
     }
 }

@@ -41,6 +41,7 @@ public class InventoryTabController implements ITabController {
         lines.add(I18n.format("gui.cellterminal.controls.partition_indicator"));
         lines.add(I18n.format("gui.cellterminal.controls.click_partition_toggle"));
         lines.add(I18n.format("gui.cellterminal.controls.double_click_storage"));
+        lines.add(I18n.format("gui.cellterminal.right_click_rename"));
 
         return lines;
     }

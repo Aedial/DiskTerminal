@@ -406,7 +406,7 @@ public class CellActionHandler {
         ((IItemCompactingCell) cellStack.getItem()).initializeCompactingCellChain(cellStack, partitionItem, world);
     }
 
-    private static void forceCellHandlerRefresh(IItemHandler cellInventory, int cellSlot, ItemStack cellStack) {
+    public static void forceCellHandlerRefresh(IItemHandler cellInventory, int cellSlot, ItemStack cellStack) {
         if (cellInventory instanceof IItemHandlerModifiable) {
             ((IItemHandlerModifiable) cellInventory).setStackInSlot(cellSlot, cellStack);
         }

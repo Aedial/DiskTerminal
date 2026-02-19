@@ -247,6 +247,8 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         }
 
         data.setTag("storages", storageList);
+        // Include current network ID so client can verify data is for the expected network
+        data.setLong("networkId", this.currentNetworkId);
         this.pendingData = data;
     }
 
@@ -939,5 +941,33 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
             this.tile = tile;
             this.storage = storage;
         }
+    }
+
+    /**
+     * Get a storage tracker by its ID (for rename operations).
+     */
+    public StorageTracker getStorageTracker(long storageId) {
+        return this.byId.get(storageId);
+    }
+
+    /**
+     * Get a storage bus tracker by its ID (for rename operations).
+     */
+    public StorageBusTracker getStorageBusTracker(long storageBusId) {
+        return this.storageBusById.get(storageBusId);
+    }
+
+    /**
+     * Request a full data refresh (e.g., after a rename).
+     */
+    public void requestFullRefresh() {
+        this.needsFullRefresh = true;
+    }
+
+    /**
+     * Request a storage bus data refresh (e.g., after a rename).
+     */
+    public void requestStorageBusRefresh() {
+        this.needsStorageBusRefresh = true;
     }
 }

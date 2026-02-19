@@ -88,7 +88,7 @@ public class GuiSubnetVisibilityButton extends GuiButton {
 
             case SHOW_FAVORITES:
                 // Draw a small star
-                mc.fontRenderer.drawString("\u2605", this.x + 3, this.y + 2, COLOR_FAVORITES);
+                mc.fontRenderer.drawString("★", this.x + 3, this.y + 2, COLOR_FAVORITES);
                 break;
 
             case SHOW_ALL:
@@ -111,9 +111,9 @@ public class GuiSubnetVisibilityButton extends GuiButton {
     public List<String> getTooltip() {
         List<String> tooltip = new ArrayList<>();
         tooltip.add(I18n.format("gui.cellterminal.subnet_visibility"));
-        tooltip.add("\u00a77" + I18n.format(currentMode.getTranslationKey()));
+        tooltip.add("§7" + I18n.format(currentMode.getTranslationKey()));
         tooltip.add("");
-        tooltip.add("\u00a7e" + I18n.format("gui.cellterminal.click_to_cycle"));
+        tooltip.add("§e" + I18n.format("gui.cellterminal.click_to_cycle"));
 
         return tooltip;
     }

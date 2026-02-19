@@ -115,7 +115,8 @@ public class TerminalTabRenderer extends CellTerminalRenderer {
         // Draw name and location
         String name = storage.getName();
         if (name.length() > 20) name = name.substring(0, 18) + "...";
-        fontRenderer.drawString(name, GUI_INDENT + 20, y + 1, 0x404040);
+        int nameColor = storage.hasCustomName() ? 0xFF2E7D32 : 0x404040;
+        fontRenderer.drawString(name, GUI_INDENT + 20, y + 1, nameColor);
 
         String location = storage.getLocationString();
         fontRenderer.drawString(location, GUI_INDENT + 20, y + 9, 0x808080);
@@ -151,7 +152,8 @@ public class TerminalTabRenderer extends CellTerminalRenderer {
         String name = cell.getDisplayName();
         int decorLength = getDecorationLength(name);
         if (name.length() - decorLength > 16) name = name.substring(0, 14 + decorLength) + "...";
-        fontRenderer.drawString(name, CELL_INDENT + 18, y + 1, 0x404040);
+        int cellNameColor = cell.hasCustomName() ? 0xFF2E7D32 : 0x404040;
+        fontRenderer.drawString(name, CELL_INDENT + 18, y + 1, cellNameColor);
 
         // Draw usage bar
         int barX = CELL_INDENT + 18;

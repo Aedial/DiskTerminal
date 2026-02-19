@@ -81,11 +81,15 @@ import com.cellterminal.network.PacketSubnetAction;
 import com.cellterminal.network.PacketSubnetListRequest;
 import com.cellterminal.network.PacketSwitchNetwork;
 import com.cellterminal.network.PacketPartitionAction;
+import com.cellterminal.network.PacketRenameAction;
 import com.cellterminal.network.PacketSlotLimitChange;
 import com.cellterminal.network.PacketStorageBusPartitionAction;
 import com.cellterminal.network.PacketTabChange;
 import com.cellterminal.network.PacketUpgradeCell;
 import com.cellterminal.network.PacketUpgradeStorageBus;
+import com.cellterminal.gui.rename.InlineRenameEditor;
+import com.cellterminal.gui.rename.Renameable;
+import com.cellterminal.gui.rename.RenameTargetType;
 
 
 /**
@@ -168,6 +172,9 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     // Priority field manager (inline editable fields)
     protected PriorityFieldManager priorityFieldManager = null;
 
+    // Inline rename editor for storage, cell, and storage bus renaming
+    protected InlineRenameEditor inlineRenameEditor = null;
+
     // Tab hover for tooltips
     protected int hoveredTab = -1;
 
@@ -219,7 +226,6 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     private boolean initialScrollRestored = false;
 
     // Subnet view state
-    // FIXME: subnet flickers when opening the terminal
     protected final List<SubnetInfo> subnetList = new ArrayList<>();
     protected final List<Object> subnetLines = new ArrayList<>();  // Flattened list of SubnetInfo + SubnetConnectionRow
     protected boolean isInSubnetOverviewMode = false;
@@ -227,6 +233,8 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     protected int hoveredSubnetEntryIndex = -1;  // Index of hovered subnet in overview mode
     protected long lastSubnetClickTime = 0;  // For double-click detection
     protected long lastSubnetClickId = -1;  // Track which subnet was clicked for double-click
+    // When true, we're waiting for a network switch response - ignore incoming data until confirmed
+    protected boolean awaitingNetworkSwitch = false;
 
     public GuiCellTerminalBase(Container container) {
         super(container);
@@ -254,8 +262,9 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         this.currentSearchMode = config.getSearchMode();
         this.currentSubnetVisibility = config.getSubnetVisibility();
 
-        // Load persisted network ID (will attempt to switch to this subnet on open)
-        this.currentNetworkId = config.getLastViewedNetworkId();
+        // Subnet IDs are ephemeral (change between logins), so always start on the main network
+        // FIXME: the Id is not restored when using Wireless Terminal
+        this.currentNetworkId = 0;
     }
 
     /**
@@ -367,6 +376,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         // If a subnet was previously being viewed, tell the server to switch to it
         // Also reset data manager to avoid showing stale data from a previous session
         if (this.currentNetworkId != 0) {
+            this.awaitingNetworkSwitch = true;
             this.dataManager.resetForNetworkSwitch();
             CellTerminalNetwork.INSTANCE.sendToServer(new PacketSwitchNetwork(this.currentNetworkId));
         }
@@ -384,6 +394,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         this.storageBusPartitionRenderer = new StorageBusPartitionTabRenderer(this.fontRenderer, this.itemRender);
         this.networkToolsRenderer = new NetworkToolsTabRenderer(this.fontRenderer, this.itemRender);
         this.subnetOverviewRenderer = new SubnetOverviewRenderer(this.fontRenderer, this.itemRender);
+        this.inlineRenameEditor = new InlineRenameEditor();
     }
 
     protected void initSubnetBackButton() {
@@ -725,6 +736,11 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
                 networkToolsRenderer.draw(currentScroll, rowsVisible,
                     relMouseX, relMouseY, createNetworkToolContext(), renderContext);
                 break;
+        }
+
+        // Draw inline rename field overlay if editing
+        if (inlineRenameEditor != null && inlineRenameEditor.isEditing()) {
+            inlineRenameEditor.drawRenameField(this.fontRenderer);
         }
 
         // Update priority field positions based on visible storages
@@ -1173,6 +1189,24 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             }
         }
 
+        // Handle inline rename editor - click outside saves and closes
+        if (this.inlineRenameEditor != null && this.inlineRenameEditor.isEditing()) {
+            Renameable editingTarget = this.inlineRenameEditor.getEditingTarget();
+            Renameable hoveredTarget = getHoveredRenameable(mouseX - guiLeft);
+            boolean isClickOnEditedTarget = hoveredTarget != null
+                && editingTarget != null
+                && hoveredTarget.getRenameTargetType() == editingTarget.getRenameTargetType()
+                && hoveredTarget.getRenameId() == editingTarget.getRenameId()
+                && hoveredTarget.getRenameSecondaryId() == editingTarget.getRenameSecondaryId();
+
+            if (!isClickOnEditedTarget) {
+                Renameable target = this.inlineRenameEditor.getEditingTarget();
+                String newName = this.inlineRenameEditor.stopEditing();
+                if (newName != null && target != null) sendRenamePacket(target, newName);
+                // Continue processing the click
+            }
+        }
+
         // Handle subnet overview mode clicks
         if (this.isInSubnetOverviewMode && this.hoveredSubnetEntryIndex >= 0) {
             if (this.hoveredSubnetEntryIndex < this.subnetLines.size()) {
@@ -1246,6 +1280,27 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             partitionPopup = null;
 
             return;
+        }
+
+        // Right-click on a renameable target starts inline rename
+        if (mouseButton == 1 && !isInSubnetOverviewMode) {
+            int relMouseX = mouseX - guiLeft;
+            int relMouseY = mouseY - guiTop;
+            Renameable target = getHoveredRenameable(relMouseX);
+
+            if (target != null && target.isRenameable()
+                    && relMouseY >= GuiConstants.CONTENT_START_Y
+                    && relMouseY < GuiConstants.CONTENT_START_Y + rowsVisible * ROW_HEIGHT) {
+                int row = (relMouseY - GuiConstants.CONTENT_START_Y) / ROW_HEIGHT;
+                int rowY = GuiConstants.CONTENT_START_Y + row * ROW_HEIGHT;
+
+                // Determine X position and right edge based on target type and current tab
+                int renameX = getRenameFieldX(target);
+                int renameRightEdge = getRenameFieldRightEdge(target);
+                inlineRenameEditor.startEditing(target, rowY, renameX, renameRightEdge);
+
+                return;
+            }
         }
 
         if (clickHandler.handleTabClick(mouseX, mouseY, guiLeft, guiTop, currentTab, createClickCallback())) return;
@@ -1329,6 +1384,11 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             public void onTabChanged(int tab) {
                 // Exit subnet overview mode when switching tabs
                 if (isInSubnetOverviewMode) exitSubnetOverviewMode();
+
+                // Cancel any active inline rename when switching tabs
+                if (inlineRenameEditor != null && inlineRenameEditor.isEditing()) {
+                    inlineRenameEditor.cancelEditing();
+                }
 
                 // Save scroll position for current tab before switching
                 TabStateManager.TabType oldTabType = TabStateManager.TabType.fromIndex(currentTab);
@@ -1469,6 +1529,24 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             }
 
             if (this.subnetOverviewRenderer.handleKeyTyped(typedChar, keyCode)) return;
+        }
+
+        // Handle inline rename editor (storage, cell, storage bus) - blocks all other input when editing
+        if (this.inlineRenameEditor != null && this.inlineRenameEditor.isEditing()) {
+            if (keyCode == Keyboard.KEY_ESCAPE) {
+                this.inlineRenameEditor.cancelEditing();
+                return;
+            }
+
+            if (keyCode == Keyboard.KEY_RETURN || keyCode == Keyboard.KEY_NUMPADENTER) {
+                Renameable target = this.inlineRenameEditor.getEditingTarget();
+                String newName = this.inlineRenameEditor.stopEditing();
+                if (newName != null && target != null) sendRenamePacket(target, newName);
+
+                return;
+            }
+
+            if (this.inlineRenameEditor.handleKeyTyped(typedChar, keyCode)) return;
         }
 
         // Handle network tool confirmation modal first (blocks all other input)
@@ -1695,6 +1773,20 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     }
 
     public void postUpdate(NBTTagCompound data) {
+        // Check if we're awaiting a network switch - verify the data is for the expected network
+        if (data.hasKey("networkId")) {
+            long incomingNetworkId = data.getLong("networkId");
+
+            // If awaiting a switch, only accept data from the expected network
+            if (this.awaitingNetworkSwitch) {
+                // Data is from the old network - discard it
+                if (incomingNetworkId != this.currentNetworkId) return;
+
+                // Received data for the correct network - switch complete
+                this.awaitingNetworkSwitch = false;
+            }
+        }
+
         dataManager.processUpdate(data);
         updateScrollbarForCurrentTab();
 
@@ -1836,9 +1928,6 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         this.currentNetworkId = networkId;
         this.isInSubnetOverviewMode = false;
 
-        // Persist the last viewed network for next time the terminal is opened
-        CellTerminalClientConfig.getInstance().setLastViewedNetworkId(networkId);
-
         // Reset data manager so the next update does a full rebuild with proper filters
         // instead of using snapshots from the old network context
         this.dataManager.resetForNetworkSwitch();
@@ -1964,6 +2053,90 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
         // Update local name immediately for responsiveness
         subnet.setCustomName(newName.isEmpty() ? null : newName);
+    }
+
+    /**
+     * Send a rename packet for any Renameable target (storage, cell, storage bus).
+     */
+    protected void sendRenamePacket(Renameable target, String newName) {
+        if (target == null) return;
+
+        switch (target.getRenameTargetType()) {
+            case STORAGE:
+                CellTerminalNetwork.INSTANCE.sendToServer(
+                    PacketRenameAction.renameStorage(target.getRenameId(), newName));
+                break;
+            case CELL:
+                CellTerminalNetwork.INSTANCE.sendToServer(
+                    PacketRenameAction.renameCell(target.getRenameId(), target.getRenameSecondaryId(), newName));
+                break;
+            case STORAGE_BUS:
+                CellTerminalNetwork.INSTANCE.sendToServer(
+                    PacketRenameAction.renameStorageBus(target.getRenameId(), newName));
+                break;
+            default:
+                break;
+        }
+
+        // Update local name immediately for responsiveness
+        target.setCustomName(newName.isEmpty() ? null : newName);
+    }
+
+    /**
+     * Get the currently hovered renameable target based on the current tab and hover state.
+     * Returns null if nothing renameable is hovered, or if the click position overlaps buttons.
+     *
+     * @param relMouseX Mouse X relative to GUI left edge
+     * @return The hovered Renameable, or null
+     */
+    protected Renameable getHoveredRenameable(int relMouseX) {
+        // Storage header is renameable on tabs 0-2 (exclude expand button area at x >= 165)
+        if (hoveredStorageLine != null && relMouseX < GuiConstants.BUTTON_PARTITION_X) return hoveredStorageLine;
+
+        // On terminal tab, cells show name text — rename if not in button area (E/I/P at x >= 135)
+        if (currentTab == TAB_TERMINAL && hoveredCellCell != null && relMouseX < GuiConstants.BUTTON_EJECT_X) return hoveredCellCell;
+
+        // On inventory/partition tabs, cells are icon+content rows — rename if not on content/partition slots
+        if ((currentTab == TAB_INVENTORY || currentTab == TAB_PARTITION)
+                && hoveredCellCell != null
+                && hoveredContentSlotIndex < 0
+                && hoveredPartitionSlotIndex < 0) {
+            return hoveredCellCell;
+        }
+
+        // Storage bus is renameable on tabs 3-4 (exclude IO mode button at x >= 115)
+        if (hoveredStorageBus != null && relMouseX < GuiConstants.BUTTON_IO_MODE_X) return hoveredStorageBus;
+
+        return null;
+    }
+
+    /**
+     * Get the X position for the inline rename field based on the target type.
+     * The field has 2px internal padding, so we offset by -2 to align the text
+     * with the original name position.
+     * Cells are further indented (on a tree branch), while storages and buses start at the icon + 20.
+     */
+    protected int getRenameFieldX(Renameable target) {
+        // Subtract 2 so the text inside the field (at x + 2) aligns with where the name was drawn
+        if (target instanceof CellInfo) return GuiConstants.CELL_INDENT + 18 - 2;
+
+        // StorageInfo and StorageBusInfo: name drawn at GUI_INDENT + 20
+        return GuiConstants.GUI_INDENT + 20 - 2;
+    }
+
+    /**
+     * Get the right edge for the inline rename field based on the target type and current tab.
+     * Each tab has different buttons at the right side, so the field must stop before them.
+     */
+    protected int getRenameFieldRightEdge(Renameable target) {
+        // Storage buses (tabs 3-4) have IO mode button at BUTTON_IO_MODE_X (115)
+        if (target instanceof StorageBusInfo) return GuiConstants.BUTTON_IO_MODE_X - 4;
+
+        // Cells on terminal tab (tab 0) have E/I/P buttons starting at BUTTON_EJECT_X (135)
+        if (target instanceof CellInfo && currentTab == TAB_TERMINAL) return GuiConstants.BUTTON_EJECT_X - 4;
+
+        // Storage headers and cells on tabs 1-2 have priority field at CONTENT_RIGHT_EDGE - FIELD_WIDTH - RIGHT_MARGIN
+        return GuiConstants.CONTENT_RIGHT_EDGE - PriorityFieldManager.FIELD_WIDTH - PriorityFieldManager.RIGHT_MARGIN - 4;
     }
 
     @Override

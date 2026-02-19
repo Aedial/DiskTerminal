@@ -14,12 +14,15 @@ import net.minecraftforge.common.util.Constants;
 import appeng.api.config.Upgrades;
 import appeng.api.implementations.items.IUpgradeModule;
 
+import com.cellterminal.gui.rename.Renameable;
+import com.cellterminal.gui.rename.RenameTargetType;
+
 
 /**
  * Client-side data holder for storage bus information received from server.
  * Similar to CellInfo but for storage buses which connect to external inventories.
  */
-public class StorageBusInfo {
+public class StorageBusInfo implements Renameable {
 
     /**
      * Base number of config slots without any capacity upgrades.
@@ -62,6 +65,7 @@ public class StorageBusInfo {
     private final boolean isFluid;     // True for fluid storage buses
     private final boolean isEssentia;  // True for Thaumic Energistics essentia storage buses
     private final int accessRestriction;  // 0=NO_ACCESS, 1=READ, 2=WRITE, 3=READ_WRITE
+    private final String customName;      // Storage bus custom name (takes priority over connectedName)
     private final String connectedName;
     private final ItemStack connectedIcon;
     private final List<ItemStack> partition = new ArrayList<>();
@@ -93,6 +97,9 @@ public class StorageBusInfo {
         // Capability flags provided by scanners
         this.supportsPriorityFlag = nbt.getBoolean("supportsPriority");
         this.supportsIOModeFlag = nbt.getBoolean("supportsIOMode");
+
+        // Storage bus custom name (takes priority over connected block name)
+        this.customName = nbt.hasKey("customName") ? nbt.getString("customName") : null;
 
         // Connected inventory info
         this.connectedName = nbt.hasKey("connectedName") ? nbt.getString("connectedName") : null;
@@ -303,9 +310,13 @@ public class StorageBusInfo {
 
     /**
      * Get localized name for display.
-     * Returns connected inventory name if available, otherwise "Air" for no connection.
+     * Priority: custom name > connected inventory name > "Air".
      */
     public String getLocalizedName() {
+        // Custom name takes highest priority
+        if (customName != null && !customName.isEmpty()) return customName;
+
+        // Fall back to connected inventory name
         if (connectedName != null && !connectedName.isEmpty()) return connectedName;
 
         return I18n.format("gui.cellterminal.storage_bus.air");
@@ -409,5 +420,39 @@ public class StorageBusInfo {
         if (!(upgradeStack.getItem() instanceof IUpgradeModule)) return false;
 
         return hasUpgradeSpace();
+    }
+
+    // ========================================
+    // Renameable implementation
+    // ========================================
+
+    @Override
+    public boolean isRenameable() {
+        return true;
+    }
+
+    @Override
+    public String getCustomName() {
+        return customName;
+    }
+
+    @Override
+    public boolean hasCustomName() {
+        return customName != null && !customName.isEmpty();
+    }
+
+    @Override
+    public void setCustomName(String name) {
+        // Client-side optimistic update not supported; server sends refresh.
+    }
+
+    @Override
+    public RenameTargetType getRenameTargetType() {
+        return RenameTargetType.STORAGE_BUS;
+    }
+
+    @Override
+    public long getRenameId() {
+        return id;
     }
 }

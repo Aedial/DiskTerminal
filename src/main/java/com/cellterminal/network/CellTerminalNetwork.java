@@ -176,5 +176,21 @@ public class CellTerminalNetwork {
             packetId++,
             Side.SERVER
         );
+
+        // Client -> Server: Rename a storage, cell, or storage bus
+        INSTANCE.registerMessage(
+            PacketRenameAction.Handler.class,
+            PacketRenameAction.class,
+            packetId++,
+            Side.SERVER
+        );
+
+        // Client -> Server: Open wireless cell terminal via keybind
+        INSTANCE.registerMessage(
+            PacketOpenWirelessTerminal.Handler.class,
+            PacketOpenWirelessTerminal.class,
+            packetId++,
+            Side.SERVER
+        );
     }
 }

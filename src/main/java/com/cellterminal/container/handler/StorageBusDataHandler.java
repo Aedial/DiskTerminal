@@ -44,6 +44,7 @@ import appeng.api.util.IConfigManager;
 import appeng.fluids.items.FluidDummyItem;
 import appeng.fluids.parts.PartFluidStorageBus;
 import appeng.fluids.util.IAEFluidTank;
+import appeng.helpers.ICustomNameObject;
 import appeng.me.storage.MEInventoryHandler;
 import appeng.parts.automation.PartUpgradeable;
 import appeng.parts.misc.PartStorageBus;
@@ -124,6 +125,9 @@ public class StorageBusDataHandler {
         AccessRestriction access = (AccessRestriction) bus.getConfigManager().getSetting(Settings.ACCESS);
         busData.setInteger("access", access.ordinal());
 
+        // Storage bus custom name (takes priority over connected block name on client)
+        addCustomName(busData, bus);
+
         // Connected inventory info
         addConnectedInventoryInfo(busData, hostTile, bus.getSide().getFacing());
 
@@ -159,6 +163,9 @@ public class StorageBusDataHandler {
         AccessRestriction access = (AccessRestriction) bus.getConfigManager().getSetting(Settings.ACCESS);
         busData.setInteger("access", access.ordinal());
 
+        // Storage bus custom name (takes priority over connected block name on client)
+        addCustomName(busData, bus);
+
         // Connected inventory info
         addConnectedInventoryInfo(busData, hostTile, bus.getSide().getFacing());
 
@@ -173,6 +180,20 @@ public class StorageBusDataHandler {
         addUpgradesData(busData, bus.getInventoryByName("upgrades"));
 
         return busData;
+    }
+
+    /**
+     * Add custom name from a storage bus part if it has been renamed.
+     * This takes priority over the connected block name on the client side.
+     */
+    private static void addCustomName(NBTTagCompound busData, Object bus) {
+        if (!(bus instanceof ICustomNameObject)) return;
+
+        ICustomNameObject nameable = (ICustomNameObject) bus;
+        if (nameable.hasCustomInventoryName()) {
+            String customName = nameable.getCustomInventoryName();
+            if (customName != null && !customName.isEmpty()) busData.setString("customName", customName);
+        }
     }
 
     private static void addConnectedInventoryInfo(NBTTagCompound busData, TileEntity hostTile, EnumFacing facing) {

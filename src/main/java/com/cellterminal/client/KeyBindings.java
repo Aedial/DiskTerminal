@@ -2,6 +2,7 @@ package com.cellterminal.client;
 
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraftforge.client.settings.KeyConflictContext;
+import net.minecraftforge.client.settings.KeyModifier;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
 
 import org.lwjgl.input.Keyboard;
@@ -12,6 +13,18 @@ import org.lwjgl.input.Keyboard;
  * All default to NONE (unbound) to avoid conflicts.
  */
 public enum KeyBindings {
+
+    /**
+     * Open the wireless cell terminal from anywhere in the world.
+     * Uses UNIVERSAL context so it works outside of GUIs.
+     */
+    OPEN_WIRELESS_TERMINAL(new KeyBinding(
+        "key.cellterminal.open_wireless_terminal.desc",
+        KeyConflictContext.UNIVERSAL,
+        KeyModifier.SHIFT,
+        Keyboard.KEY_D,
+        "key.cellterminal.category"
+    )),
 
     /**
      * Quick partition with automatic type inference.

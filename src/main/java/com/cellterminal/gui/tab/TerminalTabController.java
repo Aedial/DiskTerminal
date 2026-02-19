@@ -37,6 +37,7 @@ public class TerminalTabController implements ITabController {
     public List<String> getHelpLines() {
         List<String> lines = new ArrayList<>();
         lines.add(I18n.format("gui.cellterminal.controls.double_click_storage_cell"));
+        lines.add(I18n.format("gui.cellterminal.right_click_rename"));
 
         return lines;
     }

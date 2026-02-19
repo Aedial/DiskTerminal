@@ -54,8 +54,8 @@ public class SubnetOverviewRenderer {
     private static final int COLOR_INBOUND = 0xFF1565C0;       // Dark blue arrow (in)
     private static final int COLOR_TREE_LINE = GuiConstants.COLOR_TREE_LINE;
     private static final int COLOR_MAIN_NETWORK = 0xFF00838F;  // Dark cyan for main network
-    private static final int COLOR_FAVORITE_ON = 0xFFFFD700;   // Gold for favorited
-    private static final int COLOR_FAVORITE_OFF = 0xFF606060;  // Gray for not favorited
+    private static final int COLOR_FAVORITE_ON = 0xFFCC9900;   // Darker amber for better contrast with C6C6C6
+    private static final int COLOR_FAVORITE_OFF = 0xFF505050;  // Dark gray for better contrast
 
     private final FontRenderer fontRenderer;
     private final RenderItem itemRender;
@@ -214,19 +214,18 @@ public class SubnetOverviewRenderer {
 
         // Draw favorite star on left sidebar (same position as upgrade icons)
         boolean starHovered = isHovered && hoveredZone == HoverZone.STAR;
-        // TODO: gold color should be darker for better contrast
         int starColor = subnet.isFavorite() ? COLOR_FAVORITE_ON : COLOR_FAVORITE_OFF;
-        if (starHovered) starColor = subnet.isFavorite() ? 0xFFFFE066 : 0xFF909090;
+        if (starHovered) starColor = subnet.isFavorite() ? 0xFFDDB000 : 0xFF707070;
         GlStateManager.pushMatrix();
         GlStateManager.scale(2.0F, 2.0F, 1.0F);  // Scale up for better visibility
-        fontRenderer.drawString("\u2605", STAR_X / 2, y / 2, starColor);  // ★
+        fontRenderer.drawString("★", STAR_X / 2, y / 2, starColor);
         GlStateManager.popMatrix();
 
         // Draw subnet icon (connection icon for subnets, house for main network)
         if (isMainNetwork) {
             GlStateManager.pushMatrix();
             GlStateManager.scale(2.0F, 2.0F, 1.0F);
-            fontRenderer.drawString("\u2302", (ICON_X + 5) / 2, (y - 1) / 2, COLOR_MAIN_NETWORK);  // ⌂
+            fontRenderer.drawString("⌂", (ICON_X + 5) / 2, (y - 1) / 2, COLOR_MAIN_NETWORK);
             GlStateManager.popMatrix();
         } else {
             ItemStack icon = subnet.getConnections().isEmpty() ? ItemStack.EMPTY
@@ -350,7 +349,7 @@ public class SubnetOverviewRenderer {
     private void drawConnectionIndicator(SubnetInfo.ConnectionPoint conn, int y) {
         // Draw direction arrow only
         int arrowX = TREE_LINE_X + 2;
-        String arrow = conn.isOutbound() ? "\u2192" : "\u2190";
+        String arrow = conn.isOutbound() ? "→" : "←";
         int arrowColor = conn.isOutbound() ? COLOR_OUTBOUND : COLOR_INBOUND;
         fontRenderer.drawString(arrow, arrowX, y + 4, arrowColor);
     }
@@ -714,14 +713,15 @@ public class SubnetOverviewRenderer {
         if (editingSubnet == null) return;
 
         int loadButtonX = GuiConstants.CONTENT_RIGHT_EDGE - LOAD_BUTTON_MARGIN - LOAD_BUTTON_WIDTH;
-        int x = NAME_X;
-        int y = editingY + 2;
-        int width = loadButtonX - NAME_X - 4;
-        int height = 12;
+        // Offset by -2 so the text inside the field (at x + 2) aligns with the original name position
+        int x = NAME_X - 2;
+        int y = editingY + 1;  // Vertically aligned with text (y + 1 is where text draws)
+        int width = loadButtonX - x - 4;
+        int height = 9;  // Reduced height to align with text
 
-        // Draw background
-        Gui.drawRect(x - 1, y - 1, x + width + 1, y + height + 1, 0xFF000000);
-        Gui.drawRect(x, y, x + width, y + height, 0xFFFFFFFF);
+        // Draw background (E0E0E0 to match terminal background, with dark border)
+        Gui.drawRect(x - 1, y - 1, x + width + 1, y + height + 1, 0xFF373737);
+        Gui.drawRect(x, y, x + width, y + height, 0xFFE0E0E0);
 
         // Draw text
         String displayText = editingText;
@@ -736,13 +736,13 @@ public class SubnetOverviewRenderer {
             textX -= scrollOffset;
         }
 
-        fontRenderer.drawString(displayText, textX, y + 2, 0xFF000000);
+        fontRenderer.drawString(displayText, textX, y, 0xFF000000);
 
         // Draw cursor (blinking)
         long time = System.currentTimeMillis();
         if ((time / 500) % 2 == 0) {
             int cursorX = x + 2 + fontRenderer.getStringWidth(displayText.substring(0, editingCursorPos));
-            Gui.drawRect(cursorX, y + 1, cursorX + 1, y + height - 1, 0xFF000000);
+            Gui.drawRect(cursorX, y, cursorX + 1, y + height - 1, 0xFF000000);
         }
     }
 
@@ -772,7 +772,7 @@ public class SubnetOverviewRenderer {
         // Main network tooltip
         if (subnet.isMainNetwork()) {
             lines.add(I18n.format("cellterminal.subnet.main_network"));
-            lines.add("\u00a7e" + I18n.format("cellterminal.subnet.click_load_main"));
+            lines.add("§e" + I18n.format("cellterminal.subnet.click_load_main"));
 
             return lines;
         }
@@ -785,26 +785,26 @@ public class SubnetOverviewRenderer {
             case NAME:
                 // Show general entry info on name (more useful than just rename hint)
                 lines.add(subnet.getDisplayName());
-                lines.add("\u00a77" + I18n.format("cellterminal.subnet.pos",
+                lines.add("§7" + I18n.format("cellterminal.subnet.pos",
                     subnet.getPrimaryPos().getX(),
                     subnet.getPrimaryPos().getY(),
                     subnet.getPrimaryPos().getZ()));
-                lines.add("\u00a77" + I18n.format("cellterminal.subnet.dim", subnet.getDimension()));
+                lines.add("§7" + I18n.format("cellterminal.subnet.dim", subnet.getDimension()));
                 if (subnet.getOutboundCount() > 0) {
-                    lines.add("\u00a7a" + I18n.format("cellterminal.subnet.outbound", subnet.getOutboundCount()));
+                    lines.add("§a" + I18n.format("cellterminal.subnet.outbound", subnet.getOutboundCount()));
                 }
                 if (subnet.getInboundCount() > 0) {
-                    lines.add("\u00a79" + I18n.format("cellterminal.subnet.inbound", subnet.getInboundCount()));
+                    lines.add("§9" + I18n.format("cellterminal.subnet.inbound", subnet.getInboundCount()));
                 }
                 lines.add("");
-                lines.add("\u00a7e" + I18n.format("cellterminal.subnet.right_click_rename"));
+                lines.add("§e" + I18n.format("cellterminal.subnet.right_click_rename"));
                 break;
 
             case LOAD_BUTTON:
                 if (!subnet.hasPower()) {
-                    lines.add("\u00a7c" + I18n.format("cellterminal.subnet.no_power"));
+                    lines.add("§c" + I18n.format("cellterminal.subnet.no_power"));
                 } else if (!subnet.isAccessible()) {
-                    lines.add("\u00a76" + I18n.format("cellterminal.subnet.no_access"));
+                    lines.add("§6" + I18n.format("cellterminal.subnet.no_access"));
                 } else {
                     lines.add(I18n.format("cellterminal.subnet.load.tooltip"));
                 }
@@ -812,27 +812,27 @@ public class SubnetOverviewRenderer {
 
             case ENTRY:
                 lines.add(subnet.getDisplayName());
-                lines.add("\u00a77" + I18n.format("cellterminal.subnet.pos",
+                lines.add("§7" + I18n.format("cellterminal.subnet.pos",
                     subnet.getPrimaryPos().getX(),
                     subnet.getPrimaryPos().getY(),
                     subnet.getPrimaryPos().getZ()));
-                lines.add("\u00a77" + I18n.format("cellterminal.subnet.dim", subnet.getDimension()));
+                lines.add("§7" + I18n.format("cellterminal.subnet.dim", subnet.getDimension()));
 
                 // Show connection counts
                 if (subnet.getOutboundCount() > 0) {
-                    lines.add("\u00a7a" + I18n.format("cellterminal.subnet.outbound", subnet.getOutboundCount()));
+                    lines.add("§a" + I18n.format("cellterminal.subnet.outbound", subnet.getOutboundCount()));
                 }
                 if (subnet.getInboundCount() > 0) {
-                    lines.add("\u00a79" + I18n.format("cellterminal.subnet.inbound", subnet.getInboundCount()));
+                    lines.add("§9" + I18n.format("cellterminal.subnet.inbound", subnet.getInboundCount()));
                 }
 
                 lines.add("");
-                lines.add("\u00a7e" + I18n.format("cellterminal.subnet.double_click_highlight"));
+                lines.add("§e" + I18n.format("cellterminal.subnet.double_click_highlight"));
                 if (!subnet.hasPower()) {
-                    lines.add("\u00a7c" + I18n.format("cellterminal.subnet.no_power"));
+                    lines.add("§c" + I18n.format("cellterminal.subnet.no_power"));
                 }
                 if (subnet.hasSecurity() && !subnet.isAccessible()) {
-                    lines.add("\u00a76" + I18n.format("cellterminal.subnet.no_access"));
+                    lines.add("§6" + I18n.format("cellterminal.subnet.no_access"));
                 }
                 break;
 
@@ -856,7 +856,7 @@ public class SubnetOverviewRenderer {
         lines.add(direction);
 
         // Show connection position
-        lines.add("\u00a77" + I18n.format("cellterminal.subnet.connection.pos",
+        lines.add("§7" + I18n.format("cellterminal.subnet.connection.pos",
             conn.getPos().getX(), conn.getPos().getY(), conn.getPos().getZ()));
 
         // Show filter count
@@ -866,9 +866,9 @@ public class SubnetOverviewRenderer {
         }
 
         if (nonEmptyCount > 0) {
-            lines.add("\u00a77" + I18n.format("cellterminal.subnet.filter_count", nonEmptyCount));
+            lines.add("§7" + I18n.format("cellterminal.subnet.filter_count", nonEmptyCount));
         } else {
-            lines.add("\u00a77" + I18n.format("cellterminal.subnet.no_filter"));
+            lines.add("§7" + I18n.format("cellterminal.subnet.no_filter"));
         }
 
         return lines;

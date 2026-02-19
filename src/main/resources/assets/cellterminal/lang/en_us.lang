@@ -218,6 +218,7 @@ key.cellterminal.quick_partition_item.desc=Quick Partition (Item Cell)
 key.cellterminal.quick_partition_fluid.desc=Quick Partition (Fluid Cell)
 key.cellterminal.quick_partition_essentia.desc=Quick Partition (Essentia Cell)
 key.cellterminal.add_to_storage_bus.desc=Add to Storage Bus
+key.cellterminal.open_wireless_terminal.desc=Open Wireless Cell Terminal
 
 # Quick partition messages
 cellterminal.quick_partition.no_item=No item under cursor
@@ -400,6 +401,7 @@ cellterminal.subnet.original_name=Original name
 cellterminal.subnet.click_to_view=Click to view subnet
 cellterminal.subnet.double_click_highlight=Double-click to highlight in world
 cellterminal.subnet.right_click_rename=Right-click to rename
+gui.cellterminal.right_click_rename=Right-click to rename
 cellterminal.subnet.connections=Connections
 cellterminal.subnet.outbound=%d outbound (Storage Bus → Subnet)
 cellterminal.subnet.inbound=%d inbound (Subnet → Interface)

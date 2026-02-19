@@ -66,24 +66,26 @@ public class GuiBackButton extends GuiButton {
     }
 
     private void drawLeftArrow(Minecraft mc, int color) {
+        // TODO: we need the arrow just a pixel lower, but scaling messes with that.
+        //       Should add custom textures for the buttons.
         // Draw a simple left arrow: <
-        int cx = this.x + this.width / 2 - mc.fontRenderer.getStringWidth("\u25C0") / 2;  // Center the arrow
+        int cx = this.x + this.width / 2 - mc.fontRenderer.getStringWidth("◀") / 2;  // Center the arrow
         int cy = this.y + this.height / 2 - mc.fontRenderer.FONT_HEIGHT / 2 - 4;
 
         GlStateManager.pushMatrix();
         GlStateManager.scale(2.0f, 2.0f, 1.0f);  // Scale up for better visibility
-        mc.fontRenderer.drawString("\u25C0", cx / 2, cy / 2, color);  // ◀
+        mc.fontRenderer.drawString("◀", cx / 2, cy / 2, color);
         GlStateManager.popMatrix();
     }
 
     private void drawRightArrow(Minecraft mc, int color) {
         // Draw a simple right arrow: >
-        int cx = this.x + this.width / 2 - mc.fontRenderer.getStringWidth("\u25B6") / 2;  // Center the arrow
+        int cx = this.x + this.width / 2 - mc.fontRenderer.getStringWidth("▶") / 2;  // Center the arrow
         int cy = this.y + this.height / 2 - mc.fontRenderer.FONT_HEIGHT / 2 - 4;
 
         GlStateManager.pushMatrix();
         GlStateManager.scale(2.0f, 2.0f, 1.0f);  // Scale up for better visibility
-        mc.fontRenderer.drawString("\u25B6", cx / 2, cy / 2, color);  // ▶
+        mc.fontRenderer.drawString("▶", cx / 2, cy / 2, color);
         GlStateManager.popMatrix();
     }
 
