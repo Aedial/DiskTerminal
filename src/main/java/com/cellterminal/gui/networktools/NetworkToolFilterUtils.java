@@ -7,6 +7,8 @@ import java.util.Map;
 
 import net.minecraft.item.ItemStack;
 
+import com.cells.api.IItemCompactingCell;
+
 import com.cellterminal.client.AdvancedSearchParser;
 import com.cellterminal.client.CellFilter;
 import com.cellterminal.client.CellInfo;
@@ -113,6 +115,9 @@ public final class NetworkToolFilterUtils {
             for (int slot = 0; slot < storage.getSlotCount(); slot++) {
                 CellInfo cell = storage.getCellAtSlot(slot);
                 if (cell == null) continue;
+
+                // Skip compacting cells - they use a special chain mechanism
+                if (cell.getCellItem().getItem() instanceof IItemCompactingCell) continue;
 
                 // Check cell type matches requested types
                 boolean isFluid = cell.isFluid();

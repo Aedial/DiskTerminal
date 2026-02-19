@@ -10,11 +10,14 @@ import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.common.util.Constants;
 
+import com.cellterminal.gui.rename.Renameable;
+import com.cellterminal.gui.rename.RenameTargetType;
+
 
 /**
  * Client-side data holder for drive/chest storage information received from server.
  */
-public class StorageInfo {
+public class StorageInfo implements Renameable {
 
     private final long id;
     private final BlockPos pos;
@@ -136,5 +139,44 @@ public class StorageInfo {
      */
     public boolean supportsPriority() {
         return supportsPriorityFlag;
+    }
+
+    // ========================================
+    // Renameable implementation
+    // ========================================
+
+    @Override
+    public boolean isRenameable() {
+        return true;
+    }
+
+    @Override
+    public String getCustomName() {
+        // Storage name is always set (either custom or translation key)
+        // We consider it "custom" if it doesn't start with tile./item. (translation key)
+        if (name != null && !name.startsWith("tile.") && !name.startsWith("item.")) return name;
+
+        return null;
+    }
+
+    @Override
+    public boolean hasCustomName() {
+        return name != null && !name.startsWith("tile.") && !name.startsWith("item.");
+    }
+
+    @Override
+    public void setCustomName(String name) {
+        // Client-side optimistic update is not applicable for StorageInfo's final fields.
+        // The server will send a full refresh after rename.
+    }
+
+    @Override
+    public RenameTargetType getRenameTargetType() {
+        return RenameTargetType.STORAGE;
+    }
+
+    @Override
+    public long getRenameId() {
+        return id;
     }
 }

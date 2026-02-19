@@ -23,11 +23,11 @@ import com.cellterminal.network.PacketSetPriority;
 public class PriorityFieldManager {
 
     // Field dimensions - sized for 7 digits with caret (-999999 to 9999999)
-    private static final int FIELD_WIDTH = 35;
+    public static final int FIELD_WIDTH = 35;
     private static final int FIELD_HEIGHT = 6;
 
     // Position offset from right edge of content area (leave room for [+]/[-] button)
-    private static final int RIGHT_MARGIN = 15;
+    public static final int RIGHT_MARGIN = 15;
 
     private final FontRenderer fontRenderer;
     private final Map<Long, PriorityField> fields = new HashMap<>();
@@ -85,7 +85,7 @@ public class PriorityFieldManager {
     public void updateFieldPosition(PriorityField field, int y, int guiLeft, int guiTop) {
         // Position at far right of the storage line
         // Store absolute position for click handling
-        int fieldX = guiLeft + 180 - FIELD_WIDTH - RIGHT_MARGIN;
+        int fieldX = guiLeft + GuiConstants.CONTENT_RIGHT_EDGE - FIELD_WIDTH - RIGHT_MARGIN;
         int fieldY = guiTop + y + 1;
         field.updatePosition(fieldX, fieldY);
     }
@@ -94,7 +94,7 @@ public class PriorityFieldManager {
      * Update the position of a storage bus priority field for the current render frame.
      */
     public void updateStorageBusFieldPosition(StorageBusPriorityField field, int y, int guiLeft, int guiTop) {
-        int fieldX = guiLeft + 180 - FIELD_WIDTH - RIGHT_MARGIN;
+        int fieldX = guiLeft + GuiConstants.CONTENT_RIGHT_EDGE - FIELD_WIDTH - RIGHT_MARGIN;
         int fieldY = guiTop + y + 1;
         field.updatePosition(fieldX, fieldY);
     }

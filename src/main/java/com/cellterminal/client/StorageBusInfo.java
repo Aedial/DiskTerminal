@@ -14,12 +14,15 @@ import net.minecraftforge.common.util.Constants;
 import appeng.api.config.Upgrades;
 import appeng.api.implementations.items.IUpgradeModule;
 
+import com.cellterminal.gui.rename.Renameable;
+import com.cellterminal.gui.rename.RenameTargetType;
+
 
 /**
  * Client-side data holder for storage bus information received from server.
  * Similar to CellInfo but for storage buses which connect to external inventories.
  */
-public class StorageBusInfo {
+public class StorageBusInfo implements Renameable {
 
     /**
      * Base number of config slots without any capacity upgrades.
@@ -55,17 +58,14 @@ public class StorageBusInfo {
     private final int dimension;
     private final EnumFacing side;
     private final int priority;
-    private final int capacityUpgrades;
     private final int baseConfigSlots;
     private final int slotsPerUpgrade;
     private final int maxConfigSlots;
-    private final boolean hasInverter;
-    private final boolean hasSticky;
-    private final boolean hasFuzzy;
     private final boolean isItem;      // True for item storage buses
     private final boolean isFluid;     // True for fluid storage buses
     private final boolean isEssentia;  // True for Thaumic Energistics essentia storage buses
     private final int accessRestriction;  // 0=NO_ACCESS, 1=READ, 2=WRITE, 3=READ_WRITE
+    private final String customName;      // Storage bus custom name (takes priority over connectedName)
     private final String connectedName;
     private final ItemStack connectedIcon;
     private final List<ItemStack> partition = new ArrayList<>();
@@ -83,10 +83,6 @@ public class StorageBusInfo {
         this.dimension = nbt.getInteger("dim");
         this.side = EnumFacing.byIndex(nbt.getInteger("side"));
         this.priority = nbt.getInteger("priority");
-        this.capacityUpgrades = nbt.getInteger("capacityUpgrades");
-        this.hasInverter = nbt.getBoolean("hasInverter");
-        this.hasSticky = nbt.getBoolean("hasSticky");
-        this.hasFuzzy = nbt.getBoolean("hasFuzzy");
         this.isFluid = nbt.getBoolean("isFluid");
         this.isEssentia = nbt.getBoolean("isEssentia");
         // Prefer explicit isItem flag; fallback to legacy inference if missing
@@ -101,6 +97,9 @@ public class StorageBusInfo {
         // Capability flags provided by scanners
         this.supportsPriorityFlag = nbt.getBoolean("supportsPriority");
         this.supportsIOModeFlag = nbt.getBoolean("supportsIOMode");
+
+        // Storage bus custom name (takes priority over connected block name)
+        this.customName = nbt.hasKey("customName") ? nbt.getString("customName") : null;
 
         // Connected inventory info
         this.connectedName = nbt.hasKey("connectedName") ? nbt.getString("connectedName") : null;
@@ -194,31 +193,27 @@ public class StorageBusInfo {
         return priority;
     }
 
-    public int getCapacityUpgrades() {
-        return capacityUpgrades;
-    }
-
     /**
      * Get the number of available config slots based on capacity upgrades.
      * Formula: 18 + 9 * capacityUpgrades, capped at 63.
      * Essentia buses always have 63 slots (they don't use capacity upgrades).
      */
     public int getAvailableConfigSlots() {
-        int raw = baseConfigSlots + slotsPerUpgrade * Math.max(0, capacityUpgrades);
+        int raw = baseConfigSlots + slotsPerUpgrade * Math.max(0, getInstalledUpgrades(Upgrades.CAPACITY));
 
         return raw > maxConfigSlots ? maxConfigSlots : raw;
     }
 
     public boolean hasInverter() {
-        return hasInverter;
+        return getInstalledUpgrades(Upgrades.INVERTER) > 0;
     }
 
     public boolean hasSticky() {
-        return hasSticky;
+        return getInstalledUpgrades(Upgrades.STICKY) > 0;
     }
 
     public boolean hasFuzzy() {
-        return hasFuzzy;
+        return getInstalledUpgrades(Upgrades.FUZZY) > 0;
     }
 
     public boolean isFluid() {
@@ -315,9 +310,13 @@ public class StorageBusInfo {
 
     /**
      * Get localized name for display.
-     * Returns connected inventory name if available, otherwise "Air" for no connection.
+     * Priority: custom name > connected inventory name > "Air".
      */
     public String getLocalizedName() {
+        // Custom name takes highest priority
+        if (customName != null && !customName.isEmpty()) return customName;
+
+        // Fall back to connected inventory name
         if (connectedName != null && !connectedName.isEmpty()) return connectedName;
 
         return I18n.format("gui.cellterminal.storage_bus.air");
@@ -391,31 +390,6 @@ public class StorageBusInfo {
     }
 
     /**
-     * Get the maximum number of a specific upgrade type this storage bus can hold.
-     * @param upgradeType The upgrade type to check
-     * @return The maximum count, or 0 if not supported
-     */
-    public int getMaxInstalled(Upgrades upgradeType) {
-        if (upgradeType == null) return 0;
-
-        // Essentia buses don't support standard AE2 upgrades
-        if (isEssentia) return 0;
-
-        switch (upgradeType) {
-            case CAPACITY:
-                return 5;
-            case INVERTER:
-            case STICKY:
-                return 1;
-            case FUZZY:
-                // Fluid storage buses don't support fuzzy
-                return isFluid ? 0 : 1;
-            default:
-                return 0;
-        }
-    }
-
-    /**
      * Get the current installed count of a specific upgrade type.
      * @param upgradeType The upgrade type to count
      * @return The number currently installed
@@ -423,44 +397,62 @@ public class StorageBusInfo {
     public int getInstalledUpgrades(Upgrades upgradeType) {
         if (upgradeType == null) return 0;
 
-        switch (upgradeType) {
-            case CAPACITY:
-                return capacityUpgrades;
-            case INVERTER:
-                return hasInverter ? 1 : 0;
-            case STICKY:
-                return hasSticky ? 1 : 0;
-            case FUZZY:
-                return hasFuzzy ? 1 : 0;
-            default:
-                return 0;
+        int count = 0;
+        for (ItemStack upgrade : upgrades) {
+            if (upgrade.getItem() instanceof IUpgradeModule) {
+                Upgrades type = ((IUpgradeModule) upgrade.getItem()).getType(upgrade);
+                if (type == upgradeType) count++;
+            }
         }
+
+        return count;
     }
 
     /**
-     * Check if this storage bus can accept the given upgrade item.
-     * Checks if the bus has upgrade space, the upgrade type is supported,
-     * and the current count is below the maximum for that upgrade type.
+     * Check if this storage bus can potentially accept the given upgrade item.
+     * This is a client-side heuristic only - actual validation happens server-side.
+     * Checks if item is an upgrade module and if there's space in the upgrade inventory.
      * @param upgradeStack The upgrade item to check
-     * @return true if the upgrade can be inserted
+     * @return true if the upgrade might be insertable
      */
     public boolean canAcceptUpgrade(ItemStack upgradeStack) {
         if (upgradeStack.isEmpty()) return false;
         if (!(upgradeStack.getItem() instanceof IUpgradeModule)) return false;
-        if (!hasUpgradeSpace()) return false;
 
-        // Essentia buses don't support standard AE2 upgrades
-        if (isEssentia) return false;
+        return hasUpgradeSpace();
+    }
 
-        IUpgradeModule upgradeModule = (IUpgradeModule) upgradeStack.getItem();
-        Upgrades upgradeType = upgradeModule.getType(upgradeStack);
-        if (upgradeType == null) return false;
+    // ========================================
+    // Renameable implementation
+    // ========================================
 
-        int maxInstalled = getMaxInstalled(upgradeType);
-        if (maxInstalled == 0) return false;
+    @Override
+    public boolean isRenameable() {
+        return true;
+    }
 
-        int currentInstalled = getInstalledUpgrades(upgradeType);
+    @Override
+    public String getCustomName() {
+        return customName;
+    }
 
-        return currentInstalled < maxInstalled;
+    @Override
+    public boolean hasCustomName() {
+        return customName != null && !customName.isEmpty();
+    }
+
+    @Override
+    public void setCustomName(String name) {
+        // Client-side optimistic update not supported; server sends refresh.
+    }
+
+    @Override
+    public RenameTargetType getRenameTargetType() {
+        return RenameTargetType.STORAGE_BUS;
+    }
+
+    @Override
+    public long getRenameId() {
+        return id;
     }
 }

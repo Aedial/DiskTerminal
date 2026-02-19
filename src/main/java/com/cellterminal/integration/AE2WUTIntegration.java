@@ -2,6 +2,7 @@ package com.cellterminal.integration;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
+import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Optional;
 import net.minecraftforge.fml.relauncher.Side;
@@ -54,7 +55,14 @@ public class AE2WUTIntegration {
      * Check if AE2WUT is loaded.
      */
     public static boolean isModLoaded() {
-        if (modLoaded == null) modLoaded = Loader.isModLoaded(MODID);
+        if (modLoaded == null) {
+            boolean loaded = Loader.isModLoaded(MODID);
+            if (loaded && CellTerminalServerConfig.isInitialized()) {
+                loaded = CellTerminalServerConfig.getInstance().isIntegrationAE2WUTEnabled();
+            }
+
+            modLoaded = loaded;
+        }
 
         return modLoaded;
     }
@@ -174,7 +182,7 @@ public class AE2WUTIntegration {
     private static int[] getWUTModesInternal(ItemStack stack) {
         if (!(stack.getItem() instanceof ItemWirelessUniversalTerminal)) return null;
         if (!stack.hasTagCompound()) return null;
-        if (!stack.getTagCompound().hasKey("modes", 11)) return null;
+        if (!stack.getTagCompound().hasKey("modes", Constants.NBT.TAG_INT_ARRAY)) return null;
 
         return stack.getTagCompound().getIntArray("modes");
     }
@@ -240,5 +248,46 @@ public class AE2WUTIntegration {
         if (wh == null) return null;
 
         return new WirelessTerminalGuiObject(wh, item, player, player.world, slot, isBauble, Integer.MIN_VALUE);
+    }
+
+    /**
+     * Try to open the Cell Terminal mode from a Wireless Universal Terminal.
+     * Called by the keybind packet handler to open the WUT in Cell Terminal mode.
+     *
+     * @param is The ItemStack to check
+     * @param player The player
+     * @param slot The inventory slot
+     * @param isBauble Whether the item is in a baubles slot
+     * @return true if the WUT was opened (or an error message was sent)
+     */
+    public static boolean tryOpenWUTCellTerminal(ItemStack is, EntityPlayer player, int slot, boolean isBauble) {
+        if (!isModLoaded()) return false;
+
+        return tryOpenWUTCellTerminalInternal(is, player, slot, isBauble);
+    }
+
+    @Optional.Method(modid = MODID)
+    private static boolean tryOpenWUTCellTerminalInternal(ItemStack is, EntityPlayer player, int slot, boolean isBauble) {
+        if (!(is.getItem() instanceof ItemWirelessUniversalTerminal)) return false;
+        if (!is.hasTagCompound()) return false;
+
+        // Check if Cell Terminal mode is available in this WUT
+        int[] modes = is.getTagCompound().hasKey("modes", Constants.NBT.TAG_INT_ARRAY)
+            ? is.getTagCompound().getIntArray("modes") : null;
+        if (modes == null) return false;
+
+        byte cellMode = getCellTerminalMode();
+        boolean hasMode = false;
+        for (int mode : modes) {
+            if (mode == cellMode) {
+                hasMode = true;
+                break;
+            }
+        }
+
+        if (!hasMode) return false;
+
+        AE2UELWirelessUniversalTerminal.openWirelessTerminalGui(is, player, cellMode, slot, isBauble);
+        return true;
     }
 }

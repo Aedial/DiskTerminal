@@ -144,5 +144,53 @@ public class CellTerminalNetwork {
             packetId++,
             Side.SERVER
         );
+
+        // Client -> Server: Request subnet list refresh
+        INSTANCE.registerMessage(
+            PacketSubnetListRequest.Handler.class,
+            PacketSubnetListRequest.class,
+            packetId++,
+            Side.SERVER
+        );
+
+        // Server -> Client: Subnet list update
+        INSTANCE.registerMessage(
+            PacketSubnetListUpdate.Handler.class,
+            PacketSubnetListUpdate.class,
+            packetId++,
+            Side.CLIENT
+        );
+
+        // Client -> Server: Subnet action (rename, favorite)
+        INSTANCE.registerMessage(
+            PacketSubnetAction.Handler.class,
+            PacketSubnetAction.class,
+            packetId++,
+            Side.SERVER
+        );
+
+        // Client -> Server: Switch network view (main or subnet)
+        INSTANCE.registerMessage(
+            PacketSwitchNetwork.Handler.class,
+            PacketSwitchNetwork.class,
+            packetId++,
+            Side.SERVER
+        );
+
+        // Client -> Server: Rename a storage, cell, or storage bus
+        INSTANCE.registerMessage(
+            PacketRenameAction.Handler.class,
+            PacketRenameAction.class,
+            packetId++,
+            Side.SERVER
+        );
+
+        // Client -> Server: Open wireless cell terminal via keybind
+        INSTANCE.registerMessage(
+            PacketOpenWirelessTerminal.Handler.class,
+            PacketOpenWirelessTerminal.class,
+            packetId++,
+            Side.SERVER
+        );
     }
 }

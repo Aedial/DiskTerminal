@@ -3,16 +3,18 @@ package com.cellterminal.gui;
 
 /**
  * Central location for all GUI layout constants used in the Cell Terminal.
- *
+ * <p>
  * This file allows easy customization of visual appearance without
  * diving into the main rendering or behavior classes.
- *
+ * <p>
  * Constants are organized by category:
- * - General layout (dimensions, padding)
- * - Tab configuration
- * - Row/slot configuration
- * - Colors
- * - Timing (click detection)
+ * <ul>
+ *   <li>General layout (dimensions, padding)</li>
+ *   <li>Tab configuration</li>
+ *   <li>Row/slot configuration</li>
+ *   <li>Colors</li>
+ *   <li>Timing (click detection)</li>
+ * </ul>
  */
 public final class GuiConstants {
 
@@ -125,7 +127,7 @@ public final class GuiConstants {
     public static final int BUTTON_PARTITION_X = 165;
 
     /** X position of IO mode button in storage bus headers (before priority field) */
-    public static final int BUTTON_IO_MODE_X = 115;
+    public static final int BUTTON_IO_MODE_X = 120;
 
     // ========================================
     // CONTROLS HELP WIDGET

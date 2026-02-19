@@ -38,6 +38,9 @@ public class StorageBusRenderer {
     private static final int COLOR_ORANGE_INSERT = 0xFFFF9933;
     private static final int COLOR_GREY_NONE = 0xFF555555;
 
+    // Color for custom-named storage buses (green, matching subnet custom names)
+    private static final int COLOR_NAME_CUSTOM = 0xFF2E7D32;
+
     private final FontRenderer fontRenderer;
     private final StorageBusSlotRenderer slotRenderer;
 
@@ -99,14 +102,18 @@ public class StorageBusRenderer {
         ItemStack connectedIcon = storageBus.getConnectedInventoryIcon();
         if (!connectedIcon.isEmpty()) slotRenderer.renderItemStack(connectedIcon, GuiConstants.GUI_INDENT, y);
 
-        // Draw name and location
+        // Draw name and location (use pixel-based truncation)
+        int nameX = GuiConstants.GUI_INDENT + 20;
+        int nameMaxWidth = GuiConstants.BUTTON_IO_MODE_X - nameX - 4;
         String name = storageBus.getLocalizedName();
-        if (name.length() > 18) name = name.substring(0, 16) + "...";
-        fontRenderer.drawString(name, GuiConstants.GUI_INDENT + 20, y + 1, GuiConstants.COLOR_TEXT_NORMAL);
+        String displayName = trimTextToWidth(name, nameMaxWidth);
+        int nameColor = storageBus.hasCustomName() ? COLOR_NAME_CUSTOM : GuiConstants.COLOR_TEXT_NORMAL;
+        fontRenderer.drawString(displayName, nameX, y + 1, nameColor);
 
+        int locationMaxWidth = GuiConstants.BUTTON_IO_MODE_X - nameX - 4;
         String location = storageBus.getLocationString();
-        if (location.length() > 30) location = location.substring(0, 28) + "...";
-        fontRenderer.drawString(location, GuiConstants.GUI_INDENT + 20, y + 9, GuiConstants.COLOR_TEXT_SECONDARY);
+        String displayLocation = trimTextToWidth(location, locationMaxWidth);
+        fontRenderer.drawString(displayLocation, nameX, y + 9, GuiConstants.COLOR_TEXT_SECONDARY);
 
         // Draw IO Mode button
         int buttonX = GuiConstants.BUTTON_IO_MODE_X;
@@ -214,15 +221,26 @@ public class StorageBusRenderer {
         ItemStack connectedIcon = storageBus.getConnectedInventoryIcon();
         if (!connectedIcon.isEmpty()) slotRenderer.renderItemStack(connectedIcon, GuiConstants.GUI_INDENT, y);
 
-        // Draw name and location
+        // Draw name and location (use pixel-based truncation)
+        int nameX = GuiConstants.GUI_INDENT + 20;
+        int nameMaxWidth = GuiConstants.BUTTON_IO_MODE_X - nameX - 4;
         String name = storageBus.getLocalizedName();
-        if (name.length() > 18) name = name.substring(0, 16) + "...";
-        int nameColor = isSelected ? 0x204080 : GuiConstants.COLOR_TEXT_NORMAL;
-        fontRenderer.drawString(name, GuiConstants.GUI_INDENT + 20, y + 1, nameColor);
+        String displayName = trimTextToWidth(name, nameMaxWidth);
+        // Use blue for selected, green for custom-named, normal otherwise
+        int nameColor;
+        if (isSelected) {
+            nameColor = 0x204080;
+        } else if (storageBus.hasCustomName()) {
+            nameColor = COLOR_NAME_CUSTOM;
+        } else {
+            nameColor = GuiConstants.COLOR_TEXT_NORMAL;
+        }
+        fontRenderer.drawString(displayName, nameX, y + 1, nameColor);
 
+        int locationMaxWidth = GuiConstants.BUTTON_IO_MODE_X - nameX - 4;
         String location = storageBus.getLocationString();
-        if (location.length() > 30) location = location.substring(0, 28) + "...";
-        fontRenderer.drawString(location, GuiConstants.GUI_INDENT + 20, y + 9, GuiConstants.COLOR_TEXT_SECONDARY);
+        String displayLocation = trimTextToWidth(location, locationMaxWidth);
+        fontRenderer.drawString(displayLocation, nameX, y + 9, GuiConstants.COLOR_TEXT_SECONDARY);
 
         // Draw IO Mode button
         int buttonX = GuiConstants.BUTTON_IO_MODE_X;
@@ -568,5 +586,32 @@ public class StorageBusRenderer {
                 Gui.drawRect(x + px, y + py, x + px + 1, y + py + 1, color);
             }
         }
+    }
+
+    /**
+     * Trim text to fit within maxWidth pixels, adding ellipsis if needed.
+     */
+    private String trimTextToWidth(String text, int maxWidth) {
+        if (fontRenderer.getStringWidth(text) <= maxWidth) return text;
+
+        String ellipsis = "...";
+        int ellipsisWidth = fontRenderer.getStringWidth(ellipsis);
+        int availableWidth = maxWidth - ellipsisWidth;
+
+        if (availableWidth <= 0) return ellipsis;
+
+        // Binary search for the right truncation point
+        int low = 0;
+        int high = text.length();
+        while (low < high) {
+            int mid = (low + high + 1) / 2;
+            if (fontRenderer.getStringWidth(text.substring(0, mid)) <= availableWidth) {
+                low = mid;
+            } else {
+                high = mid - 1;
+            }
+        }
+
+        return text.substring(0, low) + ellipsis;
     }
 }

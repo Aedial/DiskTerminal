@@ -9,6 +9,7 @@ import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 
 import com.cellterminal.CellTerminal;
+import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.container.handler.CellDataHandler;
 import com.cellterminal.integration.storage.AbstractStorageScanner;
 import com.cellterminal.integration.storage.IStorageScanner;
@@ -31,7 +32,14 @@ public class CrazyAEIntegration {
      * Check if CrazyAE is loaded.
      */
     public static boolean isModLoaded() {
-        if (modLoaded == null) modLoaded = Loader.isModLoaded(MODID);
+        if (modLoaded == null) {
+            boolean loaded = Loader.isModLoaded(MODID);
+            if (loaded && CellTerminalServerConfig.isInitialized()) {
+                loaded = CellTerminalServerConfig.getInstance().isIntegrationCrazyAEEnabled();
+            }
+
+            modLoaded = loaded;
+        }
 
         return modLoaded;
     }

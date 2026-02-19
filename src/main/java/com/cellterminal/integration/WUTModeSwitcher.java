@@ -254,7 +254,7 @@ public class WUTModeSwitcher {
                 GlStateManager.translate(centerX, centerY, 0);
                 GlStateManager.scale(2.0f, 2.0f, 1.0f);
 
-                String arrow = "\u21C4";  // ⇄
+                String arrow = "⇄";
                 int arrowWidth = mc.fontRenderer.getStringWidth(arrow);
 
                 // Black color (slightly softer on hover)

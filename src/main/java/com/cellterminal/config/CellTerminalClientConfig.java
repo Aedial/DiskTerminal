@@ -12,6 +12,7 @@ import net.minecraftforge.common.config.Property;
 import com.cellterminal.client.CellFilter;
 import com.cellterminal.client.SearchFilterMode;
 import com.cellterminal.client.SlotLimit;
+import com.cellterminal.client.SubnetVisibility;
 
 
 /**
@@ -32,8 +33,18 @@ public class CellTerminalClientConfig {
     // Settings properties (shown in config GUI)
     private final Property maxHighlightDistanceProperty;
     private final Property highlightDurationProperty;
+    private final Property arrowScalePercentProperty;
+    private final Property textScalePercentProperty;
+    private final Property adaptiveTextScaleProperty;
+    private final Property adaptiveTextScaleMinPercentProperty;
+    private final Property adaptiveTextScaleMaxPercentProperty;
     private int maxHighlightDistance = -1;  // -1 = unlimited
     private int highlightDuration = 15;  // seconds
+    private int arrowScalePercent = 100;  // Arrow size scale percentage
+    private int textScalePercent = 100;   // Arrow text scale percentage
+    private boolean adaptiveTextScale = true;  // Scale text based on arrow distance from camera
+    private int adaptiveTextScaleMinPercent = 100;  // Minimum adaptive text scale
+    private int adaptiveTextScaleMaxPercent = 200;  // Maximum adaptive text scale
 
     // GUI state properties (hidden from config GUI - persistent state)
     private final Property selectedTabProperty;
@@ -42,12 +53,16 @@ public class CellTerminalClientConfig {
     private final Property searchModeProperty;
     private final Property cellSlotLimitProperty;
     private final Property busSlotLimitProperty;
+    private final Property lastViewedNetworkIdProperty;
+    private final Property subnetVisibilityProperty;
     private int selectedTab = 0;
     private TerminalStyle terminalStyle = TerminalStyle.SMALL;
     private String searchFilter = "";
     private SearchFilterMode searchMode = SearchFilterMode.MIXED;
     private SlotLimit cellSlotLimit = SlotLimit.UNLIMITED;
     private SlotLimit busSlotLimit = SlotLimit.UNLIMITED;
+    private long lastViewedNetworkId = 0;  // 0 = main network
+    private SubnetVisibility subnetVisibility = SubnetVisibility.DONT_SHOW;
 
     // Filter states - separate maps for cells (tabs 0-2) and storage buses (tabs 3-4)
     private final Map<CellFilter, CellFilter.State> cellFilterStates = new EnumMap<>(CellFilter.class);
@@ -74,6 +89,33 @@ public class CellTerminalClientConfig {
             "Higher values keep highlights visible longer.", 1, 3600);
         this.highlightDurationProperty.setLanguageKey("config.cellterminal.config.client.settings.highlight_duration");
         this.highlightDuration = this.highlightDurationProperty.getInt();
+
+        this.arrowScalePercentProperty = config.get(CATEGORY_SETTINGS, "arrowScalePercent", 100,
+            "Scale percentage for directional arrows pointing to distant highlights.\n" +
+            "Larger values make arrows bigger, smaller values make them smaller.", 10, 1000);
+        this.arrowScalePercentProperty.setLanguageKey("config.cellterminal.config.client.settings.arrow_scale");
+        this.arrowScalePercent = this.arrowScalePercentProperty.getInt();
+
+        this.textScalePercentProperty = config.get(CATEGORY_SETTINGS, "textScalePercent", 100,
+            "Scale percentage for distance text on directional arrows.", 10, 1000);
+        this.textScalePercentProperty.setLanguageKey("config.cellterminal.config.client.settings.text_scale");
+        this.textScalePercent = this.textScalePercentProperty.getInt();
+
+        this.adaptiveTextScaleProperty = config.get(CATEGORY_SETTINGS, "adaptiveTextScale", true,
+            "Whether to automatically scale arrow text based on arrow's distance from camera.\n" +
+            "Arrows at the edge of view will have larger text for better readability.");
+        this.adaptiveTextScaleProperty.setLanguageKey("config.cellterminal.config.client.settings.adaptive_text_scale");
+        this.adaptiveTextScale = this.adaptiveTextScaleProperty.getBoolean();
+
+        this.adaptiveTextScaleMinPercentProperty = config.get(CATEGORY_SETTINGS, "adaptiveTextScaleMinPercent", 100,
+            "Minimum text scale multiplier (in percent) when using adaptive text scaling.", 10, 1000);
+        this.adaptiveTextScaleMinPercentProperty.setLanguageKey("config.cellterminal.config.client.settings.adaptive_text_scale_min");
+        this.adaptiveTextScaleMinPercent = this.adaptiveTextScaleMinPercentProperty.getInt();
+
+        this.adaptiveTextScaleMaxPercentProperty = config.get(CATEGORY_SETTINGS, "adaptiveTextScaleMaxPercent", 200,
+            "Maximum text scale multiplier (in percent) when using adaptive text scaling.", 10, 1000);
+        this.adaptiveTextScaleMaxPercentProperty.setLanguageKey("config.cellterminal.config.client.settings.adaptive_text_scale_max");
+        this.adaptiveTextScaleMaxPercent = this.adaptiveTextScaleMaxPercentProperty.getInt();
 
         // GUI state category (hidden from config GUI - persistent state)
         this.selectedTabProperty = config.get(CATEGORY_GUI, "selectedTab", 0,
@@ -105,6 +147,20 @@ public class CellTerminalClientConfig {
             "Slot limit for storage bus content display: LIMIT_8, LIMIT_32, LIMIT_64, or UNLIMITED");
         this.busSlotLimitProperty.setLanguageKey("config.cellterminal.gui.busSlotLimit");
         this.busSlotLimit = SlotLimit.fromName(this.busSlotLimitProperty.getString());
+
+        this.lastViewedNetworkIdProperty = config.get(CATEGORY_GUI, "lastViewedNetworkId", "0",
+            "The last viewed network ID (0 = main network, other = subnet ID). Stored as string to support long values.");
+        this.lastViewedNetworkIdProperty.setLanguageKey("config.cellterminal.gui.lastViewedNetworkId");
+        try {
+            this.lastViewedNetworkId = Long.parseLong(this.lastViewedNetworkIdProperty.getString());
+        } catch (NumberFormatException e) {
+            this.lastViewedNetworkId = 0;
+        }
+
+        this.subnetVisibilityProperty = config.get(CATEGORY_GUI, "subnetVisibility", SubnetVisibility.DONT_SHOW.name(),
+            "Subnet content visibility in each tab: DONT_SHOW, SHOW_FAVORITES, or SHOW_ALL");
+        this.subnetVisibilityProperty.setLanguageKey("config.cellterminal.gui.subnetVisibility");
+        this.subnetVisibility = SubnetVisibility.fromName(this.subnetVisibilityProperty.getString());
 
         // Load filter states for cells and storage buses separately
         config.setCategoryLanguageKey(CATEGORY_FILTERS, "config.cellterminal.filters");
@@ -266,6 +322,53 @@ public class CellTerminalClientConfig {
     }
 
     /**
+     * Get the last viewed network ID (0 = main network).
+     */
+    public long getLastViewedNetworkId() {
+        return lastViewedNetworkId;
+    }
+
+    /**
+     * Set the last viewed network ID. Use 0 for main network.
+     */
+    public void setLastViewedNetworkId(long networkId) {
+        if (this.lastViewedNetworkId == networkId) return;
+
+        this.lastViewedNetworkId = networkId;
+        this.lastViewedNetworkIdProperty.set(String.valueOf(networkId));
+        config.save();
+    }
+
+    /**
+     * Get the subnet visibility mode for tabs.
+     */
+    public SubnetVisibility getSubnetVisibility() {
+        return subnetVisibility;
+    }
+
+    /**
+     * Set the subnet visibility mode for tabs.
+     */
+    public void setSubnetVisibility(SubnetVisibility visibility) {
+        if (this.subnetVisibility == visibility) return;
+
+        this.subnetVisibility = visibility;
+        this.subnetVisibilityProperty.set(visibility.name());
+        config.save();
+    }
+
+    /**
+     * Cycle to the next subnet visibility mode.
+     * @return The new visibility mode after cycling
+     */
+    public SubnetVisibility cycleSubnetVisibility() {
+        SubnetVisibility next = subnetVisibility.next();
+        setSubnetVisibility(next);
+
+        return next;
+    }
+
+    /**
      * Get the appropriate slot limit for the current tab.
      * @param forStorageBus true for storage bus tabs (3-4), false for cell tabs (0-2)
      */
@@ -323,6 +426,41 @@ public class CellTerminalClientConfig {
     }
 
     /**
+     * Get the arrow scale factor (1.0 = 100%).
+     */
+    public float getArrowScale() {
+        return arrowScalePercent / 100.0f;
+    }
+
+    /**
+     * Get the text scale factor (1.0 = 100%).
+     */
+    public float getTextScale() {
+        return textScalePercent / 100.0f;
+    }
+
+    /**
+     * Check if adaptive text scaling is enabled.
+     */
+    public boolean isAdaptiveTextScale() {
+        return adaptiveTextScale;
+    }
+
+    /**
+     * Get the minimum adaptive text scale factor.
+     */
+    public float getAdaptiveTextScaleMin() {
+        return adaptiveTextScaleMinPercent / 100.0f;
+    }
+
+    /**
+     * Get the maximum adaptive text scale factor.
+     */
+    public float getAdaptiveTextScaleMax() {
+        return adaptiveTextScaleMaxPercent / 100.0f;
+    }
+
+    /**
      * Get the underlying Configuration object.
      */
     public Configuration getConfiguration() {
@@ -349,6 +487,11 @@ public class CellTerminalClientConfig {
     public void syncFromConfig() {
         this.maxHighlightDistance = this.maxHighlightDistanceProperty.getInt();
         this.highlightDuration = this.highlightDurationProperty.getInt();
+        this.arrowScalePercent = this.arrowScalePercentProperty.getInt();
+        this.textScalePercent = this.textScalePercentProperty.getInt();
+        this.adaptiveTextScale = this.adaptiveTextScaleProperty.getBoolean();
+        this.adaptiveTextScaleMinPercent = this.adaptiveTextScaleMinPercentProperty.getInt();
+        this.adaptiveTextScaleMaxPercent = this.adaptiveTextScaleMaxPercentProperty.getInt();
 
         if (config.hasChanged()) config.save();
     }

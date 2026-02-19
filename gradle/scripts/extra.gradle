@@ -1,0 +1,7 @@
+// This file is automatically applied after build.gradle + dependencies.gradle is ran
+apply from: 'gradle/scripts/helpers.gradle'
+
+// Override archive name since mod_id (cellterminal) differs from the desired jar name (cell-terminal)
+base {
+    archivesName.set('cell-terminal')
+}

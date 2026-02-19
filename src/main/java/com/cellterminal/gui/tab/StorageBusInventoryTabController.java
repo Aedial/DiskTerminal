@@ -40,6 +40,7 @@ public class StorageBusInventoryTabController implements ITabController {
         lines.add(I18n.format("gui.cellterminal.controls.filter_indicator"));
         lines.add(I18n.format("gui.cellterminal.controls.click_to_remove"));
         lines.add(I18n.format("gui.cellterminal.controls.double_click_storage"));
+        lines.add(I18n.format("gui.cellterminal.right_click_rename"));
 
         return lines;
     }

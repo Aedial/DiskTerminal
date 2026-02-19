@@ -8,6 +8,7 @@ import mezz.jei.api.IModRegistry;
 import mezz.jei.api.JEIPlugin;
 import mezz.jei.api.gui.IAdvancedGuiHandler;
 
+import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.gui.GuiCellTerminal;
 import com.cellterminal.gui.GuiWirelessCellTerminal;
 import com.cellterminal.gui.handler.QuickPartitionHandler;
@@ -22,12 +23,23 @@ public class CellTerminalJEIPlugin implements IModPlugin {
 
     @Override
     public void register(IModRegistry registry) {
+        // Respect server config: allow disabling JEI integration
+        if (CellTerminalServerConfig.isInitialized()
+            && !CellTerminalServerConfig.getInstance().isIntegrationJeiEnabled()) {
+            return;
+        }
+
         // Register advanced GUI handlers for exclusion areas if needed
         registry.addAdvancedGuiHandlers(new CellTerminalGuiHandler());
     }
 
     @Override
     public void onRuntimeAvailable(IJeiRuntime runtime) {
+        if (CellTerminalServerConfig.isInitialized()
+            && !CellTerminalServerConfig.getInstance().isIntegrationJeiEnabled()) {
+            return;
+        }
+
         // Provide the JEI runtime to the quick partition handler
         QuickPartitionHandler.setJeiRuntime(runtime);
     }

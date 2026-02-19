@@ -25,6 +25,7 @@ import appeng.api.util.AECableType;
 import appeng.tile.inventory.AppEngCellInventory;
 
 import com.cellterminal.CellTerminal;
+import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.container.handler.CellDataHandler;
 import com.cellterminal.integration.storage.AbstractStorageScanner;
 import com.cellterminal.integration.storage.IStorageScanner;
@@ -51,7 +52,14 @@ public class ECOAEExtensionIntegration {
      * Check if ECOAEExtension is loaded.
      */
     public static boolean isModLoaded() {
-        if (modLoaded == null) modLoaded = Loader.isModLoaded(MODID);
+        if (modLoaded == null) {
+            boolean loaded = Loader.isModLoaded(MODID);
+            if (loaded && CellTerminalServerConfig.isInitialized()) {
+                loaded = CellTerminalServerConfig.getInstance().isIntegrationECOAEEnabled();
+            }
+
+            modLoaded = loaded;
+        }
 
         return modLoaded;
     }

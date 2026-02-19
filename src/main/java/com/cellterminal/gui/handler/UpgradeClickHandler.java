@@ -138,8 +138,6 @@ public class UpgradeClickHandler {
      * @return true if an upgrade click was handled
      */
     public static boolean handleStorageBusUpgradeClick(StorageBusInfo hoveredStorageBus) {
-        if (hoveredStorageBus == null) return false;
-
         ItemStack heldStack = Minecraft.getMinecraft().player.inventory.getItemStack();
         if (heldStack.isEmpty()) return false;
         if (!(heldStack.getItem() instanceof IUpgradeModule)) return false;
@@ -152,7 +150,20 @@ public class UpgradeClickHandler {
             return true;  // Consume click to prevent other handlers
         }
 
-        CellTerminalNetwork.INSTANCE.sendToServer(new PacketUpgradeStorageBus(hoveredStorageBus.getId()));
+        boolean isShiftClick = Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT);
+
+        // For shift-click, send any storage bus ID (server will find the first accepting one)
+        // For regular click, require hovering a specific storage bus
+        if (isShiftClick) {
+            // Use ID 0 as placeholder; server will iterate through all buses
+            CellTerminalNetwork.INSTANCE.sendToServer(new PacketUpgradeStorageBus(0, true));
+
+            return true;
+        }
+
+        if (hoveredStorageBus == null) return false;
+
+        CellTerminalNetwork.INSTANCE.sendToServer(new PacketUpgradeStorageBus(hoveredStorageBus.getId(), false));
 
         return true;
     }

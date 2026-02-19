@@ -43,6 +43,8 @@ import com.cellterminal.container.handler.CellDataHandler;
 import com.cellterminal.container.handler.NetworkToolActionHandler;
 import com.cellterminal.container.handler.StorageBusDataHandler;
 import com.cellterminal.container.handler.StorageBusDataHandler.StorageBusTracker;
+import com.cellterminal.container.handler.SubnetDataHandler;
+import com.cellterminal.container.handler.SubnetDataHandler.SubnetTracker;
 import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.integration.storage.StorageScannerRegistry;
 import com.cellterminal.network.CellTerminalNetwork;
@@ -50,6 +52,7 @@ import com.cellterminal.network.PacketCellTerminalUpdate;
 import com.cellterminal.network.PacketExtractUpgrade;
 import com.cellterminal.network.PacketPartitionAction;
 import com.cellterminal.network.PacketStorageBusPartitionAction;
+import com.cellterminal.network.PacketSubnetListUpdate;
 
 
 /**
@@ -65,10 +68,12 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
     protected final Map<TileEntity, StorageTracker> trackers = new HashMap<>();
     protected final Map<Long, StorageTracker> byId = new LinkedHashMap<>();
     protected final Map<Long, StorageBusTracker> storageBusById = new LinkedHashMap<>();
+    protected final Map<Long, SubnetTracker> subnetById = new LinkedHashMap<>();
     protected IGrid grid;
     protected NBTTagCompound pendingData = new NBTTagCompound();
     protected boolean needsFullRefresh = true;
     protected boolean needsStorageBusRefresh = false;
+    protected boolean needsSubnetRefresh = false;
 
     // Current active tab on client - determines whether to poll storage bus data
     protected int activeTab = 0;
@@ -80,6 +85,10 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
     // Tick counter for storage bus polling (only poll every N ticks when on storage bus tab)
     protected int storageBusPollCounter = 0;
     protected boolean hasPolledOnce = false;  // Track if initial poll has been done for storage bus tab
+
+    // Current network context (0 = main network, >0 = subnet ID)
+    protected long currentNetworkId = 0;
+    protected IGrid currentNetworkGrid = null;  // Cached grid for current network (main or subnet)
 
     public ContainerCellTerminalBase(InventoryPlayer ip, IPart part) {
         super(ip, null, part);
@@ -100,6 +109,12 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
         // Handle storage bus polling when on storage bus tabs
         handleStorageBusPolling();
+
+        // Handle subnet refresh when requested
+        if (needsSubnetRefresh) {
+            this.regenSubnetList();
+            needsSubnetRefresh = false;
+        }
 
         if (!this.pendingData.isEmpty()) {
             CellTerminalNetwork.INSTANCE.sendTo(
@@ -217,7 +232,8 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         NBTTagList storageList = new NBTTagList();
         addTerminalPosition(data);
 
-        if (this.grid != null) {
+        IGrid effectiveGrid = getEffectiveGrid();
+        if (effectiveGrid != null) {
             CellDataHandler.StorageTrackerCallback callback = (id, tile, storage) -> {
                 StorageTracker tracker = new StorageTracker(id, tile, storage);
                 this.trackers.put(tile, tracker);
@@ -225,12 +241,14 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
             };
 
             // Use the registry-based scanner for all storage types, with slot limit
-            StorageScannerRegistry.scanAllStorages(this.grid, storageList, callback, cellSlotLimit);
+            StorageScannerRegistry.scanAllStorages(effectiveGrid, storageList, callback, cellSlotLimit);
         } else {
             CellTerminal.LOGGER.warn("regenStorageList: grid is null!");
         }
 
         data.setTag("storages", storageList);
+        // Include current network ID so client can verify data is for the expected network
+        data.setLong("networkId", this.currentNetworkId);
         this.pendingData = data;
     }
 
@@ -245,7 +263,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
         // Add terminal position for sorting
         addTerminalPosition(data);
-        data.setTag("storageBuses", StorageBusDataHandler.collectStorageBuses(this.grid, this.storageBusById));
+        data.setTag("storageBuses", StorageBusDataHandler.collectStorageBuses(getEffectiveGrid(), this.storageBusById));
         mergeIntoPendingData(data);
     }
 
@@ -398,10 +416,36 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
             return;
         }
 
+        ItemStack upgradeStack = fromSlot >= 0 ? player.inventory.getStackInSlot(fromSlot) : player.inventory.getItemStack();
+
+        // For shift-click, iterate through all cells to find one that actually accepts this upgrade
+        // The client's guess might be wrong if the cell doesn't support this specific upgrade type
+        // Sort by distance to match visual order on client
+        if (shiftClick) {
+            int terminalDim = getTerminalDimension();
+            List<StorageTracker> sortedTrackers = new ArrayList<>(this.byId.values());
+            sortedTrackers.sort(createTrackerComparator(BlockPos.ORIGIN, terminalDim));
+
+            for (StorageTracker tracker : sortedTrackers) {
+                IItemHandler cellInventory = CellDataHandler.getCellInventory(tracker.storage);
+                if (cellInventory == null) continue;
+
+                for (int slot = 0; slot < cellInventory.getSlots(); slot++) {
+                    if (CellActionHandler.upgradeCell(tracker.storage, tracker.tile, slot, upgradeStack, player, fromSlot)) {
+                        this.needsFullRefresh = true;
+
+                        return;
+                    }
+                }
+            }
+
+            return;
+        }
+
+        // Regular click: use the specific cell
         StorageTracker tracker = this.byId.get(storageId);
         if (tracker == null) return;
 
-        ItemStack upgradeStack = fromSlot >= 0 ? player.inventory.getStackInSlot(fromSlot) : player.inventory.getItemStack();
         if (CellActionHandler.upgradeCell(tracker.storage, tracker.tile, cellSlot, upgradeStack, player, fromSlot)) {
             this.needsFullRefresh = true;
         }
@@ -419,9 +463,10 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
      * Takes the upgrade from the player's held item or a specific inventory slot and inserts it into the storage bus.
      * @param player The player holding the upgrade
      * @param storageBusId The storage bus to upgrade
+     * @param shiftClick If true, find first storage bus that accepts this upgrade
      * @param fromSlot Inventory slot to take upgrade from (-1 = cursor)
      */
-    public void handleUpgradeStorageBus(EntityPlayer player, long storageBusId, int fromSlot) {
+    public void handleUpgradeStorageBus(EntityPlayer player, long storageBusId, boolean shiftClick, int fromSlot) {
         // Check if upgrade insertion is enabled in server config
         if (!CellTerminalServerConfig.getInstance().isUpgradeInsertEnabled()) {
             MessageHelper.error("cellterminal.error.upgrade_insert_disabled");
@@ -440,18 +485,44 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         if (upgradeStack.isEmpty()) return;
         if (!(upgradeStack.getItem() instanceof IUpgradeModule)) return;
 
-        IUpgradeModule upgradeModule = (IUpgradeModule) upgradeStack.getItem();
-        Upgrades upgradeType = upgradeModule.getType(upgradeStack);
-        if (upgradeType == null) return;
+        // For shift-click, iterate through all storage buses to find one that accepts this upgrade
+        // Sort by distance to match visual order on client
+        if (shiftClick) {
+            int terminalDim = getTerminalDimension();
+            List<StorageBusTracker> sortedTrackers = new ArrayList<>(this.storageBusById.values());
+            sortedTrackers.sort(createStorageBusTrackerComparator(BlockPos.ORIGIN, terminalDim));
 
+            for (StorageBusTracker tracker : sortedTrackers) {
+                if (tryInsertUpgradeIntoStorageBus(tracker, upgradeStack, player, fromSlot)) {
+                    this.needsStorageBusRefresh = true;
+
+                    return;
+                }
+            }
+
+            return;
+        }
+
+        // Regular click: use the specific storage bus
         StorageBusTracker tracker = this.storageBusById.get(storageBusId);
         if (tracker == null) return;
 
+        if (tryInsertUpgradeIntoStorageBus(tracker, upgradeStack, player, fromSlot)) {
+            this.needsStorageBusRefresh = true;
+        }
+    }
+
+    /**
+     * Try to insert an upgrade into a storage bus.
+     * @return true if the upgrade was successfully inserted
+     */
+    private boolean tryInsertUpgradeIntoStorageBus(StorageBusTracker tracker, ItemStack upgradeStack,
+                                                    EntityPlayer player, int fromSlot) {
         // Only item and fluid storage buses support upgrades
-        if (!(tracker.storageBus instanceof PartUpgradeable)) return;
+        if (!(tracker.storageBus instanceof PartUpgradeable)) return false;
 
         IItemHandler upgradesInv = ((PartUpgradeable) tracker.storageBus).getInventoryByName("upgrades");
-        if (upgradesInv == null) return;
+        if (upgradesInv == null) return false;
 
         // Try to insert the upgrade
         ItemStack toInsert = upgradeStack.copy();
@@ -468,11 +539,11 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
                     ((EntityPlayerMP) player).updateHeldItem();
                 }
 
-                this.needsStorageBusRefresh = true;
-
-                return;
+                return true;
             }
         }
+
+        return false;
     }
 
     /**
@@ -718,6 +789,27 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         };
     }
 
+    protected Comparator<StorageBusTracker> createStorageBusTrackerComparator(BlockPos terminalPos, int terminalDim) {
+        return (a, b) -> {
+            int dimA = a.hostTile.getWorld().provider.getDimension();
+            int dimB = b.hostTile.getWorld().provider.getDimension();
+
+            // Same dimension as terminal comes first
+            boolean aInDim = dimA == terminalDim;
+            boolean bInDim = dimB == terminalDim;
+            if (aInDim != bInDim) return aInDim ? -1 : 1;
+
+            // Sort by dimension
+            if (dimA != dimB) return Integer.compare(dimA, dimB);
+
+            // Sort by distance to terminal
+            double distA = terminalPos.distanceSq(a.hostTile.getPos());
+            double distB = terminalPos.distanceSq(b.hostTile.getPos());
+
+            return Double.compare(distA, distB);
+        };
+    }
+
     /**
      * Handle network tool action from client.
      * This executes batch operations on cells and storage buses based on filters.
@@ -731,6 +823,114 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         this.needsStorageBusRefresh = true;
     }
 
+    // ===== Subnet Management Methods =====
+
+    /**
+     * Request a subnet list refresh from client.
+     * Called when client enters subnet overview mode or needs updated data.
+     */
+    public void requestSubnetRefresh() {
+        this.needsSubnetRefresh = true;
+    }
+
+    /**
+     * Regenerate and send subnet list to client.
+     */
+    protected void regenSubnetList() {
+        this.subnetById.clear();
+
+        if (this.grid == null) return;
+
+        int playerId = this.getPlayerInv().player.getEntityId();
+        NBTTagCompound data = new NBTTagCompound();
+        data.setTag("subnets", SubnetDataHandler.collectSubnets(this.grid, this.subnetById, playerId));
+
+        // Send subnet list as a separate packet
+        if (this.getPlayerInv().player instanceof EntityPlayerMP) {
+            CellTerminalNetwork.INSTANCE.sendTo(
+                new PacketSubnetListUpdate(data),
+                (EntityPlayerMP) this.getPlayerInv().player
+            );
+        }
+    }
+
+    /**
+     * Handle subnet action from client (rename, toggle favorite).
+     */
+    public void handleSubnetAction(long subnetId, SubnetDataHandler.SubnetAction action, NBTTagCompound data) {
+        EntityPlayer player = this.getPlayerInv().player;
+
+        // Ensure subnet trackers are populated before handling action
+        // This can happen if the client sends an action before the server has scanned subnets
+        if (this.subnetById.isEmpty() && this.grid != null) {
+            SubnetDataHandler.collectSubnets(this.grid, this.subnetById, player.getEntityId());
+        }
+
+        if (SubnetDataHandler.handleSubnetAction(this.subnetById, subnetId, action, data, player)) {
+            // Trigger refresh to update client with new data
+            this.needsSubnetRefresh = true;
+        }
+    }
+
+    /**
+     * Switch the terminal view to a different network (main or subnet).
+     * 
+     * @param networkId 0 for main network, subnet ID for a specific subnet
+     */
+    public void switchNetwork(long networkId) {
+        if (networkId == 0) {
+            // Switch to main network
+            this.currentNetworkId = 0;
+            this.currentNetworkGrid = this.grid;
+        } else {
+            // Switch to subnet
+            SubnetTracker tracker = this.subnetById.get(networkId);
+
+            // If tracker not found, regenerate subnet list and try again
+            // This can happen if the subnet list was cleared or not yet populated
+            if (tracker == null) {
+                regenSubnetList();
+                tracker = this.subnetById.get(networkId);
+            }
+
+            if (tracker == null) {
+                CellTerminal.LOGGER.warn("Cannot switch to unknown subnet: {}", networkId);
+                return;
+            }
+
+            this.currentNetworkId = networkId;
+            this.currentNetworkGrid = tracker.targetGrid;
+        }
+
+        // Trigger full refresh with new network context
+        this.needsFullRefresh = true;
+        this.needsStorageBusRefresh = true;
+    }
+
+    /**
+     * Get the current network ID (0 = main, >0 = subnet).
+     */
+    public long getCurrentNetworkId() {
+        return currentNetworkId;
+    }
+
+    /**
+     * Check if currently viewing a subnet.
+     */
+    public boolean isViewingSubnet() {
+        return currentNetworkId != 0;
+    }
+
+    /**
+     * Get the effective grid for current operations.
+     * Returns the subnet grid if viewing a subnet, otherwise the main grid.
+     */
+    protected IGrid getEffectiveGrid() {
+        if (currentNetworkId != 0 && currentNetworkGrid != null) return currentNetworkGrid;
+
+        return this.grid;
+    }
+
     public static class StorageTracker {
         public final long id;
         public final TileEntity tile;
@@ -741,5 +941,33 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
             this.tile = tile;
             this.storage = storage;
         }
+    }
+
+    /**
+     * Get a storage tracker by its ID (for rename operations).
+     */
+    public StorageTracker getStorageTracker(long storageId) {
+        return this.byId.get(storageId);
+    }
+
+    /**
+     * Get a storage bus tracker by its ID (for rename operations).
+     */
+    public StorageBusTracker getStorageBusTracker(long storageBusId) {
+        return this.storageBusById.get(storageBusId);
+    }
+
+    /**
+     * Request a full data refresh (e.g., after a rename).
+     */
+    public void requestFullRefresh() {
+        this.needsFullRefresh = true;
+    }
+
+    /**
+     * Request a storage bus data refresh (e.g., after a rename).
+     */
+    public void requestStorageBusRefresh() {
+        this.needsStorageBusRefresh = true;
     }
 }

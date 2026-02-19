@@ -8,6 +8,42 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.4.0-rc2] - 2026-02-19
+### Added
+- Add right-click rename for drives/ME chests, storage cells, and storage buses on all tabs (1-5).
+- Add keybind (default: Shift+D) to open the Wireless Cell Terminal from anywhere. Compatible with both AE2's Wireless Terminal and AE2 Wireless Universal Terminal.
+
+### Fixed
+- Fix the terminal not properly refreshing when opening it on a subnet.
+
+
+## [1.4.0-rc1] - 2026-02-18
+### Added
+- Add subnet overview screen, showing all connected subnets and allowing to load them in the main terminal view. This allows better management of multiple subnets, instead of having a different terminal for each subnet and no way to see the overall structure of the network.
+- Add guiding arrows to all highlights above 50 blocks away, for as long as the highlight is active. The arrow size and arrow text size can be be configured in the client config.
+
+
+## [1.3.0] - 2026-02-16
+### Added
+- Add shift rigft-click handling for upgrade cards to Storage Buses, like Storage Cells, to insert them directly without dragging.
+- Add individual config options to disable the integration with other mods (CrazyAE, ECOAEExtension, WUT) for better compatibility with different versions of those mods.
+
+### Fixed
+- Fix "Attribute Uniques" Network Tool not having proper failsafes, resulting in potential item loss if space was insufficient for the redistribution.
+- Fix "Attribute Uniques" not handling Long overflows when calculating the distribution, which could silently cause item loss if a cell had a very large amount of items.
+- Fix shift right-click on custom upgrades not working for cells.
+- Properly exclude Compacting Cells from Partitioning and Attribute Unique tools, as they should not change partition or content. They expose virtual items that do not actually exist in the cell, which can cause issues with the tools if they are included.
+
+
+## [1.3.0-rc2] - 2026-02-02
+### Added
+- Add exclusion of IICompactingCells from Partition Storage Cells from Content tool, as they should only have 1 partition, yet expose multiple item types
+
+### Fixed
+- Fix non-standard upgrade cards (not from base AE2) not being properly accepted for insertion into cells/storage buses
+- Fix Attribute Unique Tool not properly refreshing the network after execution, requiring manual cell re-insertion to see changes
+
+
 ## [1.3.0-rc1] - 2026-02-02
 ### Added
 - Add Network Tools as a 6th tab:

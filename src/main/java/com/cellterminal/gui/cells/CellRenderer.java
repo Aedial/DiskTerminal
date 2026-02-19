@@ -99,7 +99,8 @@ public class CellRenderer {
         // Draw name (truncated if needed)
         String name = storage.getName();
         if (name.length() > 20) name = name.substring(0, 18) + "...";
-        fontRenderer.drawString(name, GuiConstants.GUI_INDENT + 20, y + 1, GuiConstants.COLOR_TEXT_NORMAL);
+        int nameColor = storage.hasCustomName() ? 0xFF2E7D32 : GuiConstants.COLOR_TEXT_NORMAL;
+        fontRenderer.drawString(name, GuiConstants.GUI_INDENT + 20, y + 1, nameColor);
 
         // Draw location
         String location = storage.getLocationString();

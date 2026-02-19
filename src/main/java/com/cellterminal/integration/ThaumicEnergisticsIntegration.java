@@ -18,6 +18,9 @@ import appeng.util.helpers.ItemHandlerUtil;
 
 import com.cellterminal.CellTerminal;
 import com.cellterminal.client.StorageBusInfo;
+import com.cellterminal.util.BigStackTracker;
+
+import com.cellterminal.config.CellTerminalServerConfig;
 
 
 /**
@@ -34,7 +37,13 @@ public class ThaumicEnergisticsIntegration {
      * Check if Thaumic Energistics is loaded.
      */
     public static boolean isModLoaded() {
-        if (modLoaded == null) modLoaded = Loader.isModLoaded(MODID);
+        if (modLoaded == null) {
+            boolean loaded = Loader.isModLoaded(MODID);
+            if (loaded && CellTerminalServerConfig.isInitialized()) {
+                loaded = CellTerminalServerConfig.getInstance().isIntegrationThaumicEnergisticsEnabled();
+            }
+            modLoaded = loaded;
+        }
 
         return modLoaded;
     }
@@ -250,7 +259,7 @@ public class ThaumicEnergisticsIntegration {
      * @param uniqueStacks List to add unique ItemStack representations to (will be modified)
      */
     public static void collectUniqueEssentiaFromCell(ItemStack cellStack,
-                                                      java.util.Set<String> uniqueKeys,
+                                                      java.util.Set<Object> uniqueKeys,
                                                       java.util.List<ItemStack> uniqueStacks) {
         if (!isModLoaded()) return;
 
@@ -259,7 +268,7 @@ public class ThaumicEnergisticsIntegration {
 
     @Optional.Method(modid = MODID)
     private static void collectUniqueEssentiaFromCellInternal(ItemStack cellStack,
-                                                               java.util.Set<String> uniqueKeys,
+                                                               java.util.Set<Object> uniqueKeys,
                                                                java.util.List<ItemStack> uniqueStacks) {
         try {
             IStorageChannel<thaumicenergistics.api.storage.IAEEssentiaStack> essentiaChannel =
@@ -292,19 +301,21 @@ public class ThaumicEnergisticsIntegration {
 
     /**
      * Extract all essentia from a cell for AttributeUnique tool.
+     * Uses BigStackTracker for lossless aggregation.
+     *
      * @param cellStack The essentia cell ItemStack
-     * @param extractedStacks Map to store extracted stacks by key (will be modified)
+     * @param tracker BigStackTracker to store extracted stacks (will be modified)
      */
-    public static void extractAllEssentiaFromCell(ItemStack cellStack,
-                                                   java.util.Map<String, Object> extractedStacks) {
+    public static void extractAllEssentiaFromCellToBigTracker(ItemStack cellStack,
+                                                               BigStackTracker tracker) {
         if (!isModLoaded()) return;
 
-        extractAllEssentiaFromCellInternal(cellStack, extractedStacks);
+        extractAllEssentiaFromCellToBigTrackerInternal(cellStack, tracker);
     }
 
     @Optional.Method(modid = MODID)
-    private static void extractAllEssentiaFromCellInternal(ItemStack cellStack,
-                                                            java.util.Map<String, Object> extractedStacks) {
+    private static void extractAllEssentiaFromCellToBigTrackerInternal(ItemStack cellStack,
+                                                                         BigStackTracker tracker) {
         try {
             IStorageChannel<thaumicenergistics.api.storage.IAEEssentiaStack> essentiaChannel =
                 AEApi.instance().storage().getStorageChannel(thaumicenergistics.api.storage.IEssentiaStorageChannel.class);
@@ -324,18 +335,14 @@ public class ThaumicEnergisticsIntegration {
             for (thaumicenergistics.api.storage.IAEEssentiaStack stack : available) {
                 thaumicenergistics.api.storage.IAEEssentiaStack extracted =
                     cellInv.extractItems(stack.copy(), appeng.api.config.Actionable.MODULATE, null);
-                if (extracted != null && extracted.getStackSize() > 0) {
-                    thaumcraft.api.aspects.Aspect aspect = extracted.getAspect();
-                    if (aspect == null) continue;
+                if (extracted == null || extracted.getStackSize() <= 0) continue;
 
-                    String key = "essentia:" + aspect.getTag();
-                    Object existing = extractedStacks.get(key);
-                    if (existing instanceof thaumicenergistics.api.storage.IAEEssentiaStack) {
-                        ((thaumicenergistics.api.storage.IAEEssentiaStack) existing).incStackSize(extracted.getStackSize());
-                    } else {
-                        extractedStacks.put(key, extracted.copy());
-                    }
-                }
+                thaumcraft.api.aspects.Aspect aspect = extracted.getAspect();
+                if (aspect == null) continue;
+
+                String key = "essentia:" + aspect.getTag();
+                // Add to tracker using BigInteger arithmetic (no overflow possible)
+                tracker.add(key, extracted);
             }
 
             cellInv.persist();
@@ -399,6 +406,189 @@ public class ThaumicEnergisticsIntegration {
             return ((thaumicenergistics.api.storage.IAEEssentiaStack) essentiaStack).asItemStackRepresentation();
         } catch (Exception e) {
             return ItemStack.EMPTY;
+        }
+    }
+
+    /**
+     * Simulate essentia injection into a cell to check capacity.
+     * @param cellStack The essentia cell ItemStack
+     * @param stack The stack to simulate (must be IAEEssentiaStack)
+     * @param source The action source
+     * @return Amount that can be accepted, 0 if incompatible or full
+     */
+    public static long simulateEssentiaInjection(ItemStack cellStack, Object stack, Object source) {
+        if (!isModLoaded()) return 0;
+
+        return simulateEssentiaInjectionInternal(cellStack, stack, source);
+    }
+
+    @Optional.Method(modid = MODID)
+    private static long simulateEssentiaInjectionInternal(ItemStack cellStack, Object stack, Object source) {
+        try {
+            if (!(stack instanceof thaumicenergistics.api.storage.IAEEssentiaStack)) return 0;
+
+            IStorageChannel<thaumicenergistics.api.storage.IAEEssentiaStack> essentiaChannel =
+                AEApi.instance().storage().getStorageChannel(thaumicenergistics.api.storage.IEssentiaStorageChannel.class);
+            if (essentiaChannel == null) return 0;
+
+            ICellHandler cellHandler = AEApi.instance().registries().cell().getHandler(cellStack);
+            if (cellHandler == null) return 0;
+
+            ICellInventoryHandler<thaumicenergistics.api.storage.IAEEssentiaStack> handler =
+                cellHandler.getCellInventory(cellStack, null, essentiaChannel);
+            if (handler == null || handler.getCellInv() == null) return 0;
+
+            ICellInventory<thaumicenergistics.api.storage.IAEEssentiaStack> cellInv = handler.getCellInv();
+            thaumicenergistics.api.storage.IAEEssentiaStack essentiaStack =
+                (thaumicenergistics.api.storage.IAEEssentiaStack) stack;
+
+            // Check if cell can hold a new type
+            if (!cellInv.canHoldNewItem()) {
+                IItemList<thaumicenergistics.api.storage.IAEEssentiaStack> existing =
+                    cellInv.getAvailableItems(essentiaChannel.createList());
+                boolean typeExists = false;
+                thaumcraft.api.aspects.Aspect targetAspect = essentiaStack.getAspect();
+                for (thaumicenergistics.api.storage.IAEEssentiaStack ex : existing) {
+                    // Compare essentia by aspect
+                    if (ex.getAspect() == targetAspect) {
+                        typeExists = true;
+                        break;
+                    }
+                }
+                if (!typeExists) return 0;
+            }
+
+            // Simulate injection
+            thaumicenergistics.api.storage.IAEEssentiaStack rejected =
+                cellInv.injectItems(essentiaStack.copy(), appeng.api.config.Actionable.SIMULATE,
+                    (appeng.api.networking.security.IActionSource) source);
+
+            if (rejected == null) return essentiaStack.getStackSize();
+
+            return essentiaStack.getStackSize() - rejected.getStackSize();
+        } catch (Exception e) {
+            CellTerminal.LOGGER.debug("Failed to simulate essentia injection: " + e.getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Get the capacity of an essentia cell in bytes.
+     * @param cellStack The essentia cell ItemStack
+     * @return Cell capacity in bytes, 0 if not an essentia cell
+     */
+    public static long getEssentiaCellCapacity(ItemStack cellStack) {
+        if (!isModLoaded()) return 0;
+
+        return getEssentiaCellCapacityInternal(cellStack);
+    }
+
+    @Optional.Method(modid = MODID)
+    private static long getEssentiaCellCapacityInternal(ItemStack cellStack) {
+        try {
+            IStorageChannel<thaumicenergistics.api.storage.IAEEssentiaStack> essentiaChannel =
+                AEApi.instance().storage().getStorageChannel(thaumicenergistics.api.storage.IEssentiaStorageChannel.class);
+            if (essentiaChannel == null) return 0;
+
+            ICellHandler cellHandler = AEApi.instance().registries().cell().getHandler(cellStack);
+            if (cellHandler == null) return 0;
+
+            ICellInventoryHandler<thaumicenergistics.api.storage.IAEEssentiaStack> handler =
+                cellHandler.getCellInventory(cellStack, null, essentiaChannel);
+            if (handler == null || handler.getCellInv() == null) return 0;
+
+            return handler.getCellInv().getTotalBytes();
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Get a display name for an essentia stack.
+     * @param stack The stack object (IAEEssentiaStack)
+     * @return Display name or "Unknown Essentia"
+     */
+    public static String getEssentiaStackName(Object stack) {
+        if (!isModLoaded()) return "Unknown Essentia";
+
+        return getEssentiaStackNameInternal(stack);
+    }
+
+    @Optional.Method(modid = MODID)
+    private static String getEssentiaStackNameInternal(Object stack) {
+        try {
+            if (!(stack instanceof thaumicenergistics.api.storage.IAEEssentiaStack)) return "Unknown Essentia";
+
+            thaumicenergistics.api.storage.IAEEssentiaStack essentiaStack =
+                (thaumicenergistics.api.storage.IAEEssentiaStack) stack;
+            thaumcraft.api.aspects.Aspect aspect = essentiaStack.getAspect();
+
+            if (aspect != null) {
+                return aspect.getName();
+            }
+        } catch (Exception e) {
+            // Ignored
+        }
+
+        return "Unknown Essentia";
+    }
+
+    /**
+     * Collect essentia from a cell with full counts for AttributeUnique tool.
+     * This method tracks the total count of each essentia type across all cells
+     * using BigInteger to prevent overflow when combining multiple cells.
+     *
+     * @param cellStack The essentia cell ItemStack
+     * @param uniqueKeys Set to track unique keys (will be modified)
+     * @param uniqueStacks List to add unique ItemStack representations (will be modified)
+     * @param tracker BigStackTracker to accumulate counts with arbitrary precision
+     */
+    public static void collectEssentiaWithCounts(ItemStack cellStack,
+                                                  java.util.Set<Object> uniqueKeys,
+                                                  java.util.List<ItemStack> uniqueStacks,
+                                                  BigStackTracker tracker) {
+        if (!isModLoaded()) return;
+
+        collectEssentiaWithCountsInternal(cellStack, uniqueKeys, uniqueStacks, tracker);
+    }
+
+    @Optional.Method(modid = MODID)
+    private static void collectEssentiaWithCountsInternal(ItemStack cellStack,
+                                                           java.util.Set<Object> uniqueKeys,
+                                                           java.util.List<ItemStack> uniqueStacks,
+                                                           BigStackTracker tracker) {
+        try {
+            IStorageChannel<thaumicenergistics.api.storage.IAEEssentiaStack> essentiaChannel =
+                AEApi.instance().storage().getStorageChannel(thaumicenergistics.api.storage.IEssentiaStorageChannel.class);
+            if (essentiaChannel == null) return;
+
+            ICellHandler cellHandler = AEApi.instance().registries().cell().getHandler(cellStack);
+            if (cellHandler == null) return;
+
+            ICellInventoryHandler<thaumicenergistics.api.storage.IAEEssentiaStack> handler =
+                cellHandler.getCellInventory(cellStack, null, essentiaChannel);
+            if (handler == null || handler.getCellInv() == null) return;
+
+            IItemList<thaumicenergistics.api.storage.IAEEssentiaStack> available =
+                handler.getCellInv().getAvailableItems(essentiaChannel.createList());
+
+            for (thaumicenergistics.api.storage.IAEEssentiaStack stack : available) {
+                thaumcraft.api.aspects.Aspect aspect = stack.getAspect();
+                if (aspect == null) continue;
+
+                String key = "essentia:" + aspect.getTag();
+
+                // Track unique types for UI display
+                if (!tracker.containsKey(key)) {
+                    uniqueKeys.add(key);
+                    uniqueStacks.add(stack.asItemStackRepresentation());
+                }
+
+                // Add to tracker using BigInteger arithmetic (no overflow possible)
+                tracker.add(key, stack);
+            }
+        } catch (Exception e) {
+            CellTerminal.LOGGER.debug("Failed to collect essentia with counts from cell: " + e.getMessage());
         }
     }
 

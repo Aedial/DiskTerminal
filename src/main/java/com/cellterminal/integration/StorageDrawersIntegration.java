@@ -13,6 +13,8 @@ import net.minecraftforge.fml.common.Loader;
 
 import com.jaquadro.minecraft.storagedrawers.api.capabilities.IItemRepository;
 
+import com.cellterminal.config.CellTerminalServerConfig;
+
 
 /**
  * Integration handler for Storage Drawers mod (and other compatible mods).
@@ -30,7 +32,14 @@ public class StorageDrawersIntegration {
      * Check if Storage Drawers is loaded.
      */
     public static boolean isModLoaded() {
-        if (modLoaded == null) modLoaded = Loader.isModLoaded(MODID);
+        if (modLoaded == null) {
+            boolean loaded = Loader.isModLoaded(MODID);
+            if (loaded && CellTerminalServerConfig.isInitialized()) {
+                loaded = CellTerminalServerConfig.getInstance().isIntegrationStorageDrawersEnabled();
+            }
+
+            modLoaded = loaded;
+        }
 
         return modLoaded;
     }

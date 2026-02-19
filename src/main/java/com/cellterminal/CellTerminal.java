@@ -23,6 +23,8 @@ import com.cellterminal.integration.storage.StorageScannerRegistry;
 import com.cellterminal.integration.storagebus.AE2StorageBusScanner;
 import com.cellterminal.integration.storagebus.StorageBusScannerRegistry;
 import com.cellterminal.integration.storagebus.ThaumicEnergisticsBusScanner;
+import com.cellterminal.integration.subnet.AE2SubnetScanner;
+import com.cellterminal.integration.subnet.SubnetScannerRegistry;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.proxy.CommonProxy;
 
@@ -68,6 +70,9 @@ public class CellTerminal {
 
         // Register storage bus scanners
         registerStorageBusScanners();
+
+        // Register subnet scanners
+        registerSubnetScanners();
     }
 
     /**
@@ -94,6 +99,14 @@ public class CellTerminal {
 
         // Thaumic Energistics essentia buses
         StorageBusScannerRegistry.register(ThaumicEnergisticsBusScanner.INSTANCE);
+    }
+
+    /**
+     * Register all subnet scanners (AE2 + optional integrations).
+     */
+    private void registerSubnetScanners() {
+        // AE2 subnet detection via Storage Bus -> Interface connections
+        SubnetScannerRegistry.register(AE2SubnetScanner.INSTANCE);
     }
 
     @EventHandler

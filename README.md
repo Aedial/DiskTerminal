@@ -39,7 +39,7 @@ Run:
 ```
 ./gradlew -q build
 ```
-Resulting jar will be under `build/libs/`.
+First build may take some time. Resulting jar will be under `build/libs/`.
 
 ## License
 This project is licensed under the MIT License - see the LICENSE file for details.
