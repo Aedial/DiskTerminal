@@ -96,8 +96,18 @@ config.cellterminal.config.client.settings=客户端设置
 config.cellterminal.config.client.settings.tooltip=可由用户配置的元件终端渲染与行为设置。
 config.cellterminal.config.client.settings.max_highlight_distance=最大高亮距离
 config.cellterminal.config.client.settings.max_highlight_distance.tooltip=方块高亮效果距玩家的最远距离（以方块为单位）。设为-1表示无限制。
-config.cellterminal.config.client.settings.highlight_duration=高光时长
+config.cellterminal.config.client.settings.highlight_duration=高亮时长
 config.cellterminal.config.client.settings.highlight_duration.tooltip=双击条目时，方块高亮效果的持续时长（以秒为单位）。
+config.cellterminal.config.client.settings.arrow_scale=箭头缩放
+config.cellterminal.config.client.settings.arrow_scale.tooltip=指向远处高亮的方向箭头的缩放百分比（100 = 正常大小）。
+config.cellterminal.config.client.settings.text_scale=箭头文本缩放
+config.cellterminal.config.client.settings.text_scale.tooltip=方向箭头上距离文本的缩放百分比。
+config.cellterminal.config.client.settings.adaptive_text_scale=自适应文本缩放
+config.cellterminal.config.client.settings.adaptive_text_scale.tooltip=是否根据与摄像机的距离，自动缩放箭头文本以提高可读性。
+config.cellterminal.config.client.settings.adaptive_text_scale_min=自适应缩放最小值
+config.cellterminal.config.client.settings.adaptive_text_scale_min.tooltip=使用自适应缩放时的最小文本缩放倍数（百分比）。
+config.cellterminal.config.client.settings.adaptive_text_scale_max=自适应缩放最大值
+config.cellterminal.config.client.settings.adaptive_text_scale_max.tooltip=使用自适应缩放时的最大文本缩放倍数（百分比）。
 
 # Server config
 config.cellterminal.config.server.tabs=标签页设置
@@ -145,6 +155,25 @@ config.cellterminal.config.server.integration.tooltip=与其他模组集成的�
 config.cellterminal.config.server.integration.wut_mode_id=无线通用终端（WUT）模式ID
 config.cellterminal.config.server.integration.wut_mode_id.tooltip=无线通用终端（AE2WUT）中元件终端的模式ID。如果其他模组使用了相同的ID，请修改此设置。需要重启。
 
+# Per-integration enable flags
+config.cellterminal.config.server.integration.enable_ae2wut=无线通用终端（AE2WUT）联动
+config.cellterminal.config.server.integration.enable_ae2wut.tooltip=启用与无线通用终端的联动。设为false以禁用通用终端注册。
+
+config.cellterminal.config.server.integration.enable_crazyae=疯狂AE（CrazyAE）联动
+config.cellterminal.config.server.integration.enable_crazyae.tooltip=启用与疯狂AE（增强型ME驱动器）的联动。设为false以禁用疯狂AE处理。
+
+config.cellterminal.config.server.integration.enable_ecoae=ECO AE Extension联动
+config.cellterminal.config.server.integration.enable_ecoae.tooltip=启用与ECO AE Extension（存储矩阵驱动器）的联动。设为false以禁用ECO AE Extension处理。
+
+config.cellterminal.config.server.integration.enable_storagedrawers=储物抽屉（Storage Drawers）联动
+config.cellterminal.config.server.integration.enable_storagedrawers.tooltip=启用与储物抽屉的联动。设为false以禁用储物抽屉的快速查找。
+
+config.cellterminal.config.server.integration.enable_thaumicenergistics=神秘能源（Thaumic Energistics）联动
+config.cellterminal.config.server.integration.enable_thaumicenergistics.tooltip=启用与神秘能源（源质元件）的联动。设为false以禁用神秘能源特有行为。
+
+config.cellterminal.config.server.integration.enable_jei=JEI联动
+config.cellterminal.config.server.integration.enable_jei.tooltip=启用与JEI（虚拟物品和GUI处理）的联动。设为false以禁用JEI联动。
+
 # Server config error messages
 cellterminal.error.cell_eject_disabled=§元件弹出在该服务器中已被禁用。
 cellterminal.error.cell_insert_disabled=§c元件插入在该服务器中已被禁用。
@@ -189,6 +218,7 @@ key.cellterminal.quick_partition_item.desc=快速分区（物品元件）
 key.cellterminal.quick_partition_fluid.desc=快速分区（流体元件）
 key.cellterminal.quick_partition_essentia.desc=快速分区（源质元件）
 key.cellterminal.add_to_storage_bus.desc=添加到存储总线
+key.cellterminal.open_wireless_terminal.desc=打开无线元件终端
 
 # Quick partition messages
 cellterminal.quick_partition.no_item=光标处没有物品
@@ -283,16 +313,25 @@ gui.cellterminal.networktools.error.no_items=所选的元件中未找到物品
 cellterminal.networktools.error.no_items=§c所选的元件中未找到物品
 cellterminal.networktools.attribute_unique.error.not_enough_cells_by_type=§c对应类型的元件数量不足：%s
 cellterminal.networktools.attribute_unique.error.type_detail=%s：%d个元件，%d种类型
+cellterminal.networktools.attribute_unique.error.redistribution_failed=§c重新分配失败 - 无法移动物品。请检查元件兼容性。
 cellterminal.networktools.attribute_unique.type.item=物品
 cellterminal.networktools.attribute_unique.type.fluid=流体
 cellterminal.networktools.attribute_unique.type.essentia=源质
 cellterminal.networktools.attribute_unique.success=§a已将%d种物品类型重新分配到%d个元件中
+cellterminal.networktools.attribute_unique.success_with_consolidated=§aR已将%d种物品类型重新分配到%d个元件中。§e有%d种类型由于容量限制被合并（非唯一）。
+cellterminal.networktools.attribute_unique.partial_success=§e已将%d种物品类型重新分配到%d个元件中。§c有%d种类型由于容量或兼容性问题无法移动。
 
 # Network tools - confirmation modal
 gui.cellterminal.networktools.confirm.title=确认%s
 gui.cellterminal.networktools.confirm.message=确定运行该工具？
 gui.cellterminal.networktools.confirm.do_it=执行
 gui.cellterminal.networktools.confirm.cancel=取消
+
+# Network tools - server warnings (localized messages used for runtime warnings)
+cellterminal.networktools.warning.partial=§e部分完成：%s - %d/%d 已移动
+cellterminal.networktools.warning.failed=§c失败：%s - 未找到兼容的元件
+cellterminal.networktools.warning.missing_extracted=§c错误：无法找到%s的提取堆叠
+cellterminal.networktools.warning.lost=§4严重错误：丢失了%dx %s！请向元件终端开发者报告。
 
 # Network tools - Attribute Unique to Cells
 gui.cellterminal.networktools.attribute_unique.name=为元件分配唯一类型
@@ -330,3 +369,74 @@ gui.cellterminal.networktools.mass_partition_bus.confirm=将为%d个存储总线
 gui.cellterminal.networktools.mass_partition_bus.affected=%d个总线将被设置过滤项
 gui.cellterminal.networktools.mass_partition_bus.success=已为%d个存储总线设置过滤项
 gui.cellterminal.networktools.mass_partition_bus.none=没有可设置过滤项的存储总线（筛选条件可能隐藏了所有总线）
+
+# Subnet View
+gui.cellterminal.subnet.title=已连接的子网络
+gui.cellterminal.subnet.none=未连接子网络
+gui.cellterminal.subnet.back=返回主网络
+gui.cellterminal.subnet.switch=点击查看子网络
+gui.cellterminal.subnet.highlight=双击以高亮
+gui.cellterminal.subnet.rename=右键点击以重命名
+gui.cellterminal.subnet.favorite=点击星标以切换收藏
+gui.cellterminal.subnet.connections=%d个连接
+gui.cellterminal.subnet.outbound=出站：存储总线 → 接口
+gui.cellterminal.subnet.inbound=入站：接口 ← 存储总线
+gui.cellterminal.subnet.no_power=§c（无能量）§r
+gui.cellterminal.subnet.locked=§c（访问被拒绝）§r
+gui.cellterminal.subnet.storage=%s / %s 字节
+gui.cellterminal.subnet.types=%d / %d 类型
+gui.cellterminal.subnet.channels=%d / %d 频道
+gui.cellterminal.subnet.default_name=%d, %d, %d
+gui.cellterminal.subnet.viewing=正在查看：%s
+gui.cellterminal.subnet.main_network=主网络
+
+# Subnet View - Used by SubnetOverviewRenderer and GuiBackButton
+cellterminal.subnet.none=未连接子网络
+cellterminal.subnet.column.name=名称
+cellterminal.subnet.column.connections=连接
+cellterminal.subnet.column.usage=能耗
+cellterminal.subnet.unfavorite=取消收藏
+cellterminal.subnet.favorite=收藏
+cellterminal.subnet.original_name=原始名称
+cellterminal.subnet.click_to_view=点击查看子网络
+cellterminal.subnet.double_click_highlight=双击以在世界中高亮
+cellterminal.subnet.right_click_rename=右键点击以重命名
+gui.cellterminal.right_click_rename=右键点击以重命名
+cellterminal.subnet.connections=连接
+cellterminal.subnet.outbound=%d个出站（存储总线 → 子网络络）
+cellterminal.subnet.inbound=%d个入站（子网络络 → 接口）
+cellterminal.subnet.pos=位置：%d, %d, %d
+cellterminal.subnet.dim=维度：%d
+cellterminal.subnet.no_power=无能量
+cellterminal.subnet.no_access=访问被拒绝（安全）
+cellterminal.subnet.back=返回
+cellterminal.subnet.back.desc=返回上一个网络视图
+cellterminal.subnet.overview=子网络概览
+cellterminal.subnet.overview.desc=查看已连接的子网络
+cellterminal.subnet.rename=右键点击以重命名
+cellterminal.subnet.main_network=主网络
+cellterminal.subnet.load=加载
+cellterminal.subnet.load.tooltip=加载该子网络的存储视图
+cellterminal.subnet.click_load_main=点击“加载”来返回主网络
+
+# Connection Row
+cellterminal.subnet.direction.outbound=出站连接（存储总线 → 子网络）
+cellterminal.subnet.direction.inbound=入站连接（子网络 → 接口）
+cellterminal.subnet.connection.pos=连接位置：%d, %d, %d
+cellterminal.subnet.filter_count=%d个过滤物品
+cellterminal.subnet.no_filter=未配置过滤项
+
+# Subnet Controls Help
+cellterminal.subnet.controls.title=§l子网络控制
+cellterminal.subnet.controls.click=加载按钮：查看子网络
+cellterminal.subnet.controls.dblclick=双击：在世界中高亮
+cellterminal.subnet.controls.star=星标：切换收藏
+cellterminal.subnet.controls.rename=名称（右击）：重命名
+cellterminal.subnet.controls.esc=ESC：返回视图
+
+# Subnet Visibility Button
+gui.cellterminal.subnet_visibility=子网络内容可见性
+cellterminal.subnet_visibility.dont_show=不显示子网络内容
+cellterminal.subnet_visibility.favorites=仅显示收藏
+cellterminal.subnet_visibility.all=显示所有子网络
+gui.cellterminal.click_to_cycle=点击以切换
