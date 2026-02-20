@@ -7,7 +7,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+
+import appeng.container.slot.SlotRestrictedInput;
+import appeng.helpers.WirelessTerminalGuiObject;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.inventory.IInventory;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -92,6 +96,21 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
     public ContainerCellTerminalBase(InventoryPlayer ip, IPart part) {
         super(ip, null, part);
+    }
+
+    public ContainerCellTerminalBase(
+        InventoryPlayer ip,
+        WirelessTerminalGuiObject guiObject
+    ) {
+
+        super(ip, guiObject);
+
+        if (Platform.isServer()) {
+            IGridNode node = guiObject.getActionableNode();
+            if (node != null && node.isActive()) {
+                this.grid = node.getGrid();
+            }
+        }
     }
 
     @Override

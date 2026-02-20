@@ -2,9 +2,14 @@ package com.cellterminal.gui;
 
 import javax.annotation.Nullable;
 
+import appeng.api.AEApi;
+import appeng.api.features.IWirelessTermHandler;
+import appeng.helpers.WirelessTerminalGuiObject;
+import baubles.api.BaublesApi;
+import com.cellterminal.container.ContainerWirelessCellTerminal;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.common.network.IGuiHandler;
@@ -12,12 +17,10 @@ import net.minecraftforge.fml.common.network.IGuiHandler;
 import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
 import appeng.api.util.AEPartLocation;
-import appeng.container.AEBaseContainer;
 import appeng.container.ContainerOpenContext;
 
 import com.cellterminal.CellTerminal;
 import com.cellterminal.container.ContainerCellTerminal;
-import com.cellterminal.container.ContainerWirelessCellTerminal;
 import com.cellterminal.part.PartCellTerminal;
 
 
@@ -62,7 +65,23 @@ public class GuiHandler implements IGuiHandler {
             }
         } else if (guiType == GUI_WIRELESS_CELL_TERMINAL) {
             boolean isBauble = y == 1;
-            return new ContainerWirelessCellTerminal(player.inventory, x, isBauble);
+            ItemStack terminal = ItemStack.EMPTY;
+            if (!isBauble) {
+                if (x >= 0 && x < player.inventory.mainInventory.size()) {
+                    terminal = player.inventory.getStackInSlot(x);
+                }
+            } else {
+                terminal = BaublesApi.getBaublesHandler(player).getStackInSlot(x);
+            }
+            IWirelessTermHandler handler = AEApi
+                .instance()
+                .registries()
+                .wireless()
+                .getWirelessTerminalHandler(terminal);
+            return new ContainerWirelessCellTerminal(
+                player.inventory,
+                new WirelessTerminalGuiObject(handler, terminal, player, world, x, y, z)
+            );
         }
 
         return null;
@@ -84,7 +103,23 @@ public class GuiHandler implements IGuiHandler {
             }
         } else if (guiType == GUI_WIRELESS_CELL_TERMINAL) {
             boolean isBauble = y == 1;
-            return new GuiWirelessCellTerminal(player.inventory, x, isBauble);
+            ItemStack terminal = ItemStack.EMPTY;
+            if (!isBauble) {
+                if (x >= 0 && x < player.inventory.mainInventory.size()) {
+                    terminal = player.inventory.getStackInSlot(x);
+                }
+            } else {
+                terminal = BaublesApi.getBaublesHandler(player).getStackInSlot(x);
+            }
+            IWirelessTermHandler handler = AEApi
+                .instance()
+                .registries()
+                .wireless()
+                .getWirelessTerminalHandler(terminal);
+            return new GuiWirelessCellTerminal(
+                player.inventory,
+                new WirelessTerminalGuiObject(handler, terminal, player, world, x, y, z)
+            );
         }
 
         return null;
