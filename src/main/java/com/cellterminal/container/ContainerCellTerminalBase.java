@@ -10,6 +10,8 @@ import java.util.Map;
 
 import appeng.container.slot.SlotRestrictedInput;
 import appeng.helpers.WirelessTerminalGuiObject;
+import appeng.items.contents.NetworkToolViewer;
+import appeng.items.tools.ToolNetworkTool;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.util.math.BlockPos;
@@ -94,8 +96,15 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
     protected long currentNetworkId = 0;
     protected IGrid currentNetworkGrid = null;  // Cached grid for current network (main or subnet)
 
+    // AE2's code mostly refers to the network tool as the "toolbox" so we use that name
+    // to distinguish it from our network tools
+    private int toolboxSlot;
+    private NetworkToolViewer toolboxInventory;
+
     public ContainerCellTerminalBase(InventoryPlayer ip, IPart part) {
         super(ip, null, part);
+
+        this.setupToolbox();
     }
 
     public ContainerCellTerminalBase(
@@ -111,6 +120,52 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
                 this.grid = node.getGrid();
             }
         }
+
+        this.setupToolbox();
+    }
+
+    public void setupToolbox() {
+
+        final IInventory pi = this.getPlayerInv();
+        ItemStack toolbox = null;
+        for (int x = 0; x < pi.getSizeInventory(); x++) {
+            final ItemStack pii = pi.getStackInSlot(x);
+            if (!pii.isEmpty() && pii.getItem() instanceof ToolNetworkTool) {
+                this.lockPlayerInventorySlot(x);
+                this.toolboxSlot = x;
+                toolbox = pii;
+                break;
+            }
+        }
+
+        if (toolbox != null) {
+            IGridNode node = this.getActionHost().getActionableNode();
+            this.toolboxInventory = new NetworkToolViewer(
+                toolbox,
+                node != null ? node.getMachine() : null
+            );
+
+
+            for (int v = 0; v < 3; v++) {
+                for (int u = 0; u < 3; u++) {
+                    this.addSlotToContainer(
+                        new SlotRestrictedInput(
+                            SlotRestrictedInput.PlacableItemType.UPGRADES,
+                            this.toolboxInventory.getInternalInventory(),
+                            u + v * 3,
+                            8 + 9 * 18 + 14 + 18 + 1 + u * 18,
+                            v * 18,
+                            this.getInventoryPlayer()
+                        ).setPlayerSide()
+                    );
+                }
+            }
+        }
+    }
+
+    public boolean hasToolbox() {
+
+        return this.toolboxInventory != null;
     }
 
     @Override
@@ -142,6 +197,32 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
             );
 
             this.pendingData = new NBTTagCompound();
+        }
+
+        this.checkToolbox();
+    }
+
+    public void checkToolbox() {
+
+        if (hasToolbox()) {
+            final ItemStack currentItem = this.getPlayerInv().getStackInSlot(this.toolboxSlot);
+
+            if (currentItem != this.toolboxInventory.getItemStack()) {
+                if (!currentItem.isEmpty()) {
+                    if (ItemStack.areItemsEqual(this.toolboxInventory.getItemStack(), currentItem)) {
+                        this
+                            .getPlayerInv()
+                            .setInventorySlotContents(
+                                this.toolboxSlot,
+                                this.toolboxInventory.getItemStack()
+                            );
+                    } else {
+                        this.setValidContainer(false);
+                    }
+                } else {
+                    this.setValidContainer(false);
+                }
+            }
         }
     }
 

@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.cellterminal.container.ContainerCellTerminalBase;
 import org.lwjgl.input.Keyboard;
 
 import net.minecraft.client.Minecraft;
@@ -78,7 +79,6 @@ import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketExtractUpgrade;
 import com.cellterminal.network.PacketHighlightBlock;
 import com.cellterminal.network.PacketSubnetAction;
-import com.cellterminal.network.PacketSubnetListRequest;
 import com.cellterminal.network.PacketSwitchNetwork;
 import com.cellterminal.network.PacketPartitionAction;
 import com.cellterminal.network.PacketRenameAction;
@@ -89,7 +89,6 @@ import com.cellterminal.network.PacketUpgradeCell;
 import com.cellterminal.network.PacketUpgradeStorageBus;
 import com.cellterminal.gui.rename.InlineRenameEditor;
 import com.cellterminal.gui.rename.Renameable;
-import com.cellterminal.gui.rename.RenameTargetType;
 
 
 /**
@@ -963,6 +962,12 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             ));
         }
 
+        if (hasToolbox()) {
+            areas.add(new Rectangle(
+                this.guiLeft + this.xSize + 1, this.guiTop + this.ySize - 90, 68, 68
+            ));
+        }
+
         return areas;
     }
 
@@ -1045,6 +1050,14 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         this.drawTexturedModalRect(offsetX, bottomY, 0, 158, this.xSize, 98);
 
         drawTabs(offsetX, offsetY, mouseX, mouseY);
+        this.bindTexture("guis/bus.png");
+        if (this.hasToolbox()) {
+            this.drawTexturedModalRect(offsetX + this.xSize + 1, offsetY + this.ySize - 90, 178, 184 - 90, 68, 68);
+        }
+    }
+
+    public boolean hasToolbox() {
+        return ((ContainerCellTerminalBase) this.inventorySlots).hasToolbox();
     }
 
     protected void drawTabs(int offsetX, int offsetY, int mouseX, int mouseY) {
