@@ -1,5 +1,6 @@
 package com.cellterminal.integration;
 
+import com.cellterminal.container.ContainerWirelessCellTerminal;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.common.util.Constants;
@@ -10,15 +11,11 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import appeng.api.AEApi;
 import appeng.api.features.IWirelessTermHandler;
-import appeng.client.gui.AEBaseGui;
-import appeng.container.AEBaseContainer;
 import appeng.helpers.WirelessTerminalGuiObject;
 
-import com.cellterminal.CellTerminal;
 import com.cellterminal.ItemRegistry;
 import com.cellterminal.config.CellTerminalServerConfig;
-import com.cellterminal.container.ContainerWUTCellTerminal;
-import com.cellterminal.gui.GuiWUTCellTerminal;
+import com.cellterminal.gui.GuiWirelessCellTerminal;
 import com.circulation.ae2wut.AE2UELWirelessUniversalTerminal;
 import com.circulation.ae2wut.client.model.ItemWUTBakedModel;
 import com.circulation.ae2wut.item.ItemWirelessUniversalTerminal;
@@ -85,7 +82,7 @@ public class AE2WUTIntegration {
                 WirelessTerminalGuiObject wth = getWirelessTerminalGuiObject(item, player, slot, isBauble);
                 if (wth == null) return null;
 
-                return new ContainerWUTCellTerminal(player.inventory, wth);
+                return new ContainerWirelessCellTerminal(player.inventory, wth);
             }
         );
     }
@@ -110,7 +107,7 @@ public class AE2WUTIntegration {
                 WirelessTerminalGuiObject wth = getWirelessTerminalGuiObject(item, player, slot, isBauble);
                 if (wth == null) return null;
 
-                return new GuiWUTCellTerminal(player.inventory, wth);
+                return new GuiWirelessCellTerminal(player.inventory, wth);
             }
         );
     }
