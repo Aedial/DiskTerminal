@@ -33,9 +33,26 @@ repositories {
         metadataSources { artifact() }
     }
 
+    maven {
+        name = 'BlameJared Maven'
+        url = 'https://maven.blamejared.com'
+    }
+    maven {
+        name = 'GTCEu Maven'
+        url = 'https://maven.gtceu.com'
+    }
+
     mavenLocal() // Must be last for caching to work
 }
-
+/**
+ * NOT DEPENDENCIES:
+ *  - runtimeOnly: not required at all for the mod, added for developer convenience to run targets
+ * OPTIONAL DEPENDENCIES:
+ *  - compileOnly: will not be included in developer run targets
+ *  - devOnlyNonPublishable: will be included in developer run targets
+ * REQUIRED DEPENDENCIES:
+ *  - implementation: mods or other jars that are required to be installed alongside this mod
+ */
 dependencies {
     // Include StripLatestForgeRequirements by default for the dev env
     runtimeOnly 'com.cleanroommc:strip-latest-forge-requirements:1.0'
@@ -45,28 +62,28 @@ dependencies {
     // ---- Required dependencies ----
 
     // AE2 Extended Life (AE2-UEL)
-    implementation rfg.deobf("curse.maven:ae2-extended-life-570458:5378163")
+    implementation rfg.deobf("curse.maven:ae2-extended-life-570458:6302098")
 
     // Baubles (required by AE2)
     implementation rfg.deobf("curse.maven:baubles-227083:2518667")
 
     // ---- Optional: JEI ----
-    implementation rfg.deobf("curse.maven:jei-238222:4538010")
+    devOnlyNonPublishable 'mezz.jei:jei_1.12.2:4.16.1.302'
 
     // ---- Optional: AE2WUT (Wireless Universal Terminal) ----
-    implementation rfg.deobf("curse.maven:ae2uel-wireless-universal-terminal-1196988:7366371")
+    devOnlyNonPublishable rfg.deobf("curse.maven:ae2uel-wireless-universal-terminal-1196988:7366371")
 
     // ---- Optional: Thaumic Energistics ----
-    implementation rfg.deobf("curse.maven:thaumcraft-223628:2629023")
-    implementation rfg.deobf("curse.maven:thaumic-energistics-223666:2915506")
+    devOnlyNonPublishable rfg.deobf("curse.maven:thaumcraft-223628:2629023")
+    devOnlyNonPublishable rfg.deobf("curse.maven:thaumic-energistics-223666:2915506")
 
     // ---- Optional: CrazyAE ----
-    implementation rfg.deobf("curse.maven:crazyae-1111042:6840104")
+    devOnlyNonPublishable rfg.deobf("curse.maven:crazyae-1111042:6840104")
 
     // ---- Optional: ECO AE Extension ----
-    implementation "curse.maven:modularmachinery-community-edition-817377:7372951"
-    implementation "curse.maven:geckolib-388172:4020277"
-    implementation ':Nova-Engineering-ECO-AE-Extension-1.2.0@jar'
+    compileOnly "curse.maven:modularmachinery-community-edition-817377:7372951"
+    compileOnly "curse.maven:geckolib-388172:4020277"
+    compileOnly ':Nova-Engineering-ECO-AE-Extension-1.2.0@jar'
 
     // ---- Test dependencies ----
     // JUnit 4 via the Vintage engine on JUnit Platform
