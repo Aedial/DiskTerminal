@@ -30,8 +30,11 @@ public class ContainerWirelessCellTerminal extends ContainerCellTerminalBase {
     private final int slot;
     private final boolean isBauble;
 
+<<<<<<< power
     private double powerMultiplier = 0.5;
 
+=======
+>>>>>>> main
     private int ticks = 0;
 
     public ContainerWirelessCellTerminal(InventoryPlayer ip, WirelessTerminalGuiObject wth) {
