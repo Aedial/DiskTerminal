@@ -1,22 +1,23 @@
 package com.cellterminal.container;
 
-import appeng.api.config.Actionable;
-import appeng.api.config.PowerMultiplier;
-import com.cellterminal.integration.AE2WUTIntegration;
-import com.cellterminal.items.ItemWirelessCellTerminal;
-import com.cellterminal.util.AE2OldVersionSupport;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fml.common.Optional;
 
 import appeng.api.AEApi;
+import appeng.api.config.Actionable;
+import appeng.api.config.PowerMultiplier;
 import appeng.api.features.IWirelessTermHandler;
 import appeng.core.AEConfig;
 import appeng.core.localization.PlayerMessages;
 import appeng.helpers.WirelessTerminalGuiObject;
 
 import baubles.api.BaublesApi;
+
+import com.cellterminal.integration.AE2WUTIntegration;
+import com.cellterminal.items.ItemWirelessCellTerminal;
+import com.cellterminal.util.AE2OldVersionSupport;
 
 
 /**
@@ -29,12 +30,7 @@ public class ContainerWirelessCellTerminal extends ContainerCellTerminalBase {
     private final WirelessTerminalGuiObject wirelessTerminalGuiObject;
     private final int slot;
     private final boolean isBauble;
-
-<<<<<<< power
     private double powerMultiplier = 0.5;
-
-=======
->>>>>>> main
     private int ticks = 0;
 
     public ContainerWirelessCellTerminal(InventoryPlayer ip, WirelessTerminalGuiObject wth) {
