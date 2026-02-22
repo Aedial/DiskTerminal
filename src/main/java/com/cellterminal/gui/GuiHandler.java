@@ -2,11 +2,6 @@ package com.cellterminal.gui;
 
 import javax.annotation.Nullable;
 
-import appeng.api.AEApi;
-import appeng.api.features.IWirelessTermHandler;
-import appeng.helpers.WirelessTerminalGuiObject;
-import baubles.api.BaublesApi;
-import com.cellterminal.container.ContainerWirelessCellTerminal;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
@@ -14,13 +9,19 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.common.network.IGuiHandler;
 
+import appeng.api.AEApi;
+import appeng.api.features.IWirelessTermHandler;
 import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
 import appeng.api.util.AEPartLocation;
 import appeng.container.ContainerOpenContext;
+import appeng.helpers.WirelessTerminalGuiObject;
+
+import baubles.api.BaublesApi;
 
 import com.cellterminal.CellTerminal;
 import com.cellterminal.container.ContainerCellTerminal;
+import com.cellterminal.container.ContainerWirelessCellTerminal;
 import com.cellterminal.part.PartCellTerminal;
 
 

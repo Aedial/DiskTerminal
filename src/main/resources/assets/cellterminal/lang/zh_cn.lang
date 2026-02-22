@@ -8,14 +8,7 @@ gui.cellterminal.cell_terminal.title=元件终端
 gui.cellterminal.wireless_cell_terminal.title=无线元件终端
 gui.cellterminal.highlighted=[%d, %d, %d] - 已高亮%s
 gui.cellterminal.location_format=[%d, %d, %d] （维度ID：%d）
-gui.cellterminal.search=搜索……
-gui.cellterminal.no_drives=网络中未找到驱动器
 gui.cellterminal.cell_empty=空元件
-gui.cellterminal.cell_capacity=%s / %s
-gui.cellterminal.types_used=%d / %d 类型
-gui.cellterminal.partition=分区
-gui.cellterminal.contents=内容
-gui.cellterminal.click_to_edit=点击以编辑
 gui.cellterminal.priority.tooltip=设置存储优先级（高优先级=优先存入，最后使用）
 
 # Panel tabs
@@ -198,7 +191,6 @@ cellterminal.error.fluid_cell_item=无法将物品添加到流体元件分区
 cellterminal.error.item_cell_fluid=无法将流体添加到物品元件分区
 cellterminal.error.essentia_cell_item=无法将物品添加到源质元件分区。使用装有源质的安瓿或罐子。
 cellterminal.error.essentia_cell_fluid=无法将流体添加到源质元件分区
-cellterminal.error.no_empty_slot=存储空间无空余槽位
 cellterminal.error.different_dimension=无法高亮显示其他维度的方块
 
 # Storage bus error messages
@@ -228,7 +220,6 @@ cellterminal.quick_partition.no_cell_essentia=未找到没有分区的源质元�
 cellterminal.quick_partition.no_cell_auto=未找到匹配该类型的没有分区的元件
 cellterminal.quick_partition.success=已将%s分区至%s
 cellterminal.quick_partition.essentia_unavailable=需安装神秘能源模组才能使用源质元件功能
-cellterminal.quick_partition.wrong_tab=快速分区功能只能在分区标签页中使用
 
 # Storage bus keybind messages
 cellterminal.storage_bus.no_selection=未选中存储总线。点击存储总线的顶部区域以选中该总线。
@@ -297,12 +288,6 @@ config.cellterminal.config.server.tabs.network_tools.tooltip=启用网络工具�
 gui.cellterminal.networktools.warning.caution=§e⚠ 注意：§r该工具会对你的存储网络执行批量操作。使用预览功能可在运行工具前查看将做出的更改内容。
 gui.cellterminal.networktools.warning.irreversible=§c⚠ 警告：§r这些操作无法撤销。确保你清楚自己在做什么。
 gui.cellterminal.networktools.help.read_tooltip=将鼠标悬停在[?]图标上以获取关于每个工具的详细帮助。
-gui.cellterminal.networktools.preview=预览
-gui.cellterminal.networktools.affected_count=受影响：%d
-gui.cellterminal.networktools.launch=运行
-gui.cellterminal.networktools.confirm=确认
-gui.cellterminal.networktools.cancel=取消
-gui.cellterminal.networktools.warning=§c⚠ 该操作无法撤销。
 gui.cellterminal.networktools.no_targets=未找到目标（请检查过滤项）
 gui.cellterminal.networktools.target_breakdown=目标明细：
 gui.cellterminal.networktools.error.no_cells=没有符合当前筛选条件的元件
@@ -323,7 +308,6 @@ cellterminal.networktools.attribute_unique.partial_success=§e已将%d种物品�
 
 # Network tools - confirmation modal
 gui.cellterminal.networktools.confirm.title=确认%s
-gui.cellterminal.networktools.confirm.message=确定运行该工具？
 gui.cellterminal.networktools.confirm.do_it=执行
 gui.cellterminal.networktools.confirm.cancel=取消
 
@@ -341,12 +325,9 @@ gui.cellterminal.networktools.attribute_unique.help.2=每种唯一类型仅会�
 gui.cellterminal.networktools.attribute_unique.help.3=你需要有足够的对应类型的空闲元件才能使其生效。
 gui.cellterminal.networktools.attribute_unique.help.4=§e注意：§r无论筛选条件如何，只要是空的、未分区的元件都可能被使用。
 gui.cellterminal.networktools.attribute_unique.confirm=将把%d种唯一类型重新分配在%d个元件中。
-gui.cellterminal.networktools.attribute_unique.affected=%d种唯一类型分配在%d个元件中
-gui.cellterminal.networktools.attribute_unique.success=已将%d种唯一类型分配至%d个元件
 gui.cellterminal.networktools.attribute_unique.error.not_enough_cells=没有足够的元件来容纳所有唯一类型
 gui.cellterminal.networktools.attribute_unique.error.not_enough_cells_by_type=对应类型的元件数量不足：
 gui.cellterminal.networktools.attribute_unique.error.type_detail=%s：%d个元件，%d种类型
-gui.cellterminal.networktools.attribute_unique.none=没有可供分配的物品（未找到元件或物品）
 gui.cellterminal.networktools.attribute_unique.preview.title=可用元件 / 唯一类型
 gui.cellterminal.networktools.attribute_unique.preview.type.item=物品
 gui.cellterminal.networktools.attribute_unique.preview.type.fluid=流体
@@ -354,55 +335,24 @@ gui.cellterminal.networktools.attribute_unique.preview.type.essentia=源质
 
 # Network tools - Mass Partition Cell
 gui.cellterminal.networktools.mass_partition_cell.name=根据内容批量分区（存储元件）
+gui.cellterminal.networktools.mass_partition_cell.desc=???
 gui.cellterminal.networktools.mass_partition_cell.help.1=根据其当前内容，为所有匹配的元件分区。
 gui.cellterminal.networktools.mass_partition_cell.help.2=§e注意：§r仅影响通过当前筛选条件的元件。
 gui.cellterminal.networktools.mass_partition_cell.confirm=将根据内容为%d个元件分区。
-gui.cellterminal.networktools.mass_partition_cell.affected=%d个元件将被分区
-gui.cellterminal.networktools.mass_partition_cell.success=已为%d个元件分区
-gui.cellterminal.networktools.mass_partition_cell.none=没有可分区的元件（筛选条件可能隐藏了所有元件）
 
 # Network tools - Mass Partition Bus
 gui.cellterminal.networktools.mass_partition_bus.name=根据内容批量分区（存储总线）
+gui.cellterminal.networktools.mass_partition_bus.desc=???
 gui.cellterminal.networktools.mass_partition_bus.help.1=根据其所连接容器的内容，为所有匹配的存储总线设置过滤项。
 gui.cellterminal.networktools.mass_partition_bus.help.2=§e注意：§r仅影响通过当前筛选条件的总线。
 gui.cellterminal.networktools.mass_partition_bus.confirm=将为%d个存储总线设置过滤项。
-gui.cellterminal.networktools.mass_partition_bus.affected=%d个总线将被设置过滤项
-gui.cellterminal.networktools.mass_partition_bus.success=已为%d个存储总线设置过滤项
-gui.cellterminal.networktools.mass_partition_bus.none=没有可设置过滤项的存储总线（筛选条件可能隐藏了所有总线）
 
 # Subnet View
-gui.cellterminal.subnet.title=已连接的子网络
-gui.cellterminal.subnet.none=未连接子网络
-gui.cellterminal.subnet.back=返回主网络
-gui.cellterminal.subnet.switch=点击查看子网络
-gui.cellterminal.subnet.highlight=双击以高亮
-gui.cellterminal.subnet.rename=右键点击以重命名
-gui.cellterminal.subnet.favorite=点击星标以切换收藏
-gui.cellterminal.subnet.connections=%d个连接
-gui.cellterminal.subnet.outbound=出站：存储总线 → 接口
-gui.cellterminal.subnet.inbound=入站：接口 ← 存储总线
-gui.cellterminal.subnet.no_power=§c（无能量）§r
-gui.cellterminal.subnet.locked=§c（访问被拒绝）§r
-gui.cellterminal.subnet.storage=%s / %s 字节
-gui.cellterminal.subnet.types=%d / %d 类型
-gui.cellterminal.subnet.channels=%d / %d 频道
 gui.cellterminal.subnet.default_name=%d, %d, %d
-gui.cellterminal.subnet.viewing=正在查看：%s
-gui.cellterminal.subnet.main_network=主网络
-
-# Subnet View - Used by SubnetOverviewRenderer and GuiBackButton
 cellterminal.subnet.none=未连接子网络
-cellterminal.subnet.column.name=名称
-cellterminal.subnet.column.connections=连接
-cellterminal.subnet.column.usage=能耗
-cellterminal.subnet.unfavorite=取消收藏
-cellterminal.subnet.favorite=收藏
-cellterminal.subnet.original_name=原始名称
-cellterminal.subnet.click_to_view=点击查看子网络
 cellterminal.subnet.double_click_highlight=双击以在世界中高亮
 cellterminal.subnet.right_click_rename=右键点击以重命名
 gui.cellterminal.right_click_rename=右键点击以重命名
-cellterminal.subnet.connections=连接
 cellterminal.subnet.outbound=%d个出站（存储总线 → 子网络络）
 cellterminal.subnet.inbound=%d个入站（子网络络 → 接口）
 cellterminal.subnet.pos=位置：%d, %d, %d
@@ -412,8 +362,6 @@ cellterminal.subnet.no_access=访问被拒绝（安全）
 cellterminal.subnet.back=返回
 cellterminal.subnet.back.desc=返回上一个网络视图
 cellterminal.subnet.overview=子网络概览
-cellterminal.subnet.overview.desc=查看已连接的子网络
-cellterminal.subnet.rename=右键点击以重命名
 cellterminal.subnet.main_network=主网络
 cellterminal.subnet.load=加载
 cellterminal.subnet.load.tooltip=加载该子网络的存储视图

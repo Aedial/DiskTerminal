@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.cellterminal.container.ContainerCellTerminalBase;
 import org.lwjgl.input.Keyboard;
 
 import net.minecraft.client.Minecraft;
@@ -43,6 +42,7 @@ import com.cellterminal.client.SubnetVisibility;
 import com.cellterminal.client.TabStateManager;
 import com.cellterminal.config.CellTerminalClientConfig;
 import com.cellterminal.config.CellTerminalClientConfig.TerminalStyle;
+import com.cellterminal.container.ContainerCellTerminalBase;
 import com.cellterminal.client.KeyBindings;
 import com.cellterminal.client.SearchFilterMode;
 import com.cellterminal.client.StorageBusInfo;
@@ -1562,22 +1562,22 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             if (this.inlineRenameEditor.handleKeyTyped(typedChar, keyCode)) return;
         }
 
-        // Handle network tool confirmation modal first (blocks all other input)
+        // Handle network tool confirmation modal (blocks all other input)
         if (networkToolModal != null) {
             if (networkToolModal.handleKeyTyped(keyCode)) return;
         }
 
-        // Handle modal search bar keyboard first
+        // Handle modal search bar keyboard
         if (modalSearchBar != null && modalSearchBar.isVisible()) {
             if (modalSearchBar.handleKeyTyped(typedChar, keyCode)) return;
         }
 
-        // Handle priority field keyboard first
+        // Handle priority field keyboard
         if (priorityFieldManager != null) {
             if (priorityFieldManager.handleKeyTyped(typedChar, keyCode)) return;
         }
 
-        // Esc key should close modals first
+        // Esc key should close modals
         if (keyCode == Keyboard.KEY_ESCAPE) {
             if (inventoryPopup != null) {
                 inventoryPopup = null;
@@ -1595,19 +1595,18 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             }
         }
 
-        // Backspace key toggles subnet overview
-        if (keyCode == Keyboard.KEY_BACK) {
+        // Handle search field keyboard input
+        if (this.searchField != null && this.searchField.textboxKeyTyped(typedChar, keyCode)) return;
+
+        // Delegate keybind handling to the active tab controller
+        if (handleTabKeyTyped(keyCode)) return;
+
+        // Toggle subnet overview in last, as it's available everywhere
+        // And should not take priority over other handlers
+        if (KeyBindings.SUBNET_OVERVIEW_TOGGLE.isActiveAndMatches(keyCode)) {
             handleSubnetBackButtonClick();
             return;
         }
-
-        // Delegate keybind handling to the active tab controller (only when search is not focused)
-        if (this.searchField == null || !this.searchField.isFocused()) {
-            if (handleTabKeyTyped(keyCode)) return;
-        }
-
-        // Handle search field keyboard input first
-        if (this.searchField != null && this.searchField.textboxKeyTyped(typedChar, keyCode)) return;
 
         super.keyTyped(typedChar, keyCode);
     }

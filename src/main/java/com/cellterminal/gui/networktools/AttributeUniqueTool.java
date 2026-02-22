@@ -7,8 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.cellterminal.gui.networktools.INetworkTool.FilteredCell;
-
 import net.minecraft.client.resources.I18n;
 import net.minecraft.item.ItemStack;
 
@@ -17,6 +15,7 @@ import appeng.api.AEApi;
 import com.cells.api.IItemCompactingCell;
 
 import com.cellterminal.client.CellInfo;
+import com.cellterminal.gui.networktools.INetworkTool.FilteredCell;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketNetworkToolAction;
 

@@ -7,11 +7,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-
-import appeng.container.slot.SlotRestrictedInput;
-import appeng.helpers.WirelessTerminalGuiObject;
-import appeng.items.contents.NetworkToolViewer;
-import appeng.items.tools.ToolNetworkTool;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.util.math.BlockPos;
@@ -35,7 +30,11 @@ import appeng.api.networking.security.IActionHost;
 import appeng.api.parts.IPart;
 import appeng.api.storage.ICellWorkbenchItem;
 import appeng.container.AEBaseContainer;
+import appeng.container.slot.SlotRestrictedInput;
 import appeng.helpers.IPriorityHost;
+import appeng.helpers.WirelessTerminalGuiObject;
+import appeng.items.contents.NetworkToolViewer;
+import appeng.items.tools.ToolNetworkTool;
 import appeng.parts.automation.PartUpgradeable;
 import appeng.tile.storage.TileChest;
 import appeng.tile.storage.TileDrive;

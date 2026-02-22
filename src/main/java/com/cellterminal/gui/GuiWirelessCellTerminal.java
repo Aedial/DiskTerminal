@@ -4,7 +4,6 @@ import java.awt.Rectangle;
 import java.io.IOException;
 import java.util.List;
 
-import com.cellterminal.container.ContainerWirelessCellTerminal;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
@@ -12,6 +11,7 @@ import net.minecraft.entity.player.InventoryPlayer;
 import appeng.helpers.WirelessTerminalGuiObject;
 
 import com.cellterminal.config.CellTerminalClientConfig;
+import com.cellterminal.container.ContainerWirelessCellTerminal;
 import com.cellterminal.integration.AE2WUTIntegration;
 import com.cellterminal.integration.WUTModeSwitcher;
 

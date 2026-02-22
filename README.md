@@ -27,6 +27,9 @@ A terminal and wireless terminal for managing storage cells and storage buses ac
 - **Priority Management**: Set ME Chest/Drive/Storage Bus priority directly from the GUI
 - **Quick Partition Keybinds**: Configurable keybinds for quick partitioning with the hovered item
 
+### Subnets overview
+Clicking on the left arrow, top left of the terminal, will open a subnet overview, showing all connected subnets and their contents. You can then rename subnets, favorite them to show them at the top of the list, or load a subnet into the terminal to manage its contents. The last loaded subnet will be remembered and automatically loaded the next time you open the terminal (until world reload).
+
 ### Network Tools
 A set of tools to manage and optimize your ME network storage. All tools can be matched against all available filtering options (search text, advanced search, filter buttons).
 - **Attribute Unique Tool**: Redistributes items/fluids/essentia from matching cells to ensure each cell contains 1 unique type. May use free, unpartitioned cells on the network if needed.

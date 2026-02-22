@@ -3,6 +3,8 @@ package com.cellterminal.gui.handler;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.Nullable;
+
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.I18n;
@@ -31,8 +33,6 @@ import com.cellterminal.client.StorageInfo;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketPartitionAction;
-
-import javax.annotation.Nullable;
 
 
 /**

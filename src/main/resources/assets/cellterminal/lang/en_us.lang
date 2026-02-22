@@ -8,14 +8,7 @@ gui.cellterminal.cell_terminal.title=Cell Terminal
 gui.cellterminal.wireless_cell_terminal.title=Wireless Cell Terminal
 gui.cellterminal.highlighted=[%d, %d, %d] - Highlighted %s
 gui.cellterminal.location_format=[%d, %d, %d] (DIM %d)
-gui.cellterminal.search=Search...
-gui.cellterminal.no_drives=No drives found in network
 gui.cellterminal.cell_empty=Empty cell
-gui.cellterminal.cell_capacity=%s / %s
-gui.cellterminal.types_used=%d / %d types
-gui.cellterminal.partition=Partition
-gui.cellterminal.contents=Contents
-gui.cellterminal.click_to_edit=Click to edit
 gui.cellterminal.priority.tooltip=Set storage priority (higher priority = inserted first, used last)
 
 # Panel tabs
@@ -198,7 +191,6 @@ cellterminal.error.fluid_cell_item=Cannot add items to a fluid cell partition
 cellterminal.error.item_cell_fluid=Cannot add fluids to an item cell partition
 cellterminal.error.essentia_cell_item=Cannot add items to an essentia cell partition. Use filled phials or jars.
 cellterminal.error.essentia_cell_fluid=Cannot add fluids to an essentia cell partition
-cellterminal.error.no_empty_slot=No empty slot in storage
 cellterminal.error.different_dimension=Cannot highlight block in different dimension
 
 # Storage bus error messages
@@ -213,6 +205,7 @@ gui.cellterminal.storagebus.iomode.unsupported=IO Mode (no effect on this bus ty
 
 # Keybindings
 key.cellterminal.category=Cell Terminal
+key.cellterminal.subnet_overview_toggle.desc=Toggle Subnet Overview
 key.cellterminal.quick_partition_auto.desc=Quick Partition (Auto Type)
 key.cellterminal.quick_partition_item.desc=Quick Partition (Item Cell)
 key.cellterminal.quick_partition_fluid.desc=Quick Partition (Fluid Cell)
@@ -228,7 +221,6 @@ cellterminal.quick_partition.no_cell_essentia=No essentia cell without partition
 cellterminal.quick_partition.no_cell_auto=No cell without partition found for this item type
 cellterminal.quick_partition.success=Partitioned %s into %s
 cellterminal.quick_partition.essentia_unavailable=Essentia cells require Thaumic Energistics mod
-cellterminal.quick_partition.wrong_tab=Quick partition only works in the Partition tab
 
 # Storage bus keybind messages
 cellterminal.storage_bus.no_selection=No storage bus selected. Click on a storage bus header to select it.
@@ -297,12 +289,6 @@ config.cellterminal.config.server.tabs.network_tools.tooltip=Enable the Network 
 gui.cellterminal.networktools.warning.caution=§e⚠ Caution:§r This tool performs bulk operations on your storage network. Use the preview function to see what changes will be made before running the tool.
 gui.cellterminal.networktools.warning.irreversible=§c⚠ Warning:§r These operations cannot be undone. Make sure you know what you are doing.
 gui.cellterminal.networktools.help.read_tooltip=Hover the [?] icons for detailed help about each tool.
-gui.cellterminal.networktools.preview=Preview
-gui.cellterminal.networktools.affected_count=Affected: %d
-gui.cellterminal.networktools.launch=Run
-gui.cellterminal.networktools.confirm=Confirm
-gui.cellterminal.networktools.cancel=Cancel
-gui.cellterminal.networktools.warning=§c⚠ This operation cannot be undone!
 gui.cellterminal.networktools.no_targets=No targets found (check filters)
 gui.cellterminal.networktools.target_breakdown=Target breakdown:
 gui.cellterminal.networktools.error.no_cells=No cells match the current filters
@@ -323,7 +309,6 @@ cellterminal.networktools.attribute_unique.partial_success=§eRedistributed %d i
 
 # Network tools - confirmation modal
 gui.cellterminal.networktools.confirm.title=Confirm %s
-gui.cellterminal.networktools.confirm.message=Are you sure you want to run this tool?
 gui.cellterminal.networktools.confirm.do_it=Do it
 gui.cellterminal.networktools.confirm.cancel=Cancel
 
@@ -341,12 +326,9 @@ gui.cellterminal.networktools.attribute_unique.help.2=Each unique type will be m
 gui.cellterminal.networktools.attribute_unique.help.3=You need enough free cells of each type for this to work.
 gui.cellterminal.networktools.attribute_unique.help.4=§eNote:§r Empty, non-partitioned cells may be used regardless of filter settings.
 gui.cellterminal.networktools.attribute_unique.confirm=This will redistribute %d unique types across %d cells.
-gui.cellterminal.networktools.attribute_unique.affected=%d unique types across %d cells
-gui.cellterminal.networktools.attribute_unique.success=Assigned %d unique types to %d cells
 gui.cellterminal.networktools.attribute_unique.error.not_enough_cells=Not enough cells for all unique types
 gui.cellterminal.networktools.attribute_unique.error.not_enough_cells_by_type=Not enough cells of correct type:
 gui.cellterminal.networktools.attribute_unique.error.type_detail=%s: %d cells, %d types
-gui.cellterminal.networktools.attribute_unique.none=No items to distribute (no cells or items found)
 gui.cellterminal.networktools.attribute_unique.preview.title=Cells Available / Unique Types
 gui.cellterminal.networktools.attribute_unique.preview.type.item=Items
 gui.cellterminal.networktools.attribute_unique.preview.type.fluid=Fluids
@@ -354,55 +336,24 @@ gui.cellterminal.networktools.attribute_unique.preview.type.essentia=Essentia
 
 # Network tools - Mass Partition Cell
 gui.cellterminal.networktools.mass_partition_cell.name=Mass Partition from Content (Storage Cell)
+gui.cellterminal.networktools.mass_partition_cell.desc=Set partitions on cells based on their current contents
 gui.cellterminal.networktools.mass_partition_cell.help.1=Partitions all matching cells based on their current contents.
 gui.cellterminal.networktools.mass_partition_cell.help.2=§eNote:§r Only affects cells that pass the current filter settings.
 gui.cellterminal.networktools.mass_partition_cell.confirm=This will partition %d cells based on their contents.
-gui.cellterminal.networktools.mass_partition_cell.affected=%d cells will be partitioned
-gui.cellterminal.networktools.mass_partition_cell.success=Partitioned %d cells
-gui.cellterminal.networktools.mass_partition_cell.none=No cells to partition (filters may hide all)
 
 # Network tools - Mass Partition Bus
 gui.cellterminal.networktools.mass_partition_bus.name=Mass Partition from Content (Storage Bus)
+gui.cellterminal.networktools.mass_partition_bus.desc=Set filters on storage buses based on their attached inventory's content
 gui.cellterminal.networktools.mass_partition_bus.help.1=Sets the filter of all matching storage buses based on their attached inventory's content.
 gui.cellterminal.networktools.mass_partition_bus.help.2=§eNote:§r Only affects buses that pass the current filter settings.
 gui.cellterminal.networktools.mass_partition_bus.confirm=This will set filters on %d storage buses.
-gui.cellterminal.networktools.mass_partition_bus.affected=%d buses will be filtered
-gui.cellterminal.networktools.mass_partition_bus.success=Filtered %d storage buses
-gui.cellterminal.networktools.mass_partition_bus.none=No storage buses to filter (filters may hide all)
 
 # Subnet View
-gui.cellterminal.subnet.title=Connected Subnets
-gui.cellterminal.subnet.none=No subnets connected
-gui.cellterminal.subnet.back=Back to main network
-gui.cellterminal.subnet.switch=Click to view subnet
-gui.cellterminal.subnet.highlight=Double-click to highlight
-gui.cellterminal.subnet.rename=Right-click to rename
-gui.cellterminal.subnet.favorite=Click star to toggle favorite
-gui.cellterminal.subnet.connections=%d connection(s)
-gui.cellterminal.subnet.outbound=Outbound: Storage Bus → Interface
-gui.cellterminal.subnet.inbound=Inbound: Interface ← Storage Bus
-gui.cellterminal.subnet.no_power=§c(No Power)§r
-gui.cellterminal.subnet.locked=§c(Access Denied)§r
-gui.cellterminal.subnet.storage=%s / %s bytes
-gui.cellterminal.subnet.types=%d / %d types
-gui.cellterminal.subnet.channels=%d / %d channels
 gui.cellterminal.subnet.default_name=%d, %d, %d
-gui.cellterminal.subnet.viewing=Viewing: %s
-gui.cellterminal.subnet.main_network=Main Network
-
-# Subnet View - Used by SubnetOverviewRenderer and GuiBackButton
 cellterminal.subnet.none=No subnets connected
-cellterminal.subnet.column.name=Name
-cellterminal.subnet.column.connections=Conn
-cellterminal.subnet.column.usage=Usage
-cellterminal.subnet.unfavorite=Unfavorite
-cellterminal.subnet.favorite=Favorite
-cellterminal.subnet.original_name=Original name
-cellterminal.subnet.click_to_view=Click to view subnet
 cellterminal.subnet.double_click_highlight=Double-click to highlight in world
 cellterminal.subnet.right_click_rename=Right-click to rename
 gui.cellterminal.right_click_rename=Right-click to rename
-cellterminal.subnet.connections=Connections
 cellterminal.subnet.outbound=%d outbound (Storage Bus → Subnet)
 cellterminal.subnet.inbound=%d inbound (Subnet → Interface)
 cellterminal.subnet.pos=Position: %d, %d, %d
@@ -412,8 +363,6 @@ cellterminal.subnet.no_access=Access Denied (Security)
 cellterminal.subnet.back=Back
 cellterminal.subnet.back.desc=Return to previous network view
 cellterminal.subnet.overview=Subnet Overview
-cellterminal.subnet.overview.desc=View connected subnets
-cellterminal.subnet.rename=Right-click to rename
 cellterminal.subnet.main_network=Main Network
 cellterminal.subnet.load=Load
 cellterminal.subnet.load.tooltip=Load this subnet's storage view

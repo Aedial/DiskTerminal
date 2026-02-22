@@ -22,7 +22,15 @@ public enum KeyBindings {
         "key.cellterminal.open_wireless_terminal.desc",
         KeyConflictContext.UNIVERSAL,
         KeyModifier.SHIFT,
-        Keyboard.KEY_D,
+        Keyboard.KEY_P,
+        "key.cellterminal.category"
+    )),
+
+    SUBNET_OVERVIEW_TOGGLE(new KeyBinding(
+        "key.cellterminal.subnet_overview_toggle.desc",
+        KeyConflictContext.GUI,
+        KeyModifier.NONE,
+        Keyboard.KEY_BACK,
         "key.cellterminal.category"
     )),
 

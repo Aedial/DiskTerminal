@@ -13,13 +13,14 @@ import appeng.api.AEApi;
 import appeng.api.features.IWirelessTermHandler;
 import appeng.helpers.WirelessTerminalGuiObject;
 
-import com.cellterminal.ItemRegistry;
-import com.cellterminal.config.CellTerminalServerConfig;
-import com.cellterminal.gui.GuiWirelessCellTerminal;
 import com.circulation.ae2wut.AE2UELWirelessUniversalTerminal;
 import com.circulation.ae2wut.client.model.ItemWUTBakedModel;
 import com.circulation.ae2wut.item.ItemWirelessUniversalTerminal;
 import com.circulation.ae2wut.recipes.AllWUTRecipe;
+
+import com.cellterminal.ItemRegistry;
+import com.cellterminal.config.CellTerminalServerConfig;
+import com.cellterminal.gui.GuiWirelessCellTerminal;
 
 
 /**

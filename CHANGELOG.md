@@ -8,6 +8,16 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.4.0] - 2026-02-19
+### Added
+- Add keybind for Subnet Overview toggle (default: back)
+
+
+### Fixed
+- Fix Subnet Overview toggle taking priority over search field
+- Clean up the language files, removing unused keys
+
+
 ## [1.4.0-rc2] - 2026-02-19
 ### Added
 - Add right-click rename for drives/ME chests, storage cells, and storage buses on all tabs (1-5).
