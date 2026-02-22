@@ -1,22 +1,23 @@
 package com.cellterminal.container;
 
-import appeng.api.config.Actionable;
-import appeng.api.config.PowerMultiplier;
-import com.cellterminal.integration.AE2WUTIntegration;
-import com.cellterminal.items.ItemWirelessCellTerminal;
-import com.cellterminal.util.AE2OldVersionSupport;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fml.common.Optional;
 
 import appeng.api.AEApi;
+import appeng.api.config.Actionable;
+import appeng.api.config.PowerMultiplier;
 import appeng.api.features.IWirelessTermHandler;
 import appeng.core.AEConfig;
 import appeng.core.localization.PlayerMessages;
 import appeng.helpers.WirelessTerminalGuiObject;
 
 import baubles.api.BaublesApi;
+
+import com.cellterminal.integration.AE2WUTIntegration;
+import com.cellterminal.items.ItemWirelessCellTerminal;
+import com.cellterminal.util.AE2OldVersionSupport;
 
 
 /**
@@ -29,7 +30,7 @@ public class ContainerWirelessCellTerminal extends ContainerCellTerminalBase {
     private final WirelessTerminalGuiObject wirelessTerminalGuiObject;
     private final int slot;
     private final boolean isBauble;
-
+    private double powerMultiplier = 0.5;
     private int ticks = 0;
 
     public ContainerWirelessCellTerminal(InventoryPlayer ip, WirelessTerminalGuiObject wth) {
@@ -78,11 +79,10 @@ public class ContainerWirelessCellTerminal extends ContainerCellTerminalBase {
         // Drain power periodically (every 20 ticks = 1 second)
         this.ticks++;
         if (this.ticks >= 20) {
-            ItemWirelessCellTerminal terminal = (ItemWirelessCellTerminal) currentStack.getItem();
-            double powerDrain = AEConfig.instance().wireless_getDrainRate(0);
-            double extracted = terminal.extractAEPower(currentStack, powerDrain, Actionable.MODULATE);
+            double powerDrain = this.getPowerMultiplier() * this.ticks;
+            double powerUsed = this.wirelessTerminalGuiObject.extractAEPower(powerDrain, Actionable.MODULATE, PowerMultiplier.CONFIG);
 
-            if (extracted < powerDrain * 0.9) {
+            if (powerDrain != powerUsed) {
                 if (this.isValidContainer()) {
                     getPlayerInv().player.sendMessage(PlayerMessages.DeviceNotPowered.get());
                 }
@@ -91,6 +91,16 @@ public class ContainerWirelessCellTerminal extends ContainerCellTerminalBase {
                 return false;
             }
             this.ticks = 0;
+        }
+
+        if (!this.wirelessTerminalGuiObject.rangeCheck()) {
+            if (this.isValidContainer()) {
+                this.getPlayerInv().player.sendMessage(PlayerMessages.OutOfRange.get());
+            }
+
+            this.setValidContainer(false);
+        } else {
+            this.setPowerMultiplier(AEConfig.instance().wireless_getDrainRate(this.wirelessTerminalGuiObject.getRange()));
         }
 
         // Check range (simplified - just check grid is still valid)
@@ -104,5 +114,14 @@ public class ContainerWirelessCellTerminal extends ContainerCellTerminalBase {
         }
 
         return true;
+    }
+
+
+    public double getPowerMultiplier() {
+        return powerMultiplier;
+    }
+
+    public void setPowerMultiplier(double powerMultiplier) {
+        this.powerMultiplier = powerMultiplier;
     }
 }

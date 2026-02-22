@@ -391,7 +391,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
     @Override
     public boolean canInteractWith(EntityPlayer player) {
-        return true;
+        return this.isValidContainer();
     }
 
     /**
