@@ -205,6 +205,7 @@ gui.cellterminal.storagebus.iomode.unsupported=IO模式（对该类型总线无�
 
 # Keybindings
 key.cellterminal.category=元件终端
+key.cellterminal.subnet_overview_toggle.desc=切换子网络概览
 key.cellterminal.quick_partition_auto.desc=快速分区（自动匹配类型）
 key.cellterminal.quick_partition_item.desc=快速分区（物品元件）
 key.cellterminal.quick_partition_fluid.desc=快速分区（流体元件）
@@ -342,7 +343,7 @@ gui.cellterminal.networktools.mass_partition_cell.confirm=将根据内容为%d�
 
 # Network tools - Mass Partition Bus
 gui.cellterminal.networktools.mass_partition_bus.name=根据内容批量分区（存储总线）
-gui.cellterminal.networktools.mass_partition_bus.desc=???
+gui.cellterminal.networktools.mass_partition_bus.desc=根据其所连接容器的内容，为存储总线设置过滤项
 gui.cellterminal.networktools.mass_partition_bus.help.1=根据其所连接容器的内容，为所有匹配的存储总线设置过滤项。
 gui.cellterminal.networktools.mass_partition_bus.help.2=§e注意：§r仅影响通过当前筛选条件的总线。
 gui.cellterminal.networktools.mass_partition_bus.confirm=将为%d个存储总线设置过滤项。
