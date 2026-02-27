@@ -296,12 +296,18 @@ public class AdvancedSearchParser {
             }
         }
 
-        // Validate numeric identifiers have numeric values
+        // Validate numeric identifiers have numeric values (supports comma-separated list)
         if (isNumericIdentifier(identifier) && !value.isEmpty()) {
-            try {
-                Integer.parseInt(value.trim());
-            } catch (NumberFormatException e) {
-                errors.add(safeFormat("cellterminal.search.error.expected_number", identifier, value));
+            String[] parts = value.split(",");
+            for (String part : parts) {
+                String trimmed = part.trim();
+                if (trimmed.isEmpty()) continue;
+
+                try {
+                    Integer.parseInt(trimmed);
+                } catch (NumberFormatException e) {
+                    errors.add(safeFormat("cellterminal.search.error.expected_number", identifier, trimmed));
+                }
             }
         }
 
@@ -309,11 +315,16 @@ public class AdvancedSearchParser {
     }
 
     private static boolean isValidIdentifier(String id) {
-        return "$name".equals(id) || "$priority".equals(id) || "$partition".equals(id) || "$items".equals(id);
+        return "$name".equals(id) || "$priority".equals(id) || "$partition".equals(id) || "$items".equals(id)
+            || "$content".equals(id) || "$part".equals(id) || "$container".equals(id) || "$renamed".equals(id);
     }
 
     private static boolean isNumericIdentifier(String id) {
         return "$priority".equals(id) || "$partition".equals(id) || "$items".equals(id);
+    }
+
+    private static boolean isStringIdentifier(String id) {
+        return "$name".equals(id) || "$content".equals(id) || "$part".equals(id) || "$container".equals(id) || "$renamed".equals(id);
     }
 
     private static boolean isOperator(String s) {
@@ -352,13 +363,21 @@ public class AdvancedSearchParser {
     private static SearchMatcher createMatcher(String identifier, String operator, String value, List<String> errors) {
         switch (identifier) {
             case "$name":
+                return createFilterModeMatcher(operator, value);
+            case "$content":
                 return createContentMatcher(operator, value);
+            case "$part":
+                return createPartitionMatcher(operator, value);
             case "$priority":
                 return createPriorityMatcher(operator, value);
             case "$partition":
-                return createPartitionMatcher(operator, value);
+                return createPartitionCountMatcher(operator, value);
             case "$items":
                 return createItemsMatcher(operator, value);
+            case "$container":
+                return createContainerMatcher(operator, value, false);
+            case "$renamed":
+                return createContainerMatcher(operator, value, true);
             default:
                 // Already reported as error, return false matcher
                 return alwaysFalse();
@@ -367,9 +386,9 @@ public class AdvancedSearchParser {
 
     /**
      * Create a matcher that searches item contents (display name, registry name).
-     * This matches the behavior of normal search.
+     * Respects the filter mode setting (inventory, partition, or both).
      */
-    private static SearchMatcher createContentMatcher(String operator, String value) {
+    private static SearchMatcher createFilterModeMatcher(String operator, String value) {
         final String searchValue = value.toLowerCase(Locale.ROOT);
 
         return new SearchMatcher() {
@@ -466,8 +485,87 @@ public class AdvancedSearchParser {
         return false;
     }
 
+    /**
+     * Create a matcher that searches only contents (inventory), ignoring partition.
+     */
+    private static SearchMatcher createContentMatcher(String operator, String value) {
+        final String searchValue = value.toLowerCase(Locale.ROOT);
+
+        return new SearchMatcher() {
+            @Override
+            public boolean matchesCell(CellInfo cell, StorageInfo storage, SearchFilterMode mode) {
+                return matchesItemList(cell.getContents(), searchValue, operator);
+            }
+
+            @Override
+            public boolean matchesStorageBus(StorageBusInfo bus, SearchFilterMode mode) {
+                return matchesItemList(bus.getContents(), searchValue, operator);
+            }
+        };
+    }
+
+    /**
+     * Create a matcher that searches only partition, ignoring contents.
+     */
+    private static SearchMatcher createPartitionMatcher(String operator, String value) {
+        final String searchValue = value.toLowerCase(Locale.ROOT);
+
+        return new SearchMatcher() {
+            @Override
+            public boolean matchesCell(CellInfo cell, StorageInfo storage, SearchFilterMode mode) {
+                return matchesItemList(cell.getPartition(), searchValue, operator);
+            }
+
+            @Override
+            public boolean matchesStorageBus(StorageBusInfo bus, SearchFilterMode mode) {
+                return matchesItemList(bus.getPartition(), searchValue, operator);
+            }
+        };
+    }
+
+    /**
+     * Create a matcher that searches container names (cell item name, drive/chest name, storage bus name).
+     * @param onlyRenamed If true, only match containers that have been renamed by the user.
+     */
+    private static SearchMatcher createContainerMatcher(String operator, String value, boolean onlyRenamed) {
+        final String searchValue = value.toLowerCase(Locale.ROOT);
+
+        return new SearchMatcher() {
+            @Override
+            public boolean matchesCell(CellInfo cell, StorageInfo storage, SearchFilterMode mode) {
+                // Check cell item name (only if cell has custom name when onlyRenamed is true)
+                if (!cell.getCellItem().isEmpty()) {
+                    if (!onlyRenamed || cell.hasCustomName()) {
+                        String cellName = cell.getDisplayName().toLowerCase(Locale.ROOT);
+                        if (compareString(cellName, operator, searchValue)) return true;
+                    }
+                }
+
+                // Also check storage container name (independent of cell check)
+                // A renamed container should match even if its cells are not renamed
+                if (storage != null) {
+                    if (!onlyRenamed || storage.hasCustomName()) {
+                        String storageName = storage.getName().toLowerCase(Locale.ROOT);
+                        if (compareString(storageName, operator, searchValue)) return true;
+                    }
+                }
+
+                return false;
+            }
+
+            @Override
+            public boolean matchesStorageBus(StorageBusInfo bus, SearchFilterMode mode) {
+                if (onlyRenamed && !bus.hasCustomName()) return false;
+
+                String busName = bus.getLocalizedName().toLowerCase(Locale.ROOT);
+
+                return compareString(busName, operator, searchValue);
+            }
+        };
+    }
+
     private static SearchMatcher createPriorityMatcher(String operator, String value) {
-        final int targetValue = parseIntSafe(value, 0);
+        final String targetValue = value;  // Keep raw for multi-value support
 
         return new SearchMatcher() {
             @Override
@@ -484,8 +582,8 @@ public class AdvancedSearchParser {
         };
     }
 
-    private static SearchMatcher createPartitionMatcher(String operator, String value) {
-        final int targetValue = parseIntSafe(value, 0);
+    private static SearchMatcher createPartitionCountMatcher(String operator, String value) {
+        final String targetValue = value;  // Keep raw for multi-value support
 
         return new SearchMatcher() {
             @Override
@@ -503,7 +601,7 @@ public class AdvancedSearchParser {
     }
 
     private static SearchMatcher createItemsMatcher(String operator, String value) {
-        final int targetValue = parseIntSafe(value, 0);
+        final String targetValue = value;  // Keep raw for multi-value support
 
         return new SearchMatcher() {
             @Override
@@ -543,19 +641,146 @@ public class AdvancedSearchParser {
         };
     }
 
-    private static boolean compareString(String actual, String operator, String expected) {
+    /**
+     * Parse a comma-separated list of values.
+     * Supports quoted values to include commas: "value,with,comma"
+     */
+    private static List<String> parseMultipleValues(String value) {
+        List<String> values = new ArrayList<>();
+        if (value == null || value.isEmpty()) {
+            values.add("");
+            return values;
+        }
+
+        StringBuilder current = new StringBuilder();
+        boolean inQuotes = false;
+        char quoteChar = 0;
+
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+
+            if (!inQuotes && (c == '"' || c == '\'')) {
+                inQuotes = true;
+                quoteChar = c;
+            } else if (inQuotes && c == quoteChar) {
+                inQuotes = false;
+            } else if (!inQuotes && c == ',') {
+                String v = current.toString().trim();
+                if (!v.isEmpty()) values.add(v);
+
+                current = new StringBuilder();
+            } else {
+                current.append(c);
+            }
+        }
+
+        String v = current.toString().trim();
+        if (!v.isEmpty()) values.add(v);
+
+        if (values.isEmpty()) values.add("");
+
+        return values;
+    }
+
+    /**
+     * Convert a glob pattern (with * and ?) to a regex pattern.
+     * * matches any sequence of characters, ? matches a single character.
+     */
+    private static String globToRegex(String glob) {
+        StringBuilder regex = new StringBuilder();
+        for (int i = 0; i < glob.length(); i++) {
+            char c = glob.charAt(i);
+            switch (c) {
+                case '*':
+                    regex.append(".*");
+                    break;
+                case '?':
+                    regex.append(".");
+                    break;
+                // Escape regex special characters
+                case '.':
+                case '+':
+                case '^':
+                case '$':
+                case '[':
+                case ']':
+                case '(':
+                case ')':
+                case '{':
+                case '}':
+                case '|':
+                case '\\':
+                    regex.append("\\").append(c);
+                    break;
+                default:
+                    regex.append(c);
+            }
+        }
+
+        return regex.toString();
+    }
+
+    /**
+     * Check if a string contains wildcard characters (* or ?).
+     */
+    private static boolean hasWildcards(String s) {
+        return s.contains("*") || s.contains("?");
+    }
+
+    /**
+     * Compare a single string value against a single expected value.
+     */
+    private static boolean compareSingleString(String actual, String operator, String expected) {
+        boolean hasWild = hasWildcards(expected);
+
         switch (operator) {
             case "=":
+                if (hasWild) return actual.matches(globToRegex(expected));
+
                 return actual.equals(expected);
+
             case "!=":
+                if (hasWild) return !actual.matches(globToRegex(expected));
+
                 return !actual.equals(expected);
+
             case "~":
             default:
+                // For contains with wildcards, allow partial match
+                if (hasWild) return actual.matches(".*" + globToRegex(expected) + ".*");
+
                 return actual.contains(expected);
         }
     }
 
-    private static boolean compareInt(int actual, String operator, int expected) {
+    /**
+     * Compare a string against multiple possible values (OR logic).
+     * For =, !=, and ~, multiple comma-separated values match if ANY matches.
+     */
+    private static boolean compareString(String actual, String operator, String expectedRaw) {
+        List<String> values = parseMultipleValues(expectedRaw);
+
+        // For != with multiple values: must NOT match ANY value (AND logic for NOT)
+        if ("!=".equals(operator)) {
+            for (String expected : values) {
+                if (compareSingleString(actual, "=", expected)) return false;
+            }
+
+            return true;
+        }
+
+        // For = and ~: match if ANY value matches (OR logic)
+        for (String expected : values) {
+            if (compareSingleString(actual, operator, expected)) return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Compare a single integer value against a single expected value.
+     */
+    private static boolean compareSingleInt(int actual, String operator, int expected) {
         switch (operator) {
             case "=":
                 return actual == expected;
@@ -572,6 +797,38 @@ public class AdvancedSearchParser {
             default:
                 return actual == expected;
         }
+    }
+
+    /**
+     * Compare an integer against multiple possible values (OR logic for =, ~; AND logic for !=).
+     */
+    private static boolean compareInt(int actual, String operator, String expectedRaw) {
+        List<String> values = parseMultipleValues(expectedRaw);
+
+        // For != with multiple values: must NOT match ANY value (AND logic for NOT)
+        if ("!=".equals(operator)) {
+            for (String v : values) {
+                int expected = parseIntSafe(v, 0);
+                if (compareSingleInt(actual, "=", expected)) return false;
+            }
+
+            return true;
+        }
+
+        // For range operators (<, >, <=, >=), only use first value
+        if ("<".equals(operator) || ">".equals(operator) || "<=".equals(operator) || ">=".equals(operator)) {
+            int expected = parseIntSafe(values.get(0), 0);
+
+            return compareSingleInt(actual, operator, expected);
+        }
+
+        // For = and ~: match if ANY value matches (OR logic)
+        for (String v : values) {
+            int expected = parseIntSafe(v, 0);
+            if (compareSingleInt(actual, operator, expected)) return true;
+        }
+
+        return false;
     }
 
     private static int parseIntSafe(String s, int defaultValue) {

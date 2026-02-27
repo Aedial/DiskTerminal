@@ -60,7 +60,7 @@ cellterminal.search.error.unexpected_end=Unexpected end of expression
 cellterminal.search.error.missing_paren=Missing closing parenthesis ')'
 cellterminal.search.error.unexpected_paren=Unexpected closing parenthesis ')'
 cellterminal.search.error.unexpected_operator=Unexpected operator '%s'
-cellterminal.search.error.unknown_identifier=Unknown identifier: '%s'. Valid: $name, $priority, $partition, $items
+cellterminal.search.error.unknown_identifier=Unknown identifier: '%s'. Valid: $name, $content, $part, $container, $renamed, $priority, $partition, $items
 cellterminal.search.error.expected_number=Expected number for '%s', got: '%s'
 
 # Upgrade tooltips
@@ -246,7 +246,11 @@ gui.cellterminal.search_help.simple_desc=Type any text to filter by name/id in c
 gui.cellterminal.search_help.advanced=Advanced Search:
 gui.cellterminal.search_help.advanced_desc=Start with ? for advanced queries.
 gui.cellterminal.search_help.identifiers=Identifiers:
-gui.cellterminal.search_help.id_name=Name/ID of the items in inventory/partition
+gui.cellterminal.search_help.id_name=Name/ID of items (respects filter mode)
+gui.cellterminal.search_help.id_content=Name/ID of items in contents only
+gui.cellterminal.search_help.id_part=Name/ID of items in partition only
+gui.cellterminal.search_help.id_container=Cell/Drive/ME Chest/Storage Bus name
+gui.cellterminal.search_help.id_renamed=Same as $container, but only renamed ones
 gui.cellterminal.search_help.id_priority=Storage priority
 gui.cellterminal.search_help.id_partition=Used partition slots count
 gui.cellterminal.search_help.id_items=Stored item types count
@@ -254,7 +258,16 @@ gui.cellterminal.search_help.operators=Operators:
 gui.cellterminal.search_help.op_compare=Comparison
 gui.cellterminal.search_help.op_logic=AND / OR
 gui.cellterminal.search_help.op_group=Grouping
+gui.cellterminal.search_help.op_wildcard=Wildcards (any chars / one char)
+gui.cellterminal.search_help.op_multi=Multiple values (OR match)
 gui.cellterminal.search_help.examples=Examples:
+gui.cellterminal.search_help.examples_desc1=Show all containers with priority greater than 0
+gui.cellterminal.search_help.examples_desc2=Show all cells/buses with no content and at least one partitioned slot
+gui.cellterminal.search_help.examples_desc3=Show all cells/buses with content/partition containing *iron*, *gold*, or *diamond*
+gui.cellterminal.search_help.examples_desc4=Show all cells/buses with content/partition ending in "ore" and priority less than 0
+gui.cellterminal.search_help.examples_desc5=Show all containers with name containing "drive" (such as "ME Drive")
+gui.cellterminal.search_help.examples_desc6=Show all renamed containers
+gui.cellterminal.search_help.examples_desc7=Show all cells/buses with content containing *iron* and partition containing *gold*
 gui.cellterminal.search_help.field_double_click=§bDouble-click the search box to expand it.
 
 # Cell partition button tooltips
