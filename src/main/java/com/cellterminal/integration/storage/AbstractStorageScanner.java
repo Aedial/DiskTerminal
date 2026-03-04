@@ -11,7 +11,7 @@ import com.cellterminal.container.handler.CellDataHandler;
 /**
  * Abstract base class for storage scanners providing sane defaults.
  * Implementations can override methods to customize behavior for specific storage types.
- *
+ * <p>
  * Default behavior:
  * - Priority is supported (drives have priority)
  * - Uses standard AE2 cell slot limits (63 types max)

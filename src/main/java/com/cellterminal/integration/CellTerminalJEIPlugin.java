@@ -10,7 +10,6 @@ import mezz.jei.api.gui.IAdvancedGuiHandler;
 
 import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.gui.GuiCellTerminal;
-import com.cellterminal.gui.GuiWirelessCellTerminal;
 import com.cellterminal.gui.handler.QuickPartitionHandler;
 
 

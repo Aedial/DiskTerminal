@@ -1,7 +1,6 @@
 package com.cellterminal.gui.storagebus;
 
 import java.util.List;
-import java.util.Set;
 
 import net.minecraft.item.ItemStack;
 
@@ -11,7 +10,7 @@ import com.cellterminal.gui.render.RenderContext;
 
 /**
  * Tracks hover state for storage bus-related GUI elements.
- *
+ * <p>
  * This class encapsulates all the hover tracking for storage buses in the
  * Storage Bus Inventory and Partition tabs. It is updated during rendering
  * and consumed by click handlers and tooltip rendering.

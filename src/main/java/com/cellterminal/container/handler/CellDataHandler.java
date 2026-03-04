@@ -1,7 +1,5 @@
 package com.cellterminal.container.handler;
 
-import java.util.Map;
-
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -24,7 +22,6 @@ import appeng.api.storage.data.IItemList;
 import appeng.helpers.IPriorityHost;
 import appeng.tile.grid.AENetworkInvTile;
 import appeng.tile.storage.TileChest;
-import appeng.tile.storage.TileDrive;
 
 import com.cellterminal.integration.ECOAEExtensionIntegration;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
@@ -333,7 +330,7 @@ public class CellDataHandler {
      * TileChest has getInternalInventory() returning a combined inventory where:
      * - slot 0 = input inventory (for items to be stored)
      * - slot 1 = cell inventory (the actual storage cell)
-     *
+     * <p>
      * This wrapper maps slot 0 to the cell slot (slot 1 of the internal inventory).
      */
     private static class TileChestCellInventoryWrapper implements IItemHandler {

@@ -12,11 +12,11 @@ import appeng.api.storage.data.IAEStack;
  * Tracks IAEStack counts using BigInteger to support totals exceeding Long.MAX_VALUE.
  * This is essential when combining items from multiple cells that each contain
  * near-maximum item counts.
- *
+ * <p>
  * The tracker stores:
  * - A template IAEStack for each unique key (with arbitrary count)
  * - The true total count as BigInteger
- *
+ * <p>
  * This ensures NO DATA LOSS when aggregating across multiple cells.
  */
 public class BigStackTracker {

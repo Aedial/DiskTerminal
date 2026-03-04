@@ -6,6 +6,7 @@ import java.util.List;
 import net.minecraft.client.resources.I18n;
 
 import com.cellterminal.client.SearchFilterMode;
+import com.cellterminal.gui.GuiConstants;
 
 
 /**
@@ -15,11 +16,9 @@ import com.cellterminal.client.SearchFilterMode;
  */
 public class InventoryTabController implements ITabController {
 
-    public static final int TAB_INDEX = 1;
-
     @Override
     public int getTabIndex() {
-        return TAB_INDEX;
+        return GuiConstants.TAB_INVENTORY;
     }
 
     @Override
@@ -62,11 +61,6 @@ public class InventoryTabController implements ITabController {
     @Override
     public boolean handleKeyTyped(int keyCode, TabContext context) {
         // Inventory tab has no special keybinds
-        return false;
-    }
-
-    @Override
-    public boolean requiresServerPolling() {
         return false;
     }
 

@@ -6,7 +6,7 @@ import net.minecraft.item.ItemStack;
 /**
  * Represents a row of connection filter items for display in the subnet overview.
  * Each SubnetConnectionRow shows up to 9 filter items from a connection point, starting at a given index.
- *
+ * <p>
  * This is analogous to {@link StorageBusContentRow} but for subnet connections.
  */
 public class SubnetConnectionRow {

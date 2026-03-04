@@ -21,7 +21,7 @@ import com.cellterminal.gui.render.RenderContext;
 
 /**
  * Handles rendering of cell slots, content items, and partition slots.
- *
+ * <p>
  * This class provides low-level drawing operations for cell-related GUI elements.
  * It does not handle hover detection or click events - those are handled by
  * the tab renderers and click handlers.

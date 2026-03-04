@@ -17,6 +17,7 @@ import appeng.fluids.items.FluidDummyItem;
 import com.cellterminal.client.KeyBindings;
 import com.cellterminal.client.SearchFilterMode;
 import com.cellterminal.client.StorageBusInfo;
+import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.handler.QuickPartitionHandler;
 import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
@@ -25,17 +26,15 @@ import com.cellterminal.network.PacketStorageBusPartitionAction;
 
 
 /**
- * Tab controller for the Storage Bus Partition tab (Tab 4).
+ * Tab controller for the Storage Bus Partition tab (Tab 5).
  * This tab displays storage buses with their partition configuration.
  * Supports multi-selection of buses and keybind to add items to selected buses.
  */
 public class StorageBusPartitionTabController implements ITabController {
 
-    public static final int TAB_INDEX = 4;
-
     @Override
     public int getTabIndex() {
-        return TAB_INDEX;
+        return GuiConstants.TAB_STORAGE_BUS_PARTITION;
     }
 
     @Override

@@ -10,11 +10,13 @@ gui.cellterminal.highlighted=[%d, %d, %d] - Highlighted %s
 gui.cellterminal.location_format=[%d, %d, %d] (DIM %d)
 gui.cellterminal.cell_empty=Empty cell
 gui.cellterminal.priority.tooltip=Set storage priority (higher priority = inserted first, used last)
+gui.cellterminal.right_click_rename=Right-click to rename
 
 # Panel tabs
 gui.cellterminal.tab.terminal.tooltip=Cell Overview
 gui.cellterminal.tab.inventory.tooltip=View Cell Contents
 gui.cellterminal.tab.partition.tooltip=Edit Cell Partitions
+gui.cellterminal.tab.temp_area.tooltip=Temporary Cell Staging Area
 gui.cellterminal.tab.storage_bus_inventory.tooltip=View Storage Bus Contents
 gui.cellterminal.tab.storage_bus_partition.tooltip=Edit Storage Bus Filters
 
@@ -147,6 +149,9 @@ config.cellterminal.config.server.integration=Integration Settings
 config.cellterminal.config.server.integration.tooltip=Settings for integration with other mods.
 config.cellterminal.config.server.integration.wut_mode_id=WUT Mode ID
 config.cellterminal.config.server.integration.wut_mode_id.tooltip=Mode ID for Cell Terminal in the Wireless Universal Terminal (AE2WUT). Change this if another mod uses the same ID. Requires restart.
+
+config.cellterminal.config.server.tabs.temp_area=Temp Area Tab
+config.cellterminal.config.server.tabs.temp_area.tooltip=Enable the Temp Area tab (temporary cell staging for partitioning)
 
 # Per-integration enable flags
 config.cellterminal.config.server.integration.enable_ae2wut=AE2WUT Integration
@@ -366,7 +371,6 @@ gui.cellterminal.subnet.default_name=%d, %d, %d
 cellterminal.subnet.none=No subnets connected
 cellterminal.subnet.double_click_highlight=Double-click to highlight in world
 cellterminal.subnet.right_click_rename=Right-click to rename
-gui.cellterminal.right_click_rename=Right-click to rename
 cellterminal.subnet.outbound=%d outbound (Storage Bus → Subnet)
 cellterminal.subnet.inbound=%d inbound (Subnet → Interface)
 cellterminal.subnet.pos=Position: %d, %d, %d
@@ -402,3 +406,30 @@ cellterminal.subnet_visibility.dont_show=Don't show subnet content
 cellterminal.subnet_visibility.favorites=Show favorites only
 cellterminal.subnet_visibility.all=Show all subnets
 gui.cellterminal.click_to_cycle=Click to cycle
+
+# Temp Area Tab (Tab 3)
+gui.cellterminal.temp_area.empty=Drop cells here to configure them
+gui.cellterminal.temp_area.hint=Drag cells from inventory or shift-click
+gui.cellterminal.temp_area.not_available=Temp area not available for this terminal
+gui.cellterminal.temp_area.send=Send
+gui.cellterminal.temp_area.send.tooltip=Send cell to first available slot in network
+gui.cellterminal.temp_area.empty_slot=Empty Slot
+gui.cellterminal.temp_area.drop_cell=No cell
+gui.cellterminal.temp_area.no_free_slot=No free cell slot found in network
+gui.cellterminal.temp_area.sent_success=Cell sent to %s
+gui.cellterminal.temp_area.no_selection=No temp cells selected
+gui.cellterminal.temp_area.no_item=No item to add
+gui.cellterminal.temp_area.add_failed=Failed to add item to temp cells
+gui.cellterminal.temp_area.invalid_item=Item is not compatible with selected cell type
+gui.cellterminal.temp_area.partition_full=Partition is full on selected cells
+gui.cellterminal.temp_area.mixed_cell_selection=Cannot select cells of different types together
+gui.cellterminal.temp_area.full=All temp cell slots are full
+gui.cellterminal.temp_area.slot_occupied=Slot is already occupied
+gui.cellterminal.temp_area.no_cell=No cell in hand
+gui.cellterminal.temp_area.not_cell=Item is not a storage cell
+gui.cellterminal.temp_area.no_slot=No available cell slot in network
+gui.cellterminal.temp_area.sent=Cell sent to network
+gui.cellterminal.controls.temp_area.drag_cell=Drag cells from inventory or shift-click to add.
+gui.cellterminal.controls.temp_area.send_cell=Click [Send] to insert into network.
+gui.cellterminal.controls.temp_area.add_key=Click on cell header(s) to select, then press §b%s§r to add the item under the cursor to the cell partition.
+cellterminal.temp_area.sent=Sent to %s

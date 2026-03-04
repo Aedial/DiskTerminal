@@ -293,7 +293,7 @@ public class GuiModalSearchBar {
                 int wrapPos = -1;
 
                 // Look for space within threshold
-                if (lineStr.length() > 0) {
+                if (!lineStr.isEmpty()) {
                     int searchStart = Math.max(0, lineStr.length() - WRAP_THRESHOLD);
 
                     for (int j = lineStr.length() - 1; j >= searchStart; j--) {

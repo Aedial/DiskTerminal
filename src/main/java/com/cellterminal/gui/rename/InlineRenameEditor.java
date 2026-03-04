@@ -12,7 +12,7 @@ import com.cellterminal.gui.GuiConstants;
  * Shared inline text editing component for renaming entries in the Cell Terminal GUI.
  * Provides a text field overlay that appears on right-click, with keyboard navigation,
  * Enter to confirm, and Escape to cancel.
- *
+ * <p>
  * Used by all tabs to rename drives/ME chests, cells, storage buses, and subnets.
  */
 public class InlineRenameEditor {

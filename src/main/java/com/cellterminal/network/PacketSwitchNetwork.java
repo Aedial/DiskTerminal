@@ -11,7 +11,7 @@ import com.cellterminal.container.ContainerCellTerminalBase;
 
 /**
  * Packet sent from client to server to switch the terminal view to a different network.
- * 
+ * <p>
  * Used when the player clicks on a subnet in the subnet overview to view that subnet's contents,
  * or when navigating back to the main network.
  */

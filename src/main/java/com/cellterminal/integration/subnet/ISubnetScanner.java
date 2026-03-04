@@ -11,11 +11,11 @@ import com.cellterminal.container.handler.SubnetDataHandler.SubnetTracker;
 
 /**
  * Interface for scanning and collecting subnet connections from an ME network grid.
- * 
+ * <p>
  * A subnet is a separate ME grid that connects to the main network via Storage Bus -> Interface
  * pattern (commonly called "ME Passthrough"). This allows the main network to access the subnet's
  * storage without merging the grids.
- * 
+ * <p>
  * Implementations should be registered via {@link SubnetScannerRegistry}.
  */
 public interface ISubnetScanner {

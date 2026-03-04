@@ -24,7 +24,7 @@ import com.cellterminal.gui.GuiConstants;
  * Displays a list of connected subnets in the same style as Storage Bus Partition tab (Tab 5):
  * - Header row: Icon, name, location, [Load] button
  * - Connection rows: Filter items displayed under each connection with tree lines
- *
+ * <p>
  * The renderer takes a flattened list where SubnetInfo objects are headers
  * and SubnetConnectionRow objects are connection/filter detail rows.
  */

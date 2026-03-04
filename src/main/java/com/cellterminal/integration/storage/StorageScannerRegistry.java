@@ -14,7 +14,7 @@ import com.cellterminal.container.handler.CellDataHandler;
 /**
  * Registry for storage scanners.
  * Allows mods to register their own storage device types for scanning.
- *
+ * <p>
  * Built-in scanners for vanilla AE2 (TileDrive, TileChest) are registered automatically.
  * Optional mod integrations (CrazyAE, ECOAEExtension, etc.) register their scanners
  * during post-init if the mods are present.

@@ -11,7 +11,7 @@ import com.cellterminal.gui.render.RenderContext;
 
 /**
  * Tracks hover state for cell-related GUI elements.
- *
+ * <p>
  * This class encapsulates all the hover tracking for cells in the
  * Inventory and Partition tabs. It is updated during rendering and
  * consumed by click handlers and tooltip rendering.

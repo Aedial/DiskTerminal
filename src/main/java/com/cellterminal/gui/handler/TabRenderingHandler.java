@@ -16,8 +16,10 @@ import net.minecraft.item.ItemStack;
 
 import com.cellterminal.config.CellTerminalClientConfig.TerminalStyle;
 import com.cellterminal.config.CellTerminalServerConfig;
+import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.tab.ITabController;
 import com.cellterminal.gui.tab.TabControllerRegistry;
+
 
 /**
  * Handler for rendering tabs and the controls help widget.
@@ -82,12 +84,6 @@ public class TabRenderingHandler {
     }
 
     /**
-     * Constant for storage bus inventory tab.
-     */
-    public static final int TAB_STORAGE_BUS_INVENTORY = 3;
-    public static final int TAB_STORAGE_BUS_PARTITION = 4;
-
-    /**
      * Draw all tabs with proper hover highlighting.
      *
      * @param ctx The rendering context
@@ -142,7 +138,7 @@ public class TabRenderingHandler {
             // Draw icon (composite for storage bus tabs)
             // Gray out icons for disabled tabs
             float iconAlpha = isDisabled ? 0.4f : 1.0f;
-            if (i == TAB_STORAGE_BUS_INVENTORY || i == TAB_STORAGE_BUS_PARTITION) {
+            if (i == GuiConstants.TAB_STORAGE_BUS_INVENTORY || i == GuiConstants.TAB_STORAGE_BUS_PARTITION) {
                 drawCompositeTabIcon(ctx, tabX + 3, tabY + 3, i, iconProvider, isDisabled);
             } else {
                 ItemStack icon = iconProvider.getTabIcon(i);
@@ -174,7 +170,7 @@ public class TabRenderingHandler {
      * @param isDisabled Whether the tab is disabled (will render grayed out)
      */
     private static void drawCompositeTabIcon(TabRenderContext ctx, int x, int y, int tab, TabIconProvider iconProvider, boolean isDisabled) {
-        ItemStack topLeftIcon = (tab == TAB_STORAGE_BUS_INVENTORY) ? iconProvider.getInventoryIcon() : iconProvider.getPartitionIcon();
+        ItemStack topLeftIcon = (tab == GuiConstants.TAB_STORAGE_BUS_INVENTORY) ? iconProvider.getInventoryIcon() : iconProvider.getPartitionIcon();
         ItemStack storageBusIcon = iconProvider.getStorageBusIcon();
 
         float colorMod = isDisabled ? 0.4f : 1.0f;
@@ -190,12 +186,12 @@ public class TabRenderingHandler {
         if (!topLeftIcon.isEmpty()) {
             for (int row = 0; row < 16; row++) {
                 int stripWidth = Math.max(0, 15 - row - 1);
-                if (stripWidth <= 0) continue;
+                if (stripWidth == 0) continue;
 
                 int scissorX = x * scaleFactor;
                 int scissorY = (ctx.mc.displayHeight) - ((y + row + 1) * scaleFactor);
                 int scissorWidth = stripWidth * scaleFactor;
-                int scissorHeight = 1 * scaleFactor;
+                int scissorHeight = scaleFactor;
 
                 GL11.glScissor(scissorX, scissorY, scissorWidth, scissorHeight);
                 ctx.itemRender.renderItemIntoGUI(topLeftIcon, x - offset, y - offset);
@@ -212,7 +208,7 @@ public class TabRenderingHandler {
                 int scissorX = (x + clipStart) * scaleFactor;
                 int scissorY = (ctx.mc.displayHeight) - ((y + row + 1) * scaleFactor);
                 int scissorWidth = stripWidth * scaleFactor;
-                int scissorHeight = 1 * scaleFactor;
+                int scissorHeight = scaleFactor;
 
                 GL11.glScissor(scissorX, scissorY, scissorWidth, scissorHeight);
                 ctx.itemRender.renderItemIntoGUI(storageBusIcon, x + offset, y + offset);

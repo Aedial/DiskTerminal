@@ -8,7 +8,7 @@ import java.util.Map;
 /**
  * Manages per-tab state for the Cell Terminal GUI.
  * Tracks expansion state of entries and scroll position for each tab.
- *
+ * <p>
  * Currently memory-only, but designed to be easily extended for config persistence.
  */
 public class TabStateManager {

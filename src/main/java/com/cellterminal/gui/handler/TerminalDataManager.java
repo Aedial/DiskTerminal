@@ -28,12 +28,14 @@ import com.cellterminal.client.StorageBusContentRow;
 import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.client.StorageInfo;
 import com.cellterminal.client.TabStateManager;
+import com.cellterminal.client.TempCellInfo;
 import com.cellterminal.config.CellTerminalClientConfig;
+import com.cellterminal.gui.GuiConstants;
 
 
 /**
  * Manages storage data and line building for Cell Terminal GUI.
- *
+ * <p>
  * Filtering is "snapshot-based" - the list of visible items is only rebuilt when
  * filters/search/tab explicitly change, not when data updates come from the server.
  * This prevents items from disappearing in real-time as their contents change.
@@ -51,6 +53,7 @@ public class TerminalDataManager {
     private final List<Object> partitionLines = new ArrayList<>();
     private final List<Object> storageBusInventoryLines = new ArrayList<>();
     private final List<Object> storageBusPartitionLines = new ArrayList<>();
+    private final List<Object> tempAreaLines = new ArrayList<>();
 
     private BlockPos terminalPos = BlockPos.ORIGIN;
     private int terminalDimension = 0;
@@ -104,6 +107,10 @@ public class TerminalDataManager {
         return storageBusPartitionLines;
     }
 
+    public List<Object> getTempAreaLines() {
+        return tempAreaLines;
+    }
+
     public BlockPos getTerminalPos() {
         return terminalPos;
     }
@@ -120,7 +127,9 @@ public class TerminalDataManager {
 
         boolean hasStorages = data.hasKey("storages");
         boolean hasStorageBuses = data.hasKey("storageBuses");
-        if (!hasStorages && !hasStorageBuses) return;
+        boolean hasTempCells = data.hasKey("tempCells");
+
+        if (!hasStorages && !hasStorageBuses && !hasTempCells) return;
 
         if (hasStorages) {
             this.storageMap.clear();
@@ -144,6 +153,10 @@ public class TerminalDataManager {
             }
         }
 
+        if (hasTempCells) {
+            processTempCellUpdate(data.getTagList("tempCells", Constants.NBT.TAG_COMPOUND));
+        }
+
         // On first data receive, do a full rebuild to initialize snapshots
         // On subsequent updates, rebuild using the existing snapshot (non-realtime filtering)
         if (!hasInitialData) {
@@ -151,6 +164,48 @@ public class TerminalDataManager {
             rebuildLines();
         } else {
             rebuildLinesFromSnapshot();
+        }
+    }
+
+    /**
+     * Process temp cell update from server.
+     * Rebuilds the tempAreaLines list with TempCellInfo and CellContentRow objects.
+     */
+    private void processTempCellUpdate(NBTTagList tempCellList) {
+        this.tempAreaLines.clear();
+
+        for (int i = 0; i < tempCellList.tagCount(); i++) {
+            NBTTagCompound slotData = tempCellList.getCompoundTagAt(i);
+            int tempSlot = slotData.getInteger("tempSlot");
+
+            if (slotData.hasKey("cellData")) {
+                NBTTagCompound cellData = slotData.getCompoundTag("cellData");
+                CellInfo cellInfo = new CellInfo(cellData);
+                ItemStack cellStack = cellInfo.getCellItem();
+
+                TempCellInfo tempCell = new TempCellInfo(tempSlot, cellStack, cellInfo);
+                this.tempAreaLines.add(tempCell);
+
+                // Add content rows for inventory view (use 9 slots per row to match storage bus)
+                // Always show at least 1 row, even if cell is empty
+                int contentCount = cellInfo.getContents().size();
+                int contentRows = Math.max(1, (contentCount + SLOTS_PER_ROW_BUS - 1) / SLOTS_PER_ROW_BUS);
+                for (int row = 0; row < contentRows; row++) {
+                    this.tempAreaLines.add(new CellContentRow(cellInfo, row * SLOTS_PER_ROW_BUS, row == 0, false));
+                }
+
+                // Add partition rows (use 9 slots per row to match storage bus)
+                // Always show at least 1 row, even if no partition is set
+                int highestPartitionSlot = getHighestNonEmptyPartitionSlot(cellInfo, SLOTS_PER_ROW_BUS);
+                int partitionRows = Math.max(1, (highestPartitionSlot + SLOTS_PER_ROW_BUS) / SLOTS_PER_ROW_BUS);
+                for (int row = 0; row < partitionRows; row++) {
+                    this.tempAreaLines.add(new CellContentRow(cellInfo, row * SLOTS_PER_ROW_BUS, row == 0, true));
+                }
+            } else {
+                // Empty slot - still show it so users can place cells there
+                TempCellInfo emptySlot = new TempCellInfo(tempSlot);
+                this.tempAreaLines.add(emptySlot);
+            }
         }
     }
 
@@ -273,9 +328,6 @@ public class TerminalDataManager {
         rebuildStorageBusLines(false);
     }
 
-    /**
-     * Rebuild lines for cell storages (drives/chests).
-     */
     /**
      * Rebuild lines for cell storages (drives/chests).
      * @param evaluateFilters If true, re-evaluate filters and update snapshots.
@@ -750,6 +802,18 @@ public class TerminalDataManager {
     }
 
     private int getHighestNonEmptyPartitionSlot(CellInfo cell) {
+        return getHighestNonEmptyPartitionSlot(cell, SLOTS_PER_ROW);
+    }
+
+    /**
+     * Get the highest non-empty partition slot index for a cell.
+     * Also calculates if an extra row should be shown for expansion.
+     *
+     * @param cell The cell to check
+     * @param slotsPerRow Number of slots per row (8 for regular tabs, 9 for temp area)
+     * @return The highest slot index to show, or -1 if no partition items
+     */
+    private int getHighestNonEmptyPartitionSlot(CellInfo cell, int slotsPerRow) {
         List<ItemStack> partition = cell.getPartition();
         int highest = -1;
 
@@ -760,11 +824,11 @@ public class TerminalDataManager {
         }
 
         if (highest >= 0) {
-            int currentRows = (highest / SLOTS_PER_ROW) + 1;
-            int lastSlotInLastRow = (currentRows * SLOTS_PER_ROW) - 1;
+            int currentRows = (highest / slotsPerRow) + 1;
+            int lastSlotInLastRow = (currentRows * slotsPerRow) - 1;
 
             if (highest == lastSlotInLastRow && highest < MAX_PARTITION_SLOTS - 1) {
-                highest = Math.min(highest + SLOTS_PER_ROW, MAX_PARTITION_SLOTS - 1);
+                highest = Math.min(highest + slotsPerRow, MAX_PARTITION_SLOTS - 1);
             }
         }
 
@@ -789,13 +853,13 @@ public class TerminalDataManager {
 
     public int getLineCount(int currentTab) {
         switch (currentTab) {
-            case 1:
+            case GuiConstants.TAB_INVENTORY:
                 return inventoryLines.size();
-            case 2:
+            case GuiConstants.TAB_PARTITION:
                 return partitionLines.size();
-            case 3:
+            case GuiConstants.TAB_STORAGE_BUS_INVENTORY:
                 return storageBusInventoryLines.size();
-            case 4:
+            case GuiConstants.TAB_STORAGE_BUS_PARTITION:
                 return storageBusPartitionLines.size();
             default:
                 return lines.size();

@@ -22,7 +22,7 @@ import com.cellterminal.gui.render.RenderContext;
 
 /**
  * Handles rendering of storage bus slots, content items, and partition slots.
- *
+ * <p>
  * This class provides low-level drawing operations for storage bus-related GUI elements.
  * It extends cell slot rendering with storage bus-specific features like IO mode indicators.
  */

@@ -10,7 +10,7 @@ import com.cellterminal.container.handler.CellDataHandler;
 /**
  * Interface for scanning and collecting storage devices from an ME network grid.
  * Implementations should be registered via {@link StorageScannerRegistry}.
- *
+ * <p>
  * Each scanner is responsible for a specific type of storage device (e.g., ME Drive, Improved Drive).
  */
 public interface IStorageScanner {

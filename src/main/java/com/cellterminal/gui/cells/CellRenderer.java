@@ -19,10 +19,10 @@ import com.cellterminal.gui.render.RenderContext;
 
 /**
  * Main renderer for cell-related GUI elements.
- *
+ * <p>
  * This class coordinates the rendering of cells in the Inventory and Partition tabs.
  * It delegates to specialized sub-renderers for slots, tree lines, and content items.
- *
+ * <p>
  * Usage:
  * <pre>
  * CellRenderer renderer = new CellRenderer(fontRenderer, itemRender);

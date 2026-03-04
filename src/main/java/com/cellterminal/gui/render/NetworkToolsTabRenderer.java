@@ -1,6 +1,5 @@
 package com.cellterminal.gui.render;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import net.minecraft.client.gui.FontRenderer;
@@ -8,7 +7,6 @@ import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.RenderItem;
-import net.minecraft.item.ItemStack;
 
 import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.networktools.INetworkTool;
@@ -197,7 +195,7 @@ public class NetworkToolsTabRenderer {
             String line = nameLines.get(i);
             if (nameLines.size() > 1 && i == 0) {
                 // Truncate with ellipsis if there's more
-                while (fontRenderer.getStringWidth(line + "...") > maxNameWidth && line.length() > 0) {
+                while (fontRenderer.getStringWidth(line + "...") > maxNameWidth && !line.isEmpty()) {
                     line = line.substring(0, line.length() - 1);
                 }
                 line = line + "...";

@@ -19,6 +19,7 @@ A terminal and wireless terminal for managing storage cells and storage buses ac
   - **Cell Terminal**: Compact list view of cells with expandable entries
   - **Cell Inventory**: Grid view of cells showing stored items
   - **Cell Partition**: Grid view for quick partition editing
+  - **Staging Area**: Temporary area for partitioning Cells before sending them to the network (currently loaded network, including subnets)
   - **Storage Bus Inventory**: View contents accessible through Storage Buses
   - **Storage Bus Partition**: Edit Storage Bus filter configurations
   - **Network Tools**: Various tools for managing and optimizing the whole network

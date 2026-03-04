@@ -12,17 +12,17 @@ import net.minecraft.item.ItemStack;
 
 /**
  * Parser and evaluator for advanced search queries.
- *
+ * <p>
  * Syntax (when query starts with "?"):
  * - $name: Match against item contents (display name, registry name) - same as normal search
  * - $priority: Storage/bus priority (numeric comparison)
  * - $partition: Count of partition slots filled (numeric comparison)
  * - $items: Count of item types stored (numeric comparison)
- *
+ * <p>
  * Comparisons: =, !=, <, >, <=, >=, ~ (contains for strings)
  * Logical operators: & (AND), | (OR)
  * Parentheses for grouping: ( )
- *
+ * <p>
  * Examples:
  * - ?$priority>0
  * - ?$items=0&$partition>0

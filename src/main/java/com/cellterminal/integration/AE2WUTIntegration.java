@@ -26,7 +26,7 @@ import com.cellterminal.gui.GuiWirelessCellTerminal;
 /**
  * Integration with AE2UEL Wireless Universal Terminal (AE2WUT).
  * Allows Cell Terminal to be used as a mode in the Wireless Universal Terminal.
- *
+ * <p>
  * NOTE: This integration comes with 2 caveats due to limitations in AE2WUT:
  * 1. The modes **must** be contiguous starting from 0 up to N with no gaps.
  *    If other mods add modes to the WUT, Cell Terminal's mode ID may conflict.

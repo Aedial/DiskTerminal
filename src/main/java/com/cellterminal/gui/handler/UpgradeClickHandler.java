@@ -2,7 +2,6 @@ package com.cellterminal.gui.handler;
 
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.lwjgl.input.Keyboard;
@@ -18,10 +17,12 @@ import com.cellterminal.client.StorageBusContentRow;
 import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.client.StorageInfo;
 import com.cellterminal.config.CellTerminalServerConfig;
+import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketUpgradeCell;
 import com.cellterminal.network.PacketUpgradeStorageBus;
+
 
 /**
  * Handler for upgrade click operations in the Cell Terminal GUI.
@@ -54,15 +55,6 @@ public class UpgradeClickHandler {
             this.dataManager = dataManager;
         }
     }
-
-    /**
-     * Tab constants (must match GuiCellTerminalBase).
-     */
-    public static final int TAB_TERMINAL = 0;
-    public static final int TAB_INVENTORY = 1;
-    public static final int TAB_PARTITION = 2;
-    public static final int TAB_STORAGE_BUS_INVENTORY = 3;
-    public static final int TAB_STORAGE_BUS_PARTITION = 4;
 
     /**
      * Handle upgrade click when player is holding an upgrade item.
@@ -175,13 +167,13 @@ public class UpgradeClickHandler {
         List<Object> lines;
 
         switch (ctx.currentTab) {
-            case TAB_TERMINAL:
+            case GuiConstants.TAB_TERMINAL:
                 lines = ctx.dataManager.getLines();
                 break;
-            case TAB_INVENTORY:
+            case GuiConstants.TAB_INVENTORY:
                 lines = ctx.dataManager.getInventoryLines();
                 break;
-            case TAB_PARTITION:
+            case GuiConstants.TAB_PARTITION:
                 lines = ctx.dataManager.getPartitionLines();
                 break;
             default:
@@ -230,10 +222,10 @@ public class UpgradeClickHandler {
         List<Object> lines;
 
         switch (ctx.currentTab) {
-            case TAB_STORAGE_BUS_INVENTORY:
+            case GuiConstants.TAB_STORAGE_BUS_INVENTORY:
                 lines = ctx.dataManager.getStorageBusInventoryLines();
                 break;
-            case TAB_STORAGE_BUS_PARTITION:
+            case GuiConstants.TAB_STORAGE_BUS_PARTITION:
                 lines = ctx.dataManager.getStorageBusPartitionLines();
                 break;
             default:

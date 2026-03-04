@@ -1,14 +1,18 @@
 package com.cellterminal.gui.render;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import net.minecraft.item.ItemStack;
 
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.client.StorageInfo;
+import com.cellterminal.client.TempCellInfo;
+import com.cellterminal.gui.networktools.INetworkTool;
 
 
 /**
@@ -66,7 +70,10 @@ public class RenderContext {
     public CellInfo hoveredClearPartitionButtonCell = null;  // Tab 3: clear partition button hovered
 
     // Selected storage bus IDs for Tab 5 (multi-select, receives items from A key/JEI)
-    public java.util.Set<Long> selectedStorageBusIds = new java.util.HashSet<>();
+    public Set<Long> selectedStorageBusIds = new HashSet<>();
+
+    // Selected temp cell slot indexes for Tab 3 (multi-select, receives items from A key/JEI)
+    public Set<Integer> selectedTempCellSlots = new HashSet<>();
 
     // Visible storage positions for priority field rendering
     public final List<VisibleStorageEntry> visibleStorages = new ArrayList<>();
@@ -78,11 +85,20 @@ public class RenderContext {
     public final List<UpgradeIconTarget> upgradeIconTargets = new ArrayList<>();
     public UpgradeIconTarget hoveredUpgradeIcon = null;
 
-    // Network Tools tab hover state (Tab 5)
-    public com.cellterminal.gui.networktools.INetworkTool hoveredNetworkTool = null;
-    public com.cellterminal.gui.networktools.INetworkTool hoveredNetworkToolLaunchButton = null;
-    public com.cellterminal.gui.networktools.INetworkTool hoveredNetworkToolHelpButton = null;
-    public com.cellterminal.gui.networktools.INetworkTool.ToolPreviewInfo hoveredNetworkToolPreview = null;
+    // Network Tools tab hover state (Tab 6)
+    public INetworkTool hoveredNetworkTool = null;
+    public INetworkTool hoveredNetworkToolLaunchButton = null;
+    public INetworkTool hoveredNetworkToolHelpButton = null;
+    public INetworkTool.ToolPreviewInfo hoveredNetworkToolPreview = null;
+
+    // Temp Area tab hover state (Tab 3)
+    public TempCellInfo hoveredTempCell = null;
+    public TempCellInfo hoveredTempCellHeader = null;  // Directly hovering header (not content row)
+    public TempCellInfo hoveredTempCellSendButton = null;  // Hovering send button
+    public TempCellInfo hoveredTempCellSlot = null;  // Hovering cell slot for insert/extract
+    public final List<TempCellPartitionSlotTarget> tempCellPartitionSlotTargets = new ArrayList<>();
+    public int hoveredTempCellPartitionAllIndex = -1;  // Temp slot index for partition-all button hover
+    public int hoveredTempCellClearPartitionIndex = -1;  // Temp slot index for clear partition button hover
 
     /**
      * Tracks a visible storage entry and its Y position for priority field placement.
@@ -143,6 +159,13 @@ public class RenderContext {
         hoveredNetworkToolLaunchButton = null;
         hoveredNetworkToolHelpButton = null;
         hoveredNetworkToolPreview = null;
+        hoveredTempCell = null;
+        hoveredTempCellHeader = null;
+        hoveredTempCellSendButton = null;
+        hoveredTempCellSlot = null;
+        tempCellPartitionSlotTargets.clear();
+        hoveredTempCellPartitionAllIndex = -1;
+        hoveredTempCellClearPartitionIndex = -1;
     }
 
     /**
@@ -180,6 +203,29 @@ public class RenderContext {
         public StorageBusPartitionSlotTarget(StorageBusInfo storageBus, int slotIndex, int x, int y, int width, int height) {
             this.storageBus = storageBus;
             this.slotIndex = slotIndex;
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height = height;
+        }
+    }
+
+    /**
+     * Helper class to track temp cell partition slot positions for JEI ghost ingredients.
+     */
+    public static class TempCellPartitionSlotTarget {
+        public final CellInfo cell;
+        public final int tempSlotIndex;
+        public final int partitionSlotIndex;
+        public final int x;
+        public final int y;
+        public final int width;
+        public final int height;
+
+        public TempCellPartitionSlotTarget(CellInfo cell, int tempSlotIndex, int partitionSlotIndex, int x, int y, int width, int height) {
+            this.cell = cell;
+            this.tempSlotIndex = tempSlotIndex;
+            this.partitionSlotIndex = partitionSlotIndex;
             this.x = x;
             this.y = y;
             this.width = width;

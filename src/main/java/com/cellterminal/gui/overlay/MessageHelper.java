@@ -12,11 +12,11 @@ import net.minecraft.util.text.TextFormatting;
 
 /**
  * Utility for sending messages to both the chat and the GUI overlay.
- *
+ * <p>
  * Messages are:
  * 1. Sent to chat (for history and when GUI is closed)
  * 2. Displayed in the overlay (for immediate visual feedback)
- *
+ * <p>
  * This ensures players get both persistent feedback (chat) and
  * immediate visual feedback (overlay) with appropriate colors.
  */

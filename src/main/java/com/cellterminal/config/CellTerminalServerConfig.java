@@ -7,11 +7,13 @@ import net.minecraftforge.common.config.ConfigCategory;
 import net.minecraftforge.common.config.Configuration;
 import net.minecraftforge.common.config.Property;
 
+import com.cellterminal.gui.GuiConstants;
+
 
 /**
  * Server-side configuration for Cell Terminal features.
  * Controls tab availability, storage bus polling, cell operations, and other server-enforced settings.
- *
+ * <p>
  * These settings affect all players connecting to the server.
  * On single-player, they are still enforced as if it were a server.
  */
@@ -34,6 +36,7 @@ public class CellTerminalServerConfig {
     private final Property tabTerminalEnabledProperty;
     private final Property tabInventoryEnabledProperty;
     private final Property tabPartitionEnabledProperty;
+    private final Property tabTempAreaEnabledProperty;
     private final Property tabStorageBusInventoryEnabledProperty;
     private final Property tabStorageBusPartitionEnabledProperty;
     private final Property tabNetworkToolsEnabledProperty;
@@ -41,6 +44,7 @@ public class CellTerminalServerConfig {
     private boolean tabTerminalEnabled = true;
     private boolean tabInventoryEnabled = true;
     private boolean tabPartitionEnabled = true;
+    private boolean tabTempAreaEnabled = true;
     private boolean tabStorageBusInventoryEnabled = true;
     private boolean tabStorageBusPartitionEnabled = true;
     private boolean tabNetworkToolsEnabled = true;
@@ -114,6 +118,11 @@ public class CellTerminalServerConfig {
             "Enable the Partition tab (edit cell filters)");
         this.tabPartitionEnabledProperty.setLanguageKey("config.cellterminal.config.server.tabs.partition");
         this.tabPartitionEnabled = this.tabPartitionEnabledProperty.getBoolean();
+
+        this.tabTempAreaEnabledProperty = config.get(CATEGORY_TABS, "tempAreaTabEnabled", true,
+            "Enable the Temp Area tab (temporary cell staging area for partitioning)");
+        this.tabTempAreaEnabledProperty.setLanguageKey("config.cellterminal.config.server.tabs.temp_area");
+        this.tabTempAreaEnabled = this.tabTempAreaEnabledProperty.getBoolean();
 
         this.tabStorageBusInventoryEnabledProperty = config.get(CATEGORY_TABS, "storageBusInventoryTabEnabled", true,
             "Enable the Storage Bus Inventory tab (view storage bus contents)");
@@ -366,6 +375,10 @@ public class CellTerminalServerConfig {
         return tabPartitionEnabled;
     }
 
+    public boolean isTabTempAreaEnabled() {
+        return tabTempAreaEnabled;
+    }
+
     public boolean isTabStorageBusInventoryEnabled() {
         return tabStorageBusInventoryEnabled;
     }
@@ -380,22 +393,24 @@ public class CellTerminalServerConfig {
 
     /**
      * Check if a specific tab is enabled by its index.
-     * @param tabIndex The tab index (0-5)
+     * @param tabIndex The tab index (0-6)
      * @return true if the tab is enabled
      */
     public boolean isTabEnabled(int tabIndex) {
         switch (tabIndex) {
-            case 0:
+            case GuiConstants.TAB_TERMINAL:
                 return tabTerminalEnabled;
-            case 1:
+            case GuiConstants.TAB_INVENTORY:
                 return tabInventoryEnabled;
-            case 2:
+            case GuiConstants.TAB_PARTITION:
                 return tabPartitionEnabled;
-            case 3:
+            case GuiConstants.TAB_TEMP_AREA:
+                return tabTempAreaEnabled;
+            case GuiConstants.TAB_STORAGE_BUS_INVENTORY:
                 return tabStorageBusInventoryEnabled;
-            case 4:
+            case GuiConstants.TAB_STORAGE_BUS_PARTITION:
                 return tabStorageBusPartitionEnabled;
-            case 5:
+            case GuiConstants.TAB_NETWORK_TOOLS:
                 return tabNetworkToolsEnabled;
             default:
                 return false;

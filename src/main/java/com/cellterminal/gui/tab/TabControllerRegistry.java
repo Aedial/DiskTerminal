@@ -16,6 +16,7 @@ public class TabControllerRegistry {
         registerController(new TerminalTabController());
         registerController(new InventoryTabController());
         registerController(new PartitionTabController());
+        registerController(new TempAreaTabController());
         registerController(new StorageBusInventoryTabController());
         registerController(new StorageBusPartitionTabController());
         registerController(new NetworkToolsTabController());

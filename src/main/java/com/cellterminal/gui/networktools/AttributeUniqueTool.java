@@ -24,10 +24,10 @@ import com.cellterminal.network.PacketNetworkToolAction;
  * Tool that distributes content uniquely to cells.
  * Takes all unique content from filtered cells and distributes them so that each cell
  * contains exactly one content type, then partitions the cells accordingly.
- *
+ * <p>
  * This tool requires enough available cells to hold all unique content types.
  * "Available cells" = filtered cells + any empty, non-partitioned cells of matching type.
- *
+ * <p>
  * IMPORTANT: Item, Fluid, and Essentia cells are tracked separately and never mixed.
  * Each type needs enough cells of that same type to hold its unique content.
  */
@@ -262,7 +262,7 @@ public class AttributeUniqueTool implements INetworkTool {
 
         if (hasError) {
             return I18n.format("gui.cellterminal.networktools.attribute_unique.error.not_enough_cells_by_type")
-                + errorBuilder.toString();
+                + errorBuilder;
         }
 
         return null;

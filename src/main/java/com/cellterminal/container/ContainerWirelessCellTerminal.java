@@ -4,11 +4,10 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fml.common.Optional;
+import net.minecraftforge.items.IItemHandlerModifiable;
 
-import appeng.api.AEApi;
 import appeng.api.config.Actionable;
 import appeng.api.config.PowerMultiplier;
-import appeng.api.features.IWirelessTermHandler;
 import appeng.core.AEConfig;
 import appeng.core.localization.PlayerMessages;
 import appeng.helpers.WirelessTerminalGuiObject;
@@ -30,6 +29,7 @@ public class ContainerWirelessCellTerminal extends ContainerCellTerminalBase {
     private final WirelessTerminalGuiObject wirelessTerminalGuiObject;
     private final int slot;
     private final boolean isBauble;
+    private final WirelessTempCellInventory tempCellInventory;
     private double powerMultiplier = 0.5;
     private int ticks = 0;
 
@@ -39,6 +39,9 @@ public class ContainerWirelessCellTerminal extends ContainerCellTerminalBase {
         this.wirelessTerminalGuiObject = wth;
         this.slot = wth.getInventorySlot();
         this.isBauble = AE2OldVersionSupport.wirelessTerminalGuiObjectIsBauble(wth, ip);
+
+        // Create temp cell inventory wrapper for the wireless terminal
+        this.tempCellInventory = new WirelessTempCellInventory(ip.player, slot, isBauble);
 
         // Lock the slot if it's in the main inventory
         if (!isBauble && slot >= 0 && slot < ip.mainInventory.size()) this.lockPlayerInventorySlot(slot);
@@ -50,12 +53,22 @@ public class ContainerWirelessCellTerminal extends ContainerCellTerminalBase {
     private ItemStack getBaubleStack(EntityPlayer player, int baubleSlot) {
         return BaublesApi.getBaublesHandler(player).getStackInSlot(baubleSlot);
     }
+
     /**
      * Get the WirelessTerminalGuiObject for this container.
      * Used by the GUI to access WUT functionality.
      */
     public WirelessTerminalGuiObject getWirelessTerminalGuiObject() {
         return this.wirelessTerminalGuiObject;
+    }
+
+    /**
+     * Get the temp cell inventory for this wireless terminal.
+     * Temp cells are stored in the terminal item's NBT data.
+     */
+    @Override
+    public IItemHandlerModifiable getTempCellInventory() {
+        return this.tempCellInventory;
     }
 
     private ItemStack getTerminalStack() {

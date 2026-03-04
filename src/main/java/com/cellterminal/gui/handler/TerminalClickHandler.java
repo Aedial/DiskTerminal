@@ -11,14 +11,14 @@ import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.StorageInfo;
 import com.cellterminal.client.TabStateManager;
 import com.cellterminal.config.CellTerminalClientConfig;
-import com.cellterminal.gui.tab.TabControllerRegistry;
 import com.cellterminal.config.CellTerminalServerConfig;
+import com.cellterminal.gui.tab.TabControllerRegistry;
 import com.cellterminal.gui.overlay.MessageHelper;
+import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketEjectCell;
 import com.cellterminal.network.PacketHighlightBlock;
 import com.cellterminal.network.PacketInsertCell;
-import com.cellterminal.network.PacketPartitionAction;
 import com.cellterminal.network.PacketPickupCell;
 
 
@@ -26,11 +26,6 @@ import com.cellterminal.network.PacketPickupCell;
  * Handles mouse click logic for Cell Terminal GUI.
  */
 public class TerminalClickHandler {
-
-    // Tab constants
-    public static final int TAB_TERMINAL = 0;
-    public static final int TAB_INVENTORY = 1;
-    public static final int TAB_PARTITION = 2;
 
     // Layout constants
     private static final int TAB_WIDTH = 22;
@@ -158,7 +153,7 @@ public class TerminalClickHandler {
 
         // Check for expand/collapse button click on storage header
         if (hoveredStorageLine != null && relMouseX >= 165 && relMouseX < 180) {
-            TabStateManager.TabType tabType = currentTab == TAB_INVENTORY
+            TabStateManager.TabType tabType = currentTab == GuiConstants.TAB_INVENTORY
                 ? TabStateManager.TabType.INVENTORY
                 : TabStateManager.TabType.PARTITION;
             TabStateManager.getInstance().toggleExpanded(tabType, hoveredStorageLine.getId());
@@ -187,7 +182,7 @@ public class TerminalClickHandler {
         }
 
         // Tab 2 (Inventory): Check if clicking on a content item to toggle partition
-        if (currentTab == TAB_INVENTORY && hoveredCellCell != null && hoveredContentSlotIndex >= 0) {
+        if (currentTab == GuiConstants.TAB_INVENTORY && hoveredCellCell != null && hoveredContentSlotIndex >= 0) {
             List<ItemStack> contents = hoveredCellCell.getContents();
 
             if (hoveredContentSlotIndex < contents.size() && !contents.get(hoveredContentSlotIndex).isEmpty()) {
@@ -198,7 +193,7 @@ public class TerminalClickHandler {
         }
 
         // Tab 3 (Partition): Check if clicking on a partition slot
-        if (currentTab == TAB_PARTITION && hoveredPartitionCell != null && hoveredPartitionSlotIndex >= 0) {
+        if (currentTab == GuiConstants.TAB_PARTITION && hoveredPartitionCell != null && hoveredPartitionSlotIndex >= 0) {
             List<ItemStack> partitions = hoveredPartitionCell.getPartition();
             ItemStack heldStack = Minecraft.getMinecraft().player.inventory.getItemStack();
             boolean slotOccupied = hoveredPartitionSlotIndex < partitions.size() && !partitions.get(hoveredPartitionSlotIndex).isEmpty();

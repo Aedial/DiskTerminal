@@ -2,7 +2,6 @@ package com.cellterminal.gui.tab;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import net.minecraft.item.ItemStack;
 
@@ -62,6 +61,10 @@ public class TabContext {
 
     public List<Object> getStorageBusPartitionLines() {
         return dataManager.getStorageBusPartitionLines();
+    }
+
+    public List<Object> getTempAreaLines() {
+        return dataManager.getTempAreaLines();
     }
 
     // Callback methods for GUI interactions

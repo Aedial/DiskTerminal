@@ -5,8 +5,6 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.fml.common.network.ByteBufUtils;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
@@ -14,10 +12,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.implementations.tiles.IChestOrDrive;
-import appeng.api.parts.IPart;
-import appeng.api.parts.IPartHost;
 import appeng.helpers.ICustomNameObject;
-import appeng.tile.grid.AENetworkInvTile;
 
 import com.cellterminal.CellTerminal;
 import com.cellterminal.container.ContainerCellTerminalBase;
@@ -29,7 +24,7 @@ import com.cellterminal.gui.rename.RenameTargetType;
 
 /**
  * Packet sent from client to server to rename a storage device, cell, or storage bus.
- *
+ * <p>
  * Target types:
  * - STORAGE: Rename a drive/ME chest (uses ICustomNameObject on TileEntity)
  * - CELL: Rename a cell item (uses ItemStack.setStackDisplayName, like an anvil)

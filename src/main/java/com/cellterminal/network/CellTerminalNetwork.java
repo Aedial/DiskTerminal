@@ -192,5 +192,29 @@ public class CellTerminalNetwork {
             packetId++,
             Side.SERVER
         );
+
+        // Client -> Server: Temp cell area actions (insert, extract, send)
+        INSTANCE.registerMessage(
+            PacketTempCellAction.Handler.class,
+            PacketTempCellAction.class,
+            packetId++,
+            Side.SERVER
+        );
+
+        // Client -> Server: Temp cell partition editing
+        INSTANCE.registerMessage(
+            PacketTempCellPartitionAction.Handler.class,
+            PacketTempCellPartitionAction.class,
+            packetId++,
+            Side.SERVER
+        );
+
+        // Server -> Client: GUI-safe feedback messages (overlay + chat)
+        INSTANCE.registerMessage(
+            PacketPlayerFeedback.Handler.class,
+            PacketPlayerFeedback.class,
+            packetId++,
+            Side.CLIENT
+        );
     }
 }

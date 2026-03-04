@@ -8,10 +8,10 @@ import java.util.function.Predicate;
 
 /**
  * An interface for treating an inventory as a slotless, central repository of items.
- *
+ * <p>
  * For all operations that accept a predicate, if a predicate is supplied, a stored ItemStack must pass the predicate
  * in order to be considered for the given operation.
- *
+ * <p>
  * An IItemRepository implementation MAY relax or eliminate its own internal tests when a predicate is supplied.  If
  * the predicate is derived from DefaultPredicate, then the implementation MUST apply any tests it would have applied
  * had no predicate been provided at all, in addition to testing the predicate itself.
@@ -118,7 +118,7 @@ public interface IItemRepository
 
     /**
      * An item record representing an item and the amount stored.
-     *
+     * <p>
      * The ItemStack held by itemPrototype always reports a stack size of 1.
      * IT IS IMPORTANT THAT YOU NEVER MODIFY itemPrototype.
      */

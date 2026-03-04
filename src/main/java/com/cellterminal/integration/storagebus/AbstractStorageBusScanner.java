@@ -8,16 +8,6 @@ import net.minecraft.nbt.NBTTagCompound;
  */
 public abstract class AbstractStorageBusScanner implements IStorageBusScanner {
 
-    @Override
-    public boolean supportsPriority() {
-        return true;
-    }
-
-    @Override
-    public boolean supportsIOMode() {
-        return true;
-    }
-
     /**
      * Apply common capability flags to the provided NBT payload.
      */

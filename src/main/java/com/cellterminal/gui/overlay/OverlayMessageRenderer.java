@@ -10,7 +10,7 @@ import net.minecraft.client.renderer.GlStateManager;
 /**
  * Renders overlay messages at the action bar position (above the hotbar).
  * Messages fade in/out and are colored based on their type.
- *
+ * <p>
  * This renders on top of the GUI but uses screen coordinates, similar to
  * Minecraft's vanilla action bar overlay.
  */

@@ -20,10 +20,10 @@ import com.cellterminal.gui.cells.CellRenderer;
  * Displays cells with their partition configuration in a grid.
  * Partition slots have an orange/amber tint to differentiate from regular slots.
  * Supports JEI ghost ingredient drag-and-drop.
- *
+ * <p>
  * <b>IMPORTANT:</b> This renderer should replicate the behavior of the
  * Partition Popup!
- *
+ * <p>
  * This renderer delegates actual cell rendering to {@link CellRenderer}.
  * It handles the overall tab layout and line iteration.
  *
