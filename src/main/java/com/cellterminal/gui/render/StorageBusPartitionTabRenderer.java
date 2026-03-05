@@ -17,7 +17,7 @@ import com.cellterminal.gui.storagebus.StorageBusRenderer;
  * Renderer for the Storage Bus Partition tab (Tab 5).
  * Displays storage buses with a header row followed by partition rows in a tree structure.
  * Partition slots have an orange/amber tint and support JEI ghost ingredient drag-and-drop.
- *
+ * <p>
  * This renderer delegates actual storage bus rendering to {@link StorageBusRenderer}.
  * It handles the overall tab layout and line iteration.
  *

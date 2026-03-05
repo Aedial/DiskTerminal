@@ -58,6 +58,10 @@ public class GuiSearchHelpButton extends GuiButton {
         tooltip.add("");
         tooltip.add("§b" + I18n.format("gui.cellterminal.search_help.identifiers"));
         tooltip.add("§7  $name §f- " + I18n.format("gui.cellterminal.search_help.id_name"));
+        tooltip.add("§7  $content §f- " + I18n.format("gui.cellterminal.search_help.id_content"));
+        tooltip.add("§7  $part §f- " + I18n.format("gui.cellterminal.search_help.id_part"));
+        tooltip.add("§7  $container §f- " + I18n.format("gui.cellterminal.search_help.id_container"));
+        tooltip.add("§7  $renamed §f- " + I18n.format("gui.cellterminal.search_help.id_renamed"));
         tooltip.add("§7  $priority §f- " + I18n.format("gui.cellterminal.search_help.id_priority"));
         tooltip.add("§7  $partition §f- " + I18n.format("gui.cellterminal.search_help.id_partition"));
         tooltip.add("§7  $items §f- " + I18n.format("gui.cellterminal.search_help.id_items"));
@@ -66,11 +70,17 @@ public class GuiSearchHelpButton extends GuiButton {
         tooltip.add("§7  = != < > <= >= ~ §f- " + I18n.format("gui.cellterminal.search_help.op_compare"));
         tooltip.add("§7  & | §f- " + I18n.format("gui.cellterminal.search_help.op_logic"));
         tooltip.add("§7  ( ) §f- " + I18n.format("gui.cellterminal.search_help.op_group"));
+        tooltip.add("§7  * ? §f- " + I18n.format("gui.cellterminal.search_help.op_wildcard"));
+        tooltip.add("§7  , §f- " + I18n.format("gui.cellterminal.search_help.op_multi"));
         tooltip.add("");
         tooltip.add("§b" + I18n.format("gui.cellterminal.search_help.examples"));
-        tooltip.add("§7  ? $priority>0");
-        tooltip.add("§7  ? $items=0 & $partition>0");
-        tooltip.add("§7  ? $name~iron | $name~gold | $name=diamond");
+        tooltip.add("§f  ? $priority>0§7 => " + I18n.format("gui.cellterminal.search_help.examples_desc1"));
+        tooltip.add("§f  ? $items=0 & $partition>0§7 => " + I18n.format("gui.cellterminal.search_help.examples_desc2"));
+        tooltip.add("§f  ? $name~iron,gold,diamond§7 => " + I18n.format("gui.cellterminal.search_help.examples_desc3"));
+        tooltip.add("§f  ? $name=*ore & $priority<0§7 => " + I18n.format("gui.cellterminal.search_help.examples_desc4"));
+        tooltip.add("§f  ? $container~drive§7 => " + I18n.format("gui.cellterminal.search_help.examples_desc5"));
+        tooltip.add("§f  ? $renamed~*§7 => " + I18n.format("gui.cellterminal.search_help.examples_desc6"));
+        tooltip.add("§f  ? $content~iron & $part~gold§7 => " + I18n.format("gui.cellterminal.search_help.examples_desc7"));
         tooltip.add("");
         tooltip.add("§7" + I18n.format("gui.cellterminal.search_help.field_double_click"));
 

@@ -1,7 +1,6 @@
 package com.cellterminal.container.handler;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -13,9 +12,6 @@ import net.minecraft.util.EnumFacing;
 
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
-import appeng.api.parts.IPart;
-import appeng.api.parts.IPartHost;
-import appeng.api.util.AEPartLocation;
 import appeng.api.util.DimensionalCoord;
 import appeng.helpers.ICustomNameObject;
 import appeng.helpers.IInterfaceHost;
@@ -27,7 +23,7 @@ import com.cellterminal.integration.subnet.SubnetScannerRegistry;
 
 /**
  * Server-side handler for subnet data collection and management.
- * 
+ * <p>
  * A subnet is a separate ME grid that connects to the main network via
  * Storage Bus -> Interface pattern (ME Passthrough). This allows the main
  * network to access the subnet's storage without merging the grids.

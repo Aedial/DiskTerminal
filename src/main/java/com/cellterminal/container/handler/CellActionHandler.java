@@ -16,7 +16,6 @@ import appeng.api.config.Upgrades;
 import appeng.api.implementations.items.IUpgradeModule;
 import appeng.api.implementations.tiles.IChestOrDrive;
 import appeng.api.storage.ICellHandler;
-import appeng.api.storage.ICellInventory;
 import appeng.api.storage.ICellInventoryHandler;
 import appeng.api.storage.ICellWorkbenchItem;
 import appeng.api.storage.IStorageChannel;
@@ -229,7 +228,7 @@ public class CellActionHandler {
 
     // --- Helper methods ---
 
-    private static ConfigResult getConfigInventory(ICellHandler cellHandler, ItemStack cellStack) {
+    public static ConfigResult getConfigInventory(ICellHandler cellHandler, ItemStack cellStack) {
         ConfigResult result = new ConfigResult();
 
         IStorageChannel<IAEItemStack> itemChannel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
@@ -278,6 +277,41 @@ public class CellActionHandler {
         if (result.essentiaData != null) result.configInv = (IItemHandler) result.essentiaData[0];
 
         return result;
+    }
+
+    /**
+     * Execute a partition action directly (for temp cells).
+     * Maps PacketTempCellPartitionAction.Action to the internal action.
+     */
+    public static void executePartitionActionDirect(IItemHandler configInv,
+                                                     com.cellterminal.network.PacketTempCellPartitionAction.Action action,
+                                                     int partitionSlot, ItemStack itemStack,
+                                                     ICellHandler cellHandler, ItemStack cellStack,
+                                                     boolean isFluidCell, Object[] essentiaData) {
+        // Map temp cell action to partition action
+        PacketPartitionAction.Action mappedAction;
+        switch (action) {
+            case ADD_ITEM:
+                mappedAction = PacketPartitionAction.Action.ADD_ITEM;
+                break;
+            case REMOVE_ITEM:
+                mappedAction = PacketPartitionAction.Action.REMOVE_ITEM;
+                break;
+            case SET_ALL_FROM_CONTENTS:
+                mappedAction = PacketPartitionAction.Action.SET_ALL_FROM_CONTENTS;
+                break;
+            case CLEAR_ALL:
+                mappedAction = PacketPartitionAction.Action.CLEAR_ALL;
+                break;
+            case TOGGLE_ITEM:
+                mappedAction = PacketPartitionAction.Action.TOGGLE_ITEM;
+                break;
+            default:
+                return;
+        }
+
+        executePartitionAction(configInv, mappedAction, partitionSlot, itemStack,
+            cellHandler, cellStack, isFluidCell, essentiaData);
     }
 
     private static void executePartitionAction(IItemHandler configInv, PacketPartitionAction.Action action,
@@ -470,11 +504,11 @@ public class CellActionHandler {
         ItemHandlerUtil.clear(inv);
     }
 
-    private static class ConfigResult {
-        IItemHandler configInv;
-        ICellInventoryHandler<IAEItemStack> itemHandler;
-        ICellInventoryHandler<IAEFluidStack> fluidHandler;
-        boolean isFluidCell;
-        Object[] essentiaData;
+    public static class ConfigResult {
+        public IItemHandler configInv;
+        public ICellInventoryHandler<IAEItemStack> itemHandler;
+        public ICellInventoryHandler<IAEFluidStack> fluidHandler;
+        public boolean isFluidCell;
+        public Object[] essentiaData;
     }
 }

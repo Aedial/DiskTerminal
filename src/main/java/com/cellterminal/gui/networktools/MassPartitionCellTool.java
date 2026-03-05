@@ -12,7 +12,6 @@ import appeng.api.AEApi;
 
 import com.cells.api.IItemCompactingCell;
 
-import com.cellterminal.client.CellInfo;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketNetworkToolAction;
 

@@ -7,7 +7,7 @@ import com.cellterminal.gui.GuiConstants;
 
 /**
  * Handles rendering of tree lines connecting cells to their storage parent.
- *
+ * <p>
  * Tree lines visually group cells under their parent storage (Drive/Chest)
  * and help users understand the hierarchy.
  */

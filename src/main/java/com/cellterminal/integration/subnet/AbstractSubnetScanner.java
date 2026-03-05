@@ -5,7 +5,6 @@ import java.util.Map;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
@@ -33,14 +32,14 @@ import com.cellterminal.container.handler.SubnetDataHandler.SubnetTracker;
 
 /**
  * Abstract base class for subnet scanners providing common utility methods.
- * 
+ * <p>
  * This class provides shared functionality for all subnet scanner implementations:
  * - Grid extraction from tile entities
  * - Primary node detection
  * - Security and power checking
  * - NBT serialization helpers
  * - ItemStack extraction for block representations
- * 
+ * <p>
  * Implementations should override {@link #scanSubnets} to provide mod-specific scanning logic.
  */
 public abstract class AbstractSubnetScanner implements ISubnetScanner {

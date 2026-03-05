@@ -17,7 +17,7 @@ import com.cellterminal.gui.storagebus.StorageBusRenderer;
  * Renderer for the Storage Bus Inventory tab (Tab 4).
  * Displays storage buses with a header row followed by content rows in a tree structure.
  * Content items show "P" indicator if they're in the storage bus's partition.
- *
+ * <p>
  * This renderer delegates actual storage bus rendering to {@link StorageBusRenderer}.
  * It handles the overall tab layout and line iteration.
  *

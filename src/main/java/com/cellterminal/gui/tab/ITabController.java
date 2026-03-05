@@ -2,10 +2,7 @@ package com.cellterminal.gui.tab;
 
 import java.util.List;
 
-import net.minecraft.item.ItemStack;
-
 import com.cellterminal.client.SearchFilterMode;
-import com.cellterminal.gui.render.RenderContext;
 
 
 /**

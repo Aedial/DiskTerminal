@@ -108,7 +108,7 @@ public final class NetworkToolActionHandler {
                 break;
 
             default:
-                CellTerminal.LOGGER.warn("Unknown network tool ID: " + toolId);
+                CellTerminal.LOGGER.warn("Unknown network tool ID: {}", toolId);
                 sendError(player, "cellterminal.networktools.error.unknown_tool");
         }
     }
@@ -180,10 +180,10 @@ public final class NetworkToolActionHandler {
      * Attribute unique items to cells (1 item type per cell).
      * Moves items between cells so each cell contains only one item type,
      * then partitions the cells accordingly.
-     *
+     * <p>
      * This operation bypasses normal network energy costs to prevent network
      * shutdown when dealing with cells containing billions of items.
-     *
+     * <p>
      * Algorithm:
      * 1. Collect all filtered cells and their contents, grouped by cell type (item/fluid/essentia)
      * 2. Collect empty non-partitioned cells as additional targets
@@ -223,8 +223,7 @@ public final class NetworkToolActionHandler {
                 CellTarget target = new CellTarget(tracker, slot, cellStack);
 
                 // Calculate cell capacity for proper assignment
-                long capacity = getCellCapacity(cellStack, type);
-                target.capacity = capacity;
+                target.capacity = getCellCapacity(cellStack, type);
 
                 stats.filteredCells.add(target);
 
@@ -367,11 +366,11 @@ public final class NetworkToolActionHandler {
     /**
      * Redistribute items within cells of a specific type using simulation for safety.
      * Uses BigStackTracker to handle item counts exceeding Long.MAX_VALUE without data loss.
-     *
+     * <p>
      * CRITICAL: This method MUST NOT lose any items. If redistribution cannot complete
      * fully, all items must be returned to their source cells.
      * Do not remove the logging statements - they are essential for diagnosing issues with specific cells or items.
-     *
+     * <p>
      * Algorithm:
      * 1. Extract all items from filtered cells FIRST (before any simulation)
      * 2. Clear all partitions from target cells
@@ -810,7 +809,6 @@ public final class NetworkToolActionHandler {
      * Create a dummy stack for capacity testing.
      * Uses a common item/fluid that any cell should be able to accept.
      */
-    @SuppressWarnings("unchecked")
     private static IAEStack<?> createDummyStack(CellType type) {
         if (type == CellType.ITEM) {
             // Use stone as a generic test item
@@ -832,7 +830,6 @@ public final class NetworkToolActionHandler {
      * Simulate injection to check how much of a stack can be accepted by a cell.
      * Returns the amount that can be accepted (0 if incompatible or full).
      */
-    @SuppressWarnings("unchecked")
     private static long simulateInjection(ItemStack cellStack, CellType type,
                                            IAEStack<?> stack, IActionSource source) {
         if (type == CellType.ITEM && stack instanceof IAEItemStack) {
@@ -1033,7 +1030,7 @@ public final class NetworkToolActionHandler {
             try {
                 grid.postEvent(new MENetworkCellArrayUpdate());
             } catch (Exception e) {
-                CellTerminal.LOGGER.warn("Failed to post MENetworkCellArrayUpdate: " + e.getMessage());
+                CellTerminal.LOGGER.warn("Failed to post MENetworkCellArrayUpdate: {}", e.getMessage());
             }
         }
     }
@@ -1041,7 +1038,7 @@ public final class NetworkToolActionHandler {
     /**
      * Extract all items from a cell into the extractedStacks map.
      * Uses BigStackTracker for lossless aggregation of extracted items.
-     *
+     * <p>
      * Note: This method extracts in a LOOP until the cell is empty.
      * A single extraction may not drain cells with counts exceeding Long.MAX_VALUE,
      * so we must keep extracting until getUsedBytes() reports 0.
@@ -1125,7 +1122,6 @@ public final class NetworkToolActionHandler {
      * Inject a stack into a cell, returning the amount actually injected.
      * This is critical for tracking - cells may reject items due to capacity or type restrictions.
      */
-    @SuppressWarnings("unchecked")
     private static long injectIntoCellWithTracking(ItemStack cellStack, CellType type,
                                                     IAEStack<?> stack, IActionSource source) {
         long requested = stack.getStackSize();
@@ -1169,7 +1165,6 @@ public final class NetworkToolActionHandler {
     /**
      * Inject a stack into a cell.
      */
-    @SuppressWarnings("unchecked")
     private static void injectIntoCell(ItemStack cellStack, CellType type,
                                         IAEStack<?> stack, IActionSource source) {
         if (type == CellType.ITEM && stack instanceof IAEItemStack) {
@@ -1204,7 +1199,7 @@ public final class NetworkToolActionHandler {
 
             return result;
         } else if (type == CellType.FLUID && stack instanceof IAEFluidStack) {
-            return ((IAEFluidStack) stack).asItemStackRepresentation();
+            return stack.asItemStackRepresentation();
         } else if (type == CellType.ESSENTIA && ThaumicEnergisticsIntegration.isModLoaded()) {
             return ThaumicEnergisticsIntegration.getEssentiaPartitionItem(stack);
         }
@@ -1325,7 +1320,6 @@ public final class NetworkToolActionHandler {
         return false;
     }
 
-    @SuppressWarnings("unchecked")
     private static <T extends IAEStack<T>> ICellInventoryHandler<T> getCellHandler(
             ItemStack cellStack, IStorageChannel<T> channel) {
         ICellHandler handler = AEApi.instance().registries().cell().getHandler(cellStack);

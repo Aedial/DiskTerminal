@@ -20,7 +20,7 @@ import com.cellterminal.network.PacketSlotLimitChange;
 /**
  * Manages the layout and positioning of filter buttons.
  * Handles dynamic placement based on available space and controls help widget.
- *
+ * <p>
  * Positioning strategy:
  * - Buttons start below the terminal style button
  * - Stack vertically in a single column by default
@@ -63,7 +63,7 @@ public class FilterPanelManager {
         // Remove old slot limit button
         if (slotLimitButton != null) buttonList.remove(slotLimitButton);
 
-        this.forStorageBus = currentTab >= 3;
+        this.forStorageBus = currentTab >= GuiConstants.TAB_TEMP_AREA;
         CellTerminalClientConfig config = CellTerminalClientConfig.getInstance();
 
         int buttonId = startButtonId;
@@ -97,8 +97,8 @@ public class FilterPanelManager {
         List<CellFilter> filters = new ArrayList<>();
 
         // Tabs 0-2 are cell tabs, 3-4 are storage bus tabs
-        boolean isCellTab = tab <= 2;
-        boolean isStorageBusTab = tab >= 3;
+        boolean isCellTab = tab <= GuiConstants.TAB_PARTITION;
+        boolean isStorageBusTab = tab >= GuiConstants.TAB_TEMP_AREA;
 
         // Cell type filters
         if (isCellTab || isStorageBusTab) {

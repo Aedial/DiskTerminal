@@ -22,6 +22,7 @@ import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.gui.PopupCellPartition;
+import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 
 
@@ -78,6 +79,34 @@ public class JeiGhostHandler {
 
     public interface StorageBusPartitionCallback {
         void onAddStorageBusPartitionItem(StorageBusInfo storageBus, int slotIndex, ItemStack stack);
+    }
+
+    /**
+     * Target for a temp cell partition slot that can receive JEI ghost ingredients.
+     * Similar to PartitionSlotTarget but uses temp slot index instead of parent storage ID.
+     */
+    public static class TempCellPartitionSlotTarget {
+        public final CellInfo cell;
+        public final int tempSlotIndex;
+        public final int partitionSlotIndex;
+        public final int x;
+        public final int y;
+        public final int width;
+        public final int height;
+
+        public TempCellPartitionSlotTarget(CellInfo cell, int tempSlotIndex, int partitionSlotIndex, int x, int y, int width, int height) {
+            this.cell = cell;
+            this.tempSlotIndex = tempSlotIndex;
+            this.partitionSlotIndex = partitionSlotIndex;
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height = height;
+        }
+    }
+
+    public interface TempCellPartitionCallback {
+        void onAddTempCellPartitionItem(int tempSlotIndex, int partitionSlotIndex, ItemStack stack);
     }
 
     /**
@@ -234,14 +263,16 @@ public class JeiGhostHandler {
             int currentTab, PopupCellPartition partitionPopup,
             List<PartitionSlotTarget> partitionSlotTargets,
             List<StorageBusPartitionSlotTarget> storageBusPartitionSlotTargets,
-            PartitionCallback callback, StorageBusPartitionCallback storageBusCallback) {
+            List<TempCellPartitionSlotTarget> tempCellPartitionSlotTargets,
+            PartitionCallback callback, StorageBusPartitionCallback storageBusCallback,
+            TempCellPartitionCallback tempCellCallback) {
 
         if (partitionPopup != null) return partitionPopup.getGhostTargets();
 
         List<IGhostIngredientHandler.Target<?>> targets = new ArrayList<>();
 
-        // Cell partition tab (tab 2)
-        if (currentTab == 2) {
+        // Cell partition tab
+        if (currentTab == GuiConstants.TAB_PARTITION) {
             for (PartitionSlotTarget slot : partitionSlotTargets) {
                 targets.add(new IGhostIngredientHandler.Target<Object>() {
                     @Override
@@ -261,8 +292,29 @@ public class JeiGhostHandler {
             }
         }
 
-        // Storage bus partition tab (tab 4)
-        if (currentTab == 4) {
+        // Temp area tab - partition slots
+        if (currentTab == GuiConstants.TAB_TEMP_AREA) {
+            for (TempCellPartitionSlotTarget slot : tempCellPartitionSlotTargets) {
+                targets.add(new IGhostIngredientHandler.Target<Object>() {
+                    @Override
+                    public Rectangle getArea() {
+                        return new Rectangle(slot.x, slot.y, slot.width, slot.height);
+                    }
+
+                    @Override
+                    public void accept(Object ing) {
+                        ItemStack stack = convertJeiIngredientToItemStack(ing, slot.cell.isFluid(), slot.cell.isEssentia());
+
+                        if (stack.isEmpty()) return;
+
+                        tempCellCallback.onAddTempCellPartitionItem(slot.tempSlotIndex, slot.partitionSlotIndex, stack);
+                    }
+                });
+            }
+        }
+
+        // Storage bus partition tab
+        if (currentTab == GuiConstants.TAB_STORAGE_BUS_PARTITION) {
             for (StorageBusPartitionSlotTarget slot : storageBusPartitionSlotTargets) {
                 targets.add(new IGhostIngredientHandler.Target<Object>() {
                     @Override

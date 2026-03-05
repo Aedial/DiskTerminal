@@ -4,7 +4,7 @@ package com.cellterminal.client;
 /**
  * Filter types for Cell Terminal visibility filtering.
  * Each filter can be in one of three states: SHOW_ALL, SHOW_ONLY, HIDE.
- * 
+ * <p>
  * Filters are stored separately for cells (tabs 0-2) and storage buses (tabs 3-4).
  */
 public enum CellFilter {

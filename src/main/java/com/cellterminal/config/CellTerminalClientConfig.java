@@ -13,6 +13,7 @@ import com.cellterminal.client.CellFilter;
 import com.cellterminal.client.SearchFilterMode;
 import com.cellterminal.client.SlotLimit;
 import com.cellterminal.client.SubnetVisibility;
+import com.cellterminal.gui.GuiConstants;
 
 
 /**
@@ -55,7 +56,7 @@ public class CellTerminalClientConfig {
     private final Property busSlotLimitProperty;
     private final Property lastViewedNetworkIdProperty;
     private final Property subnetVisibilityProperty;
-    private int selectedTab = 0;
+    private int selectedTab = GuiConstants.TAB_TERMINAL;
     private TerminalStyle terminalStyle = TerminalStyle.SMALL;
     private String searchFilter = "";
     private SearchFilterMode searchMode = SearchFilterMode.MIXED;

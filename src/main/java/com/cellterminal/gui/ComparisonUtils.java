@@ -21,7 +21,7 @@ public final class ComparisonUtils {
      * Check if an item stack is in the partition list.
      * For fluid items (FluidDummyItem), compares by fluid type only (ignoring amount and NBT).
      * For other items, uses item and NBT comparison (ignoring count).
-     *
+     * <p>
      * This is necessary because partitioning/filtering normalizes stacks to count 1,
      * without extra NBT data.
      */

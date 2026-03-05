@@ -14,7 +14,7 @@ import com.cellterminal.container.handler.CellDataHandler;
 /**
  * Default storage scanner for vanilla AE2 storage devices.
  * Scans TileDrive (ME Drive) and TileChest (ME Chest) from the network.
- *
+ * <p>
  * AE2 drives support priority and have standard 63-slot partition limits.
  * Storage buses from AE2 support IO mode switching (read/write/both).
  */

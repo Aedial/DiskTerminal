@@ -13,6 +13,7 @@ import appeng.fluids.items.FluidDummyItem;
 import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.client.TabStateManager;
 import com.cellterminal.gui.overlay.MessageHelper;
+import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketHighlightBlock;
@@ -24,10 +25,6 @@ import com.cellterminal.network.PacketStorageBusPartitionAction;
  * Handles click logic for storage bus tabs (tabs 4 and 5).
  */
 public class StorageBusClickHandler {
-
-    // Tab constants
-    public static final int TAB_STORAGE_BUS_INVENTORY = 3;
-    public static final int TAB_STORAGE_BUS_PARTITION = 4;
 
     // Double-click tracking
     private long lastClickedStorageBusId = -1;
@@ -78,11 +75,11 @@ public class StorageBusClickHandler {
         long now = System.currentTimeMillis();
         boolean wasDoubleClick = checkDoubleClick(ctx, now, mouseButton);
 
-        if (ctx.currentTab == TAB_STORAGE_BUS_INVENTORY) {
+        if (ctx.currentTab == GuiConstants.TAB_STORAGE_BUS_INVENTORY) {
             return handleInventoryTabClick(ctx, mouseButton);
         }
 
-        if (ctx.currentTab == TAB_STORAGE_BUS_PARTITION) {
+        if (ctx.currentTab == GuiConstants.TAB_STORAGE_BUS_PARTITION) {
             return handlePartitionTabClick(ctx, mouseButton, wasDoubleClick);
         }
 

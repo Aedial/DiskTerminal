@@ -14,23 +14,23 @@ import net.minecraftforge.common.util.Constants;
 
 /**
  * Client-side data holder for subnet connection information received from server.
- * 
+ * <p>
  * A subnet is a SEPARATE ME grid that connects to the main network through the
  * ME Passthrough mechanism (IStorageMonitorableAccessor capability). Each connection
  * is one-way:
- * 
+ * <p>
  * - Outbound: Storage Bus on main network → Interface on subnet
  *   (Main network reads from / writes to subnet's storage)
- * 
+ * <p>
  * - Inbound: Interface on main network ← Storage Bus on subnet
  *   (Subnet reads from / writes to main network's storage)
- * 
+ * <p>
  * Both directions can exist simultaneously for bidirectional item flow.
  * Multiple connections to the same subnet are grouped together and sorted by position.
- * 
+ * <p>
  * Note: A subnet does NOT require a controller - any cable segment with up to 8 channels
  * can function as a subnet if powered via Energy Acceptor or Quartz Fiber.
- * 
+ * <p>
  * Note: P2P Tunnels do NOT create subnets - they teleport channels within the same grid.
  */
 public class SubnetInfo {

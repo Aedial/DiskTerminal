@@ -8,14 +8,29 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
-## [1.4.0] - 2026-02-19
+## [1.4.0] - 2026-03-04
 ### Added
-- Add keybind for Subnet Overview toggle (default: back)
-
+- Add keybind for Subnet Overview toggle (default: back).
+- Add more advanced search syntax options:
+  - `$content` - Match against inventory content only.
+  - `$part` - Match against partition content only.
+  - `$container` - Match against the container's name (Cell/Drive/Chest/Bus).
+  - `$renamed` - `$container` but only matches if the container has a custom name.
+  - Support for multiple things in an OR fashion for `=`/`~`/`!=`, with `,` as a separator (e.g. `$name~iron,gold`).
+- Add Temporary Area tab for Cell staging and partitioning, with JEI support and keybinds for quick partitioning with hovered items.
+  - The Temporary Area stores up to 16 cells in the terminal itself (part or wireless), allowing to partition them and send them to the first free slot in the network (main or loaded subnet).
+  - The quick partition keybinds work in the Temporary Area like it does with Storage Buses, allowing to partition multiple cells and multiple slots at once by hovering items and pressing the keybind multiple times.
+  - The content and partition rows behave largely the same as with Cells/Storage Buses in other tabs.
 
 ### Fixed
-- Fix Subnet Overview toggle taking priority over search field
-- Clean up the language files, removing unused keys
+- Remove misplaced subnet button (future planned feature) from next to the search bar. In the current state, it did nothing and could be easily misclicked when trying to click the search bar.
+- Fix Subnet Overview toggle taking priority over search field.
+- Fix wireless terminal keybind triggering a warning message when no wireless terminal was found.
+- Clean up the language files, removing unused keys.
+- Fix server-side terminal actions sending user feedback through client-only message paths; feedback now routes through server->client packets so chat/overlay messages show correctly while the GUI is open.
+
+### Changed
+- Change the default keybind for opening the wireless terminal to Shift+P, to avoid conflicts with Crouch + Right (Qwerty keyboards).
 
 
 ## [1.4.0-rc2] - 2026-02-19

@@ -8,7 +8,6 @@ import net.minecraft.tileentity.TileEntity;
 
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
-import appeng.api.util.AEPartLocation;
 import appeng.fluids.parts.PartFluidStorageBus;
 import appeng.parts.misc.PartStorageBus;
 
@@ -69,13 +68,4 @@ public class AE2StorageBusScanner extends AbstractStorageBusScanner {
         }
     }
 
-    @Override
-    public boolean supportsPriority() {
-        return true;
-    }
-
-    @Override
-    public boolean supportsIOMode() {
-        return true;
-    }
 }

@@ -19,23 +19,21 @@ import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
 import appeng.api.storage.IStorageMonitorableAccessor;
 import appeng.api.util.AEPartLocation;
-import appeng.api.util.DimensionalCoord;
 import appeng.capabilities.Capabilities;
 import appeng.fluids.parts.PartFluidStorageBus;
 import appeng.parts.misc.PartStorageBus;
 import appeng.tile.misc.TileInterface;
 
-import com.cellterminal.container.handler.SubnetDataHandler;
 import com.cellterminal.container.handler.SubnetDataHandler.SubnetTracker;
 
 
 /**
  * Scanner for detecting subnets connected via Storage Bus -> Interface pattern.
- * 
+ * <p>
  * This scanner detects the "ME Passthrough" pattern where:
  * - A Storage Bus on the main network points at an Interface on a subnet
  * - The Storage Bus uses the IStorageMonitorableAccessor capability to access the subnet's storage
- * 
+ * <p>
  * The key insight is that when a Storage Bus connects to an Interface that has
  * STORAGE_MONITORABLE_ACCESSOR capability, it gains access to a DIFFERENT grid's storage.
  */
@@ -84,7 +82,7 @@ public class AE2SubnetScanner extends AbstractSubnetScanner {
     /**
      * Scan for inbound connections where a subnet's Storage Bus points at our Interface.
      * This is the common "subnet pulling from main" pattern.
-     * 
+     * <p>
      * We scan all TileInterfaces on the main grid, then check adjacent tiles for
      * Storage Buses from other grids.
      */

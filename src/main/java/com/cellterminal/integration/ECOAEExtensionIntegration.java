@@ -34,12 +34,12 @@ import com.cellterminal.integration.storage.IStorageScanner;
 /**
  * Integration handler for ECOAEExtension mod (NovaEngineering).
  * Provides support for E-Storage Cell Drives in the Cell Terminal.
- *
+ * <p>
  * E-Storage uses a multiblock structure where:
  * - EStorageMEChannel is the network-connected part
  * - EStorageController manages the multiblock
  * - EStorageCellDrive holds a single cell per drive
- *
+ * <p>
  * Each EStorageCellDrive is presented as a single-slot storage.
  * TODO: Move to storage/
  */
@@ -82,7 +82,7 @@ public class ECOAEExtensionIntegration {
 
     /**
      * Storage scanner for ECOAEExtension's E-Storage Cell Drives.
-     *
+     * <p>
      * E-Storage drives have only 1 cell slot per drive (each drive holds one cell).
      */
     @Optional.InterfaceList({

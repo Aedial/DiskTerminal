@@ -8,11 +8,13 @@ import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.EnumActionResult;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
+import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.fml.common.Optional;
 import net.minecraftforge.fml.common.network.IGuiHandler;
 import net.minecraftforge.fml.relauncher.Side;
@@ -26,6 +28,7 @@ import appeng.api.config.SortOrder;
 import appeng.api.config.ViewItems;
 import appeng.api.features.ILocatable;
 import appeng.api.features.IWirelessTermHandler;
+import appeng.api.storage.ICellWorkbenchItem;
 import appeng.api.util.IConfigManager;
 import appeng.core.AEConfig;
 import appeng.core.localization.GuiText;
@@ -173,6 +176,123 @@ public class ItemWirelessCellTerminal extends AEBasePoweredItem implements IWire
     public IGuiHandler getGuiHandler(ItemStack is) {
         // Not used since we open GUI directly, but required by interface
         return null;
+    }
+
+    // ========================================
+    // TEMP CELL STORAGE
+    // ========================================
+
+    private static final String NBT_TEMP_CELLS = "tempCells";
+    private static final int MAX_TEMP_CELLS = 16;
+
+    /**
+     * Check if a stack is a valid storage cell.
+     */
+    public static boolean isValidTempCellItem(ItemStack stack) {
+        if (stack.isEmpty()) return true;
+
+        return stack.getItem() instanceof ICellWorkbenchItem;
+    }
+
+    /**
+     * Get the number of temp cells stored in this terminal.
+     */
+    public int getTempCellCount(ItemStack terminal) {
+        NBTTagCompound nbt = Platform.openNbtData(terminal);
+        if (!nbt.hasKey(NBT_TEMP_CELLS)) return 0;
+
+        NBTTagList cellList = nbt.getTagList(NBT_TEMP_CELLS, Constants.NBT.TAG_COMPOUND);
+        int count = 0;
+        for (int i = 0; i < cellList.tagCount(); i++) {
+            ItemStack cell = new ItemStack(cellList.getCompoundTagAt(i));
+            if (!cell.isEmpty()) count++;
+        }
+
+        return count;
+    }
+
+    /**
+     * Get a temp cell at the given slot index.
+     */
+    public ItemStack getTempCell(ItemStack terminal, int slot) {
+        if (slot < 0 || slot >= MAX_TEMP_CELLS) return ItemStack.EMPTY;
+
+        NBTTagCompound nbt = Platform.openNbtData(terminal);
+        if (!nbt.hasKey(NBT_TEMP_CELLS)) return ItemStack.EMPTY;
+
+        NBTTagList cellList = nbt.getTagList(NBT_TEMP_CELLS, Constants.NBT.TAG_COMPOUND);
+        if (slot >= cellList.tagCount()) return ItemStack.EMPTY;
+
+        return new ItemStack(cellList.getCompoundTagAt(slot));
+    }
+
+    /**
+     * Set a temp cell at the given slot index.
+     */
+    public void setTempCell(ItemStack terminal, int slot, ItemStack cell) {
+        if (slot < 0 || slot >= MAX_TEMP_CELLS) return;
+
+        NBTTagCompound nbt = Platform.openNbtData(terminal);
+
+        NBTTagList cellList;
+        if (nbt.hasKey(NBT_TEMP_CELLS)) {
+            cellList = nbt.getTagList(NBT_TEMP_CELLS, Constants.NBT.TAG_COMPOUND);
+        } else {
+            cellList = new NBTTagList();
+        }
+
+        // Ensure list is large enough
+        while (cellList.tagCount() <= slot) cellList.appendTag(new NBTTagCompound());
+
+        // Set the cell at the slot
+        NBTTagCompound cellNbt = new NBTTagCompound();
+        if (!cell.isEmpty()) cell.writeToNBT(cellNbt);
+        cellList.set(slot, cellNbt);
+
+        nbt.setTag(NBT_TEMP_CELLS, cellList);
+    }
+
+    /**
+     * Get the first empty temp cell slot, or -1 if full.
+     */
+    public int getFirstEmptyTempSlot(ItemStack terminal) {
+        NBTTagCompound nbt = Platform.openNbtData(terminal);
+        NBTTagList cellList = nbt.getTagList(NBT_TEMP_CELLS, Constants.NBT.TAG_COMPOUND);
+
+        for (int i = 0; i < MAX_TEMP_CELLS; i++) {
+            if (i >= cellList.tagCount()) return i;
+
+            ItemStack cell = new ItemStack(cellList.getCompoundTagAt(i));
+            if (cell.isEmpty()) return i;
+        }
+
+        return -1;
+    }
+
+    /**
+     * Clear all temp cells and return them as a list (for dropping).
+     */
+    public List<ItemStack> clearAllTempCells(ItemStack terminal) {
+        List<ItemStack> dropped = new java.util.ArrayList<>();
+        NBTTagCompound nbt = Platform.openNbtData(terminal);
+
+        if (nbt.hasKey(NBT_TEMP_CELLS)) {
+            NBTTagList cellList = nbt.getTagList(NBT_TEMP_CELLS, Constants.NBT.TAG_COMPOUND);
+            for (int i = 0; i < cellList.tagCount(); i++) {
+                ItemStack cell = new ItemStack(cellList.getCompoundTagAt(i));
+                if (!cell.isEmpty()) dropped.add(cell);
+            }
+            nbt.removeTag(NBT_TEMP_CELLS);
+        }
+
+        return dropped;
+    }
+
+    /**
+     * Get maximum temp cell slots.
+     */
+    public int getMaxTempCells() {
+        return MAX_TEMP_CELLS;
     }
 
     @Override

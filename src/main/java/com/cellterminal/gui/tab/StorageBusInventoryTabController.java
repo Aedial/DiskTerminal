@@ -6,19 +6,18 @@ import java.util.List;
 import net.minecraft.client.resources.I18n;
 
 import com.cellterminal.client.SearchFilterMode;
+import com.cellterminal.gui.GuiConstants;
 
 
 /**
- * Tab controller for the Storage Bus Inventory tab (Tab 3).
+ * Tab controller for the Storage Bus Inventory tab (Tab 4).
  * This tab displays storage buses with their connected inventory contents.
  */
 public class StorageBusInventoryTabController implements ITabController {
 
-    public static final int TAB_INDEX = 3;
-
     @Override
     public int getTabIndex() {
-        return TAB_INDEX;
+        return GuiConstants.TAB_STORAGE_BUS_INVENTORY;
     }
 
     @Override

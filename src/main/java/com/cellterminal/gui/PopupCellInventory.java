@@ -1,6 +1,5 @@
 package com.cellterminal.gui;
 
-import java.util.Collections;
 import java.util.List;
 
 import net.minecraft.client.Minecraft;
@@ -12,7 +11,6 @@ import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.item.ItemStack;
 
-import appeng.core.AEConfig;
 import appeng.util.ReadableNumberConverter;
 
 import com.cellterminal.client.CellInfo;

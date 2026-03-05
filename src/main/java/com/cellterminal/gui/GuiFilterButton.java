@@ -11,7 +11,6 @@ import net.minecraft.client.renderer.RenderItem;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
-import net.minecraft.block.Block;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fml.common.Loader;
@@ -136,9 +135,6 @@ public class GuiFilterButton extends GuiButton {
         if (!Loader.isModLoaded("thaumcraft")) return new ItemStack(Items.GLASS_BOTTLE);
 
         try {
-            // Class<?> thaumcraftBlocks = Class.forName("thaumcraft.api.blocks.BlocksTC");
-            // Object jarBlock = thaumcraftBlocks.getField("jarNormal").get(null);
-            // if (jarBlock instanceof Block) return new ItemStack((Block) jarBlock);
             Class<?> thaumcraftItems = Class.forName("thaumcraft.api.items.ItemsTC");
             Object jarItem = thaumcraftItems.getField("phial").get(null);
             if (jarItem instanceof Item) return new ItemStack((Item) jarItem);

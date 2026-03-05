@@ -2,7 +2,6 @@ package com.cellterminal.network;
 
 import io.netty.buffer.ByteBuf;
 
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.NonNullList;
@@ -85,8 +84,7 @@ public class PacketOpenWirelessTerminal implements IMessage {
                 if (tryOpenFromBaubles(player)) return;
             }
 
-            // No terminal found
-            player.sendMessage(PlayerMessages.DeviceNotLinked.get());
+            // No terminal found, ignore
         }
 
         private boolean tryOpenWirelessCellTerminal(ItemStack is, EntityPlayerMP player, int slot, boolean isBauble) {

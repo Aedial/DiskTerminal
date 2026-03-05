@@ -1,6 +1,7 @@
 package com.cellterminal.container;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -10,17 +11,17 @@ import java.util.Map;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.text.translation.I18n;
 import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.items.IItemHandlerModifiable;
 
 import appeng.api.AEApi;
-import appeng.api.config.Upgrades;
 import appeng.api.implementations.IUpgradeableHost;
 import appeng.api.implementations.tiles.IChestOrDrive;
 import appeng.api.implementations.items.IUpgradeModule;
@@ -31,13 +32,13 @@ import appeng.api.parts.IPart;
 import appeng.api.storage.ICellWorkbenchItem;
 import appeng.container.AEBaseContainer;
 import appeng.container.slot.SlotRestrictedInput;
+import appeng.helpers.ICustomNameObject;
+import appeng.helpers.IInterfaceHost;
 import appeng.helpers.IPriorityHost;
 import appeng.helpers.WirelessTerminalGuiObject;
 import appeng.items.contents.NetworkToolViewer;
 import appeng.items.tools.ToolNetworkTool;
 import appeng.parts.automation.PartUpgradeable;
-import appeng.tile.storage.TileChest;
-import appeng.tile.storage.TileDrive;
 import appeng.util.Platform;
 
 import com.cellterminal.CellTerminal;
@@ -50,7 +51,8 @@ import com.cellterminal.container.handler.StorageBusDataHandler;
 import com.cellterminal.container.handler.StorageBusDataHandler.StorageBusTracker;
 import com.cellterminal.container.handler.SubnetDataHandler;
 import com.cellterminal.container.handler.SubnetDataHandler.SubnetTracker;
-import com.cellterminal.gui.overlay.MessageHelper;
+import com.cellterminal.container.handler.TempCellActionHandler;
+import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.integration.storage.StorageScannerRegistry;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketCellTerminalUpdate;
@@ -58,6 +60,9 @@ import com.cellterminal.network.PacketExtractUpgrade;
 import com.cellterminal.network.PacketPartitionAction;
 import com.cellterminal.network.PacketStorageBusPartitionAction;
 import com.cellterminal.network.PacketSubnetListUpdate;
+import com.cellterminal.network.PacketTempCellAction;
+import com.cellterminal.network.PacketTempCellPartitionAction;
+import com.cellterminal.util.PlayerMessageHelper;
 
 
 /**
@@ -65,10 +70,6 @@ import com.cellterminal.network.PacketSubnetListUpdate;
  * Contains shared functionality for scanning ME network storage and managing cell partitions.
  */
 public abstract class ContainerCellTerminalBase extends AEBaseContainer {
-
-    // Storage bus tab indices (must match GuiCellTerminalBase)
-    public static final int TAB_STORAGE_BUS_INVENTORY = 3;
-    public static final int TAB_STORAGE_BUS_PARTITION = 4;
 
     protected final Map<TileEntity, StorageTracker> trackers = new HashMap<>();
     protected final Map<Long, StorageTracker> byId = new LinkedHashMap<>();
@@ -81,7 +82,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
     protected boolean needsSubnetRefresh = false;
 
     // Current active tab on client - determines whether to poll storage bus data
-    protected int activeTab = 0;
+    protected int activeTab = GuiConstants.TAB_TERMINAL;
 
     // Slot limits for controlling how many types are serialized (synced from client)
     protected int cellSlotLimit = Integer.MAX_VALUE;
@@ -177,6 +178,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         if (needsFullRefresh) {
             this.regenStorageList();
             this.regenStorageBusList();  // Also refresh storage bus data to prevent blank tabs on initial open
+            this.regenTempCellList();  // Also refresh temp cell data
             needsFullRefresh = false;
         }
 
@@ -231,7 +233,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
      * If polling is disabled in config, only the initial poll when switching to the tab is performed.
      */
     protected void handleStorageBusPolling() {
-        boolean isOnStorageBusTab = (activeTab == TAB_STORAGE_BUS_INVENTORY || activeTab == TAB_STORAGE_BUS_PARTITION);
+        boolean isOnStorageBusTab = (activeTab == GuiConstants.TAB_STORAGE_BUS_INVENTORY || activeTab == GuiConstants.TAB_STORAGE_BUS_PARTITION);
 
         // If not on storage bus tab and no pending refresh, nothing to do
         if (!isOnStorageBusTab && !needsStorageBusRefresh) return;
@@ -265,8 +267,8 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
      * Triggers storage bus refresh only on first switch to a storage bus tab.
      */
     public void setActiveTab(int tab) {
-        boolean wasOnStorageBusTab = (activeTab == TAB_STORAGE_BUS_INVENTORY || activeTab == TAB_STORAGE_BUS_PARTITION);
-        boolean isOnStorageBusTab = (tab == TAB_STORAGE_BUS_INVENTORY || tab == TAB_STORAGE_BUS_PARTITION);
+        boolean wasOnStorageBusTab = (activeTab == GuiConstants.TAB_STORAGE_BUS_INVENTORY || activeTab == GuiConstants.TAB_STORAGE_BUS_PARTITION);
+        boolean isOnStorageBusTab = (tab == GuiConstants.TAB_STORAGE_BUS_INVENTORY || tab == GuiConstants.TAB_STORAGE_BUS_PARTITION);
 
         this.activeTab = tab;
 
@@ -367,6 +369,50 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
     }
 
     /**
+     * Regenerate temp cell list. Sends temp cell data from the terminal's temp storage.
+     * Only sends occupied slots plus one empty slot for adding new cells.
+     */
+    protected void regenTempCellList() {
+        IItemHandlerModifiable tempInv = getTempCellInventory();
+        if (tempInv == null) return;
+
+        NBTTagList tempCellList = new NBTTagList();
+
+        // Find the highest occupied slot
+        int highestOccupied = -1;
+        for (int i = tempInv.getSlots() - 1; i >= 0; i--) {
+            if (!tempInv.getStackInSlot(i).isEmpty()) {
+                highestOccupied = i;
+                break;
+            }
+        }
+
+        // Send slots 0 through highestOccupied + 1 (capped at max slots)
+        int slotsToSend = Math.min(highestOccupied + 2, tempInv.getSlots());
+
+        // Always show at least one slot
+        if (slotsToSend < 1) slotsToSend = 1;
+
+        for (int i = 0; i < slotsToSend; i++) {
+            ItemStack cellStack = tempInv.getStackInSlot(i);
+            NBTTagCompound slotData = new NBTTagCompound();
+            slotData.setInteger("tempSlot", i);
+
+            if (!cellStack.isEmpty()) {
+                // Create cell data using the same serialization as regular cells
+                NBTTagCompound cellData = CellDataHandler.createCellData(i, cellStack, 1, cellSlotLimit);
+                slotData.setTag("cellData", cellData);
+            }
+
+            tempCellList.appendTag(slotData);
+        }
+
+        NBTTagCompound data = new NBTTagCompound();
+        data.setTag("tempCells", tempCellList);
+        mergeIntoPendingData(data);
+    }
+
+    /**
      * Merge additional data into pending data (for incremental updates).
      */
     protected void mergeIntoPendingData(NBTTagCompound data) {
@@ -400,7 +446,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
                                        int partitionSlot, ItemStack itemStack) {
         // Check if partition editing is enabled in server config
         if (!CellTerminalServerConfig.getInstance().isPartitionEditEnabled()) {
-            MessageHelper.error("cellterminal.error.partition_edit_disabled");
+            PlayerMessageHelper.error(this.getPlayerInv().player, "cellterminal.error.partition_edit_disabled");
 
             return;
         }
@@ -423,7 +469,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
                                                   int partitionSlot, ItemStack itemStack) {
         // Check if partition editing is enabled in server config
         if (!CellTerminalServerConfig.getInstance().isPartitionEditEnabled()) {
-            MessageHelper.error("cellterminal.error.partition_edit_disabled");
+            PlayerMessageHelper.error(this.getPlayerInv().player, "cellterminal.error.partition_edit_disabled");
 
             return;
         }
@@ -454,7 +500,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
     public void handleEjectCell(long storageId, int cellSlot, EntityPlayer player) {
         // Check if cell eject is enabled in server config
         if (!CellTerminalServerConfig.getInstance().isCellEjectEnabled()) {
-            MessageHelper.error("cellterminal.error.cell_eject_disabled");
+            PlayerMessageHelper.error(player, "cellterminal.error.cell_eject_disabled");
 
             return;
         }
@@ -472,7 +518,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
     public void handleSetPriority(long storageId, int priority) {
         // Check if priority editing is enabled in server config
         if (!CellTerminalServerConfig.getInstance().isPriorityEditEnabled()) {
-            MessageHelper.error("cellterminal.error.priority_edit_disabled");
+            PlayerMessageHelper.error(this.getPlayerInv().player, "cellterminal.error.priority_edit_disabled");
 
             return;
         }
@@ -510,7 +556,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
     public void handleUpgradeCell(EntityPlayer player, long storageId, int cellSlot, boolean shiftClick, int fromSlot) {
         // Check if upgrade insertion is enabled in server config
         if (!CellTerminalServerConfig.getInstance().isUpgradeInsertEnabled()) {
-            MessageHelper.error("cellterminal.error.upgrade_insert_disabled");
+            PlayerMessageHelper.error(player, "cellterminal.error.upgrade_insert_disabled");
 
             return;
         }
@@ -568,7 +614,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
     public void handleUpgradeStorageBus(EntityPlayer player, long storageBusId, boolean shiftClick, int fromSlot) {
         // Check if upgrade insertion is enabled in server config
         if (!CellTerminalServerConfig.getInstance().isUpgradeInsertEnabled()) {
-            MessageHelper.error("cellterminal.error.upgrade_insert_disabled");
+            PlayerMessageHelper.error(player, "cellterminal.error.upgrade_insert_disabled");
 
             return;
         }
@@ -659,7 +705,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
                                       long targetId, int cellSlot, int upgradeIndex, boolean toInventory) {
         // Check if upgrade extraction is enabled in server config
         if (!CellTerminalServerConfig.getInstance().isUpgradeExtractEnabled()) {
-            MessageHelper.error("cellterminal.error.upgrade_extract_disabled");
+            PlayerMessageHelper.error(player, "cellterminal.error.upgrade_extract_disabled");
 
             return;
         }
@@ -753,7 +799,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
             if (!toInventory && !heldStack.isEmpty()) {
                 // Check if cell insert is enabled
                 if (!config.isCellInsertEnabled()) {
-                    MessageHelper.error("cellterminal.error.cell_insert_disabled");
+                    PlayerMessageHelper.error(player, "cellterminal.error.cell_insert_disabled");
 
                     return;
                 }
@@ -761,21 +807,21 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         } else if (toInventory) {
             // Shift-click: extract to inventory
             if (!config.isCellEjectEnabled()) {
-                MessageHelper.error("cellterminal.error.cell_eject_disabled");
+                PlayerMessageHelper.error(player, "cellterminal.error.cell_eject_disabled");
 
                 return;
             }
         } else if (!heldStack.isEmpty()) {
             // Regular click with held item: swap
             if (!config.isCellSwapEnabled()) {
-                MessageHelper.error("cellterminal.error.cell_swap_disabled");
+                PlayerMessageHelper.error(player, "cellterminal.error.cell_swap_disabled");
 
                 return;
             }
         } else {
             // Regular click with empty hand: pick up
             if (!config.isCellEjectEnabled()) {
-                MessageHelper.error("cellterminal.error.cell_eject_disabled");
+                PlayerMessageHelper.error(player, "cellterminal.error.cell_eject_disabled");
 
                 return;
             }
@@ -793,7 +839,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
     public void handleInsertCell(long storageId, int targetSlot, EntityPlayer player) {
         // Check if cell insert is enabled in server config
         if (!CellTerminalServerConfig.getInstance().isCellInsertEnabled()) {
-            MessageHelper.error("cellterminal.error.cell_insert_disabled");
+            PlayerMessageHelper.error(player, "cellterminal.error.cell_insert_disabled");
 
             return;
         }
@@ -818,9 +864,37 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
             return super.transferStackInSlot(player, slotIndex);
         }
 
+        // If on temp area tab, shift-click goes to temp area instead of network
+        if (activeTab == GuiConstants.TAB_TEMP_AREA) {
+            IItemHandlerModifiable tempInv = getTempCellInventory();
+            if (tempInv != null) {
+                // Find first empty slot in temp area
+                for (int i = 0; i < tempInv.getSlots(); i++) {
+                    if (tempInv.getStackInSlot(i).isEmpty()) {
+                        // Only transfer ONE item from the stack, not the whole stack
+                        ItemStack singleCell = stack.splitStack(1);
+                        tempInv.setStackInSlot(i, singleCell);
+
+                        // Update the source slot (may be empty or have remaining items)
+                        if (stack.isEmpty()) slot.putStack(ItemStack.EMPTY);
+
+                        slot.onSlotChanged();
+                        this.needsFullRefresh = true;
+                        this.detectAndSendChanges();
+
+                        return ItemStack.EMPTY;
+                    }
+                }
+
+                PlayerMessageHelper.error(player, "gui.cellterminal.temp_area.full");
+
+                return ItemStack.EMPTY;
+            }
+        }
+
         // Check if cell insert is enabled in server config
         if (!CellTerminalServerConfig.getInstance().isCellInsertEnabled()) {
-            MessageHelper.error("cellterminal.error.cell_insert_disabled");
+            PlayerMessageHelper.error(player, "cellterminal.error.cell_insert_disabled");
 
             return ItemStack.EMPTY;
         }
@@ -922,6 +996,47 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         this.needsStorageBusRefresh = true;
     }
 
+    // ===== Temp Cell Management Methods =====
+
+    /**
+     * Handle temp cell actions from client (insert, extract, send).
+     */
+    public void handleTempCellAction(PacketTempCellAction.Action action, int tempSlotIndex,
+                                      int playerSlotIndex, ItemStack itemStack, boolean toInventory) {
+        // Check if temp area is enabled in server config
+        if (!CellTerminalServerConfig.getInstance().isTabTempAreaEnabled()) {
+            PlayerMessageHelper.error(this.getPlayerInv().player, "cellterminal.error.temp_area_disabled");
+
+            return;
+        }
+
+        EntityPlayer player = this.getPlayerInv().player;
+        TempCellActionHandler.handleAction(this, action, tempSlotIndex, playerSlotIndex, itemStack, player, toInventory);
+    }
+
+    /**
+     * Handle temp cell partition actions from client.
+     */
+    public void handleTempCellPartitionAction(int tempSlotIndex,
+                                               PacketTempCellPartitionAction.Action action,
+                                               int partitionSlot, ItemStack itemStack) {
+        // Check if partition editing is enabled in server config
+        if (!CellTerminalServerConfig.getInstance().isPartitionEditEnabled()) {
+            PlayerMessageHelper.error(this.getPlayerInv().player, "cellterminal.error.partition_edit_disabled");
+
+            return;
+        }
+
+        // Check if temp area is enabled in server config
+        if (!CellTerminalServerConfig.getInstance().isTabTempAreaEnabled()) {
+            PlayerMessageHelper.error(this.getPlayerInv().player, "cellterminal.error.temp_area_disabled");
+
+            return;
+        }
+
+        TempCellActionHandler.handlePartitionAction(this, tempSlotIndex, action, partitionSlot, itemStack);
+    }
+
     // ===== Subnet Management Methods =====
 
     /**
@@ -1021,6 +1136,56 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
     }
 
     /**
+     * Get the display name of the current network (main network or subnet).
+     * <p>
+     * For main network: Returns the localized "Main Network" key.
+     * For subnet: Returns the primary interface's custom name if set, otherwise
+     * position-based name.
+     * 
+     * @return The display name of the current network
+     */
+    public String getGridName() {
+        // Main network always uses the localized key
+        if (currentNetworkId == 0) return I18n.translateToLocal("cellterminal.subnet.main_network");
+
+        // For subnet, get the subnet's display name from the primary interface
+        IGrid effectiveGrid = getEffectiveGrid();
+        if (effectiveGrid == null) return "Unknown Network";
+
+        return getSubnetName(effectiveGrid);
+    }
+
+    /**
+     * Get the display name for a subnet.
+     * Returns the primary interface's custom name if set, otherwise position-based name.
+     */
+    private String getSubnetName(IGrid grid) {
+        // Find the primary interface host (same logic as SubnetDataHandler)
+        IInterfaceHost interfaceHost = SubnetDataHandler.findPrimaryInterfaceHost(grid);
+
+        if (interfaceHost != null && interfaceHost instanceof ICustomNameObject) {
+            ICustomNameObject nameable = (ICustomNameObject) interfaceHost;
+            if (nameable.hasCustomInventoryName()) return nameable.getCustomInventoryName();
+        }
+
+        // No custom name - generate position-based name from the interface's location
+        if (interfaceHost != null) {
+            TileEntity tile = interfaceHost.getTileEntity();
+
+            if (tile != null) {
+                BlockPos pos = tile.getPos();
+
+                // Return a formatted position string - will be displayed as-is
+                // since there's no custom name to show
+                return I18n.translateToLocalFormatted("gui.cellterminal.subnet.default_name", pos.getX(), pos.getY(), pos.getZ());
+            }
+        }
+
+        // Fallback - should not normally happen
+        return "Unknown Network";
+    }
+
+    /**
      * Get the effective grid for current operations.
      * Returns the subnet grid if viewing a subnet, otherwise the main grid.
      */
@@ -1050,6 +1215,13 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
     }
 
     /**
+     * Get all storage trackers (for temp cell send operation).
+     */
+    public Collection<StorageTracker> getStorageTrackers() {
+        return this.byId.values();
+    }
+
+    /**
      * Get a storage bus tracker by its ID (for rename operations).
      */
     public StorageBusTracker getStorageBusTracker(long storageBusId) {
@@ -1068,5 +1240,14 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
      */
     public void requestStorageBusRefresh() {
         this.needsStorageBusRefresh = true;
+    }
+
+    /**
+     * Get the temp cell inventory for this terminal.
+     * Returns null if temp cells are not supported (e.g., wireless terminal).
+     */
+    public IItemHandlerModifiable getTempCellInventory() {
+        // Overridden in ContainerCellTerminal to return part's temp cell inventory
+        return null;
     }
 }

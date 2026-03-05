@@ -4,14 +4,15 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.item.ItemStack;
 
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.StorageBusInfo;
+import com.cellterminal.client.TempCellInfo;
 import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.gui.FilterPanelManager;
+import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.GuiFilterButton;
 import com.cellterminal.gui.GuiSlotLimitButton;
 import com.cellterminal.gui.GuiSearchHelpButton;
@@ -29,14 +30,6 @@ import com.cellterminal.gui.render.RenderContext;
  * Handles tooltip rendering for GuiCellTerminalBase.
  */
 public class TooltipHandler {
-
-    // Tab constants
-    public static final int TAB_TERMINAL = 0;
-    public static final int TAB_INVENTORY = 1;
-    public static final int TAB_PARTITION = 2;
-    public static final int TAB_STORAGE_BUS_INVENTORY = 3;
-    public static final int TAB_STORAGE_BUS_PARTITION = 4;
-    public static final int TAB_NETWORK_TOOLS = 5;
 
     /**
      * Context containing all the state needed for rendering tooltips.
@@ -86,6 +79,10 @@ public class TooltipHandler {
         public INetworkTool hoveredNetworkTool = null;
         public INetworkTool hoveredNetworkToolHelpButton = null;
         public INetworkTool.ToolPreviewInfo hoveredNetworkToolPreview = null;
+
+        // Temp area hover state (Tab 3)
+        public TempCellInfo hoveredTempCellSlot = null;  // Hovering cell slot for insert/extract
+        public TempCellInfo hoveredTempCellSendButton = null;  // Hovering send button
     }
 
     /**
@@ -139,11 +136,30 @@ public class TooltipHandler {
             return;
         }
 
-        // Content item tooltips
-        if ((ctx.currentTab == TAB_INVENTORY || ctx.currentTab == TAB_PARTITION
-                || ctx.currentTab == TAB_STORAGE_BUS_INVENTORY || ctx.currentTab == TAB_STORAGE_BUS_PARTITION)
+        // Content item tooltips (including temp area tab)
+        if ((ctx.currentTab == GuiConstants.TAB_INVENTORY || ctx.currentTab == GuiConstants.TAB_PARTITION
+                || ctx.currentTab == GuiConstants.TAB_STORAGE_BUS_INVENTORY || ctx.currentTab == GuiConstants.TAB_STORAGE_BUS_PARTITION
+                || ctx.currentTab == GuiConstants.TAB_TEMP_AREA)
                 && !ctx.hoveredContentStack.isEmpty()) {
             renderer.drawHoveringText(renderer.getItemToolTip(ctx.hoveredContentStack), ctx.hoveredContentX, ctx.hoveredContentY);
+
+            return;
+        }
+
+        // Temp area cell slot tooltip
+        if (ctx.hoveredTempCellSlot != null) {
+            if (!ctx.hoveredTempCellSlot.getCellStack().isEmpty()) {
+                renderer.drawHoveringText(renderer.getItemToolTip(ctx.hoveredTempCellSlot.getCellStack()), mouseX, mouseY);
+            } else {
+                renderer.drawHoveringText(Collections.singletonList(I18n.format("gui.cellterminal.temp_area.drop_cell")), mouseX, mouseY);
+            }
+
+            return;
+        }
+
+        // Temp area send button tooltip
+        if (ctx.hoveredTempCellSendButton != null) {
+            renderer.drawHoveringText(Collections.singletonList(I18n.format("gui.cellterminal.temp_area.send.tooltip")), mouseX, mouseY);
 
             return;
         }
@@ -267,22 +283,22 @@ public class TooltipHandler {
         String baseTooltip;
 
         switch (tab) {
-            case TAB_TERMINAL:
+            case GuiConstants.TAB_TERMINAL:
                 baseTooltip = I18n.format("gui.cellterminal.tab.terminal.tooltip");
                 break;
-            case TAB_INVENTORY:
+            case GuiConstants.TAB_INVENTORY:
                 baseTooltip = I18n.format("gui.cellterminal.tab.inventory.tooltip");
                 break;
-            case TAB_PARTITION:
+            case GuiConstants.TAB_PARTITION:
                 baseTooltip = I18n.format("gui.cellterminal.tab.partition.tooltip");
                 break;
-            case TAB_STORAGE_BUS_INVENTORY:
+            case GuiConstants.TAB_STORAGE_BUS_INVENTORY:
                 baseTooltip = I18n.format("gui.cellterminal.tab.storage_bus_inventory.tooltip");
                 break;
-            case TAB_STORAGE_BUS_PARTITION:
+            case GuiConstants.TAB_STORAGE_BUS_PARTITION:
                 baseTooltip = I18n.format("gui.cellterminal.tab.storage_bus_partition.tooltip");
                 break;
-            case TAB_NETWORK_TOOLS:
+            case GuiConstants.TAB_NETWORK_TOOLS:
                 baseTooltip = I18n.format("gui.cellterminal.tab.network_tools.tooltip");
                 break;
             default:

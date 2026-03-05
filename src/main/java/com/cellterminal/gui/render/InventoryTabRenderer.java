@@ -8,7 +8,6 @@ import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.RenderItem;
 
 import com.cellterminal.client.CellContentRow;
-import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.EmptySlotInfo;
 import com.cellterminal.client.StorageInfo;
 import com.cellterminal.client.TabStateManager;
@@ -20,7 +19,7 @@ import com.cellterminal.gui.cells.CellRenderer;
  * Renderer for the Inventory tab (Tab 1).
  * Displays cells as expandable rows with their contents shown in a grid.
  * Content items show "P" indicator if they're in the cell's partition.
- *
+ * <p>
  * This renderer delegates actual cell rendering to {@link CellRenderer}.
  * It handles the overall tab layout and line iteration.
  *

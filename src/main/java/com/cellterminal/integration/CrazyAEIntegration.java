@@ -18,7 +18,7 @@ import com.cellterminal.integration.storage.IStorageScanner;
 /**
  * Integration handler for CrazyAE2 mod.
  * Provides support for Improved Drive (35-slot drive) in the Cell Terminal.
- *
+ * <p>
  * CrazyAE's TileImprovedDrive implements IChestOrDrive, so it works seamlessly
  * with the existing CellDataHandler infrastructure.
  * TODO: Move to storage/
@@ -63,7 +63,7 @@ public class CrazyAEIntegration {
     /**
      * Storage scanner for CrazyAE's Improved Drive.
      * Must be inner class to use @Optional.Method properly.
-     *
+     * <p>
      * CrazyAE Improved Drive has 35 cell slots (vs 10 for vanilla).
      */
     @Optional.InterfaceList({

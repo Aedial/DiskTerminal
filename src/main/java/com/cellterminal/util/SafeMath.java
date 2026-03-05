@@ -6,7 +6,7 @@ import java.math.BigInteger;
 /**
  * Utility methods for safe arithmetic operations that handle overflow gracefully.
  * Designed for handling modded AE2 cells with potentially max-long item counts.
- *
+ * <p>
  * IMPORTANT: This class does NOT silently discard data. Methods that could overflow
  * will throw ArithmeticException rather than lose items.
  */

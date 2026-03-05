@@ -6,21 +6,20 @@ import java.util.List;
 import net.minecraft.client.resources.I18n;
 
 import com.cellterminal.client.SearchFilterMode;
+import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.networktools.INetworkTool;
 import com.cellterminal.gui.networktools.NetworkToolRegistry;
 
 
 /**
- * Tab controller for the Network Tools tab (Tab 5).
+ * Tab controller for the Network Tools tab (Tab 6).
  * This tab displays a list of batch operation tools that can affect the entire network.
  */
 public class NetworkToolsTabController implements ITabController {
 
-    public static final int TAB_INDEX = 5;
-
     @Override
     public int getTabIndex() {
-        return TAB_INDEX;
+        return GuiConstants.TAB_NETWORK_TOOLS;
     }
 
     @Override
@@ -67,7 +66,7 @@ public class NetworkToolsTabController implements ITabController {
     public List<Object> getLines(TabContext context) {
         // Return tools as lines for rendering
         List<Object> lines = new ArrayList<>();
-        for (INetworkTool tool : NetworkToolRegistry.getAllTools()) lines.add(tool);
+        lines.addAll(NetworkToolRegistry.getAllTools());
 
         return lines;
     }

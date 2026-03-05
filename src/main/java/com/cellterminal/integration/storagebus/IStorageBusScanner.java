@@ -3,7 +3,6 @@ package com.cellterminal.integration.storagebus;
 import java.util.Map;
 
 import net.minecraft.nbt.NBTTagList;
-import net.minecraft.tileentity.TileEntity;
 
 import appeng.api.networking.IGrid;
 

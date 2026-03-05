@@ -4,7 +4,6 @@ import java.util.List;
 
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
-import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderItem;
 import net.minecraft.item.ItemStack;
 
@@ -17,11 +16,11 @@ import com.cellterminal.gui.render.RenderContext;
 
 /**
  * Main renderer for storage bus-related GUI elements.
- *
+ * <p>
  * This class coordinates the rendering of storage buses in the Storage Bus
  * Inventory and Partition tabs. It delegates to specialized sub-renderers
  * for slots and content items.
- *
+ * <p>
  * Usage:
  * <pre>
  * StorageBusRenderer renderer = new StorageBusRenderer(fontRenderer, itemRender);
