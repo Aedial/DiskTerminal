@@ -279,6 +279,13 @@ gui.cellterminal.search_help.field_double_click=§bDouble-click the search box t
 gui.cellterminal.cell.partitionall=Set Contents to Partition
 gui.cellterminal.cell.clearpartition=Clear Partitions
 
+# Small widget button tooltips
+gui.cellterminal.button.do_partition=Add All to Partition
+gui.cellterminal.button.clear_partition=Clear Partition
+gui.cellterminal.button.read_only=Extract Only
+gui.cellterminal.button.write_only=Insert Only
+gui.cellterminal.button.read_write=Extract/Insert
+
 # Controls help (bottom left widget)
 gui.cellterminal.controls.jei_drag=Drag from JEI to add.
 gui.cellterminal.controls.click_to_remove=Click to remove from slot.

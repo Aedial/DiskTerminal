@@ -14,7 +14,6 @@
  * This module should NOT contain any storage bus-related logic.
  * Storage bus rendering is handled in {@link com.cellterminal.gui.storagebus}.
  *
- * @see com.cellterminal.gui.render.InventoryTabRenderer
- * @see com.cellterminal.gui.render.PartitionTabRenderer
+ * @see com.cellterminal.gui.widget.tab.CellContentTabWidget
  */
 package com.cellterminal.gui.cells;

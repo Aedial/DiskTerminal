@@ -13,7 +13,6 @@
  * This module should NOT contain any cell-related logic.
  * Cell rendering is handled in {@link com.cellterminal.gui.cells}.
  *
- * @see com.cellterminal.gui.render.StorageBusInventoryTabRenderer
- * @see com.cellterminal.gui.render.StorageBusPartitionTabRenderer
+ * @see com.cellterminal.gui.widget.tab.StorageBusTabWidget
  */
 package com.cellterminal.gui.storagebus;

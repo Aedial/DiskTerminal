@@ -24,6 +24,7 @@ import com.cellterminal.gui.PopupCellPartition;
 import com.cellterminal.gui.PriorityFieldManager;
 import com.cellterminal.gui.networktools.INetworkTool;
 import com.cellterminal.gui.render.RenderContext;
+import com.cellterminal.gui.widget.tab.AbstractTabWidget;
 
 
 /**
@@ -80,9 +81,8 @@ public class TooltipHandler {
         public INetworkTool hoveredNetworkToolHelpButton = null;
         public INetworkTool.ToolPreviewInfo hoveredNetworkToolPreview = null;
 
-        // Temp area hover state (Tab 3)
-        public TempCellInfo hoveredTempCellSlot = null;  // Hovering cell slot for insert/extract
-        public TempCellInfo hoveredTempCellSendButton = null;  // Hovering send button
+        // Tab widgets for delegation
+        public AbstractTabWidget[] tabWidgets = null;
     }
 
     /**
@@ -146,27 +146,9 @@ public class TooltipHandler {
             return;
         }
 
-        // Temp area cell slot tooltip
-        if (ctx.hoveredTempCellSlot != null) {
-            if (!ctx.hoveredTempCellSlot.getCellStack().isEmpty()) {
-                renderer.drawHoveringText(renderer.getItemToolTip(ctx.hoveredTempCellSlot.getCellStack()), mouseX, mouseY);
-            } else {
-                renderer.drawHoveringText(Collections.singletonList(I18n.format("gui.cellterminal.temp_area.drop_cell")), mouseX, mouseY);
-            }
-
-            return;
-        }
-
-        // Temp area send button tooltip
-        if (ctx.hoveredTempCellSendButton != null) {
-            renderer.drawHoveringText(Collections.singletonList(I18n.format("gui.cellterminal.temp_area.send.tooltip")), mouseX, mouseY);
-
-            return;
-        }
-
         // Tab tooltips
         if (ctx.hoveredTab >= 0 && ctx.inventoryPopup == null && ctx.partitionPopup == null) {
-            String tooltip = getTabTooltip(ctx.hoveredTab);
+            String tooltip = getTabTooltip(ctx.hoveredTab, ctx.tabWidgets);
             if (!tooltip.isEmpty()) {
                 renderer.drawHoveringText(Collections.singletonList(tooltip), mouseX, mouseY);
 
@@ -279,30 +261,17 @@ public class TooltipHandler {
         }
     }
 
-    private static String getTabTooltip(int tab) {
+    private static String getTabTooltip(int tab, AbstractTabWidget[] tabWidgets) {
         String baseTooltip;
 
-        switch (tab) {
-            case GuiConstants.TAB_TERMINAL:
-                baseTooltip = I18n.format("gui.cellterminal.tab.terminal.tooltip");
-                break;
-            case GuiConstants.TAB_INVENTORY:
-                baseTooltip = I18n.format("gui.cellterminal.tab.inventory.tooltip");
-                break;
-            case GuiConstants.TAB_PARTITION:
-                baseTooltip = I18n.format("gui.cellterminal.tab.partition.tooltip");
-                break;
-            case GuiConstants.TAB_STORAGE_BUS_INVENTORY:
-                baseTooltip = I18n.format("gui.cellterminal.tab.storage_bus_inventory.tooltip");
-                break;
-            case GuiConstants.TAB_STORAGE_BUS_PARTITION:
-                baseTooltip = I18n.format("gui.cellterminal.tab.storage_bus_partition.tooltip");
-                break;
-            case GuiConstants.TAB_NETWORK_TOOLS:
-                baseTooltip = I18n.format("gui.cellterminal.tab.network_tools.tooltip");
-                break;
-            default:
-                return "";
+        // Delegate to tab widget if available
+        if (tabWidgets != null && tab >= 0 && tab < tabWidgets.length && tabWidgets[tab] != null) {
+            baseTooltip = tabWidgets[tab].getTabTooltip();
+        } else if (tab == GuiConstants.TAB_NETWORK_TOOLS) {
+            // Network Tools tab has no widget yet
+            baseTooltip = I18n.format("gui.cellterminal.tab.network_tools.tooltip");
+        } else {
+            return "";
         }
 
         // Add disabled notice if tab is disabled in server config

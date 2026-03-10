@@ -15,6 +15,7 @@ import com.cellterminal.config.CellTerminalClientConfig.TerminalStyle;
  * Button to toggle between terminal styles (small/tall).
  * Uses a custom texture or draws a simple icon.
  */
+// FIXME: use AE2's Style texture
 public class GuiTerminalStyleButton extends GuiButton {
 
     private static final int BUTTON_SIZE = 16;

@@ -881,4 +881,18 @@ public class TerminalDataManager {
         this.visibleBusSnapshotInventory.clear();
         this.visibleBusSnapshotPartition.clear();
     }
+
+    /**
+     * Find the StorageInfo containing a given CellInfo.
+     * Searches through all storages to find the one with matching parent ID.
+     *
+     * @param cell The cell to find the parent storage for
+     * @return The StorageInfo containing this cell, or null if not found
+     */
+    public StorageInfo findStorageForCell(CellInfo cell) {
+        if (cell == null) return null;
+
+        long parentId = cell.getParentStorageId();
+        return storageMap.get(parentId);
+    }
 }

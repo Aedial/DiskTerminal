@@ -17,8 +17,6 @@ import net.minecraft.item.ItemStack;
 import com.cellterminal.config.CellTerminalClientConfig.TerminalStyle;
 import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.gui.GuiConstants;
-import com.cellterminal.gui.tab.ITabController;
-import com.cellterminal.gui.tab.TabControllerRegistry;
 
 
 /**
@@ -88,9 +86,10 @@ public class TabRenderingHandler {
      *
      * @param ctx The rendering context
      * @param iconProvider Provider for tab icons
+     * @param tabCount Total number of tabs to draw
      * @return Result containing hovered tab index (-1 if none)
      */
-    public static TabRenderResult drawTabs(TabRenderContext ctx, TabIconProvider iconProvider) {
+    public static TabRenderResult drawTabs(TabRenderContext ctx, TabIconProvider iconProvider, int tabCount) {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         GlStateManager.disableLighting();
         GlStateManager.enableBlend();
@@ -98,7 +97,7 @@ public class TabRenderingHandler {
         int tabY = ctx.offsetY + ctx.tabYOffset;
         int hoveredTab = -1;
 
-        for (int i = 0; i < TabControllerRegistry.getTabCount(); i++) {
+        for (int i = 0; i < tabCount; i++) {
             int tabX = ctx.offsetX + 4 + (i * (ctx.tabWidth + 2));
             boolean isSelected = (i == ctx.currentTab);
             boolean isHovered = ctx.mouseX >= tabX && ctx.mouseX < tabX + ctx.tabWidth
@@ -280,14 +279,13 @@ public class TabRenderingHandler {
      * Draw the controls help widget for the current tab.
      *
      * @param ctx The rendering context
+     * @param helpLines The help text lines from the active tab widget
      * @return Result containing wrapped lines and cached tab for exclusion area calculation
      */
-    public static ControlsHelpResult drawControlsHelpWidget(ControlsHelpContext ctx) {
-        ITabController controller = TabControllerRegistry.getController(ctx.currentTab);
-        if (controller == null) return new ControlsHelpResult(new ArrayList<>(), ctx.currentTab);
-
-        List<String> lines = controller.getHelpLines();
-        if (lines.isEmpty()) return new ControlsHelpResult(new ArrayList<>(), ctx.currentTab);
+    public static ControlsHelpResult drawControlsHelpWidget(ControlsHelpContext ctx, List<String> helpLines) {
+        if (helpLines == null || helpLines.isEmpty()) {
+            return new ControlsHelpResult(new ArrayList<>(), ctx.currentTab);
+        }
 
         // Calculate panel width
         int panelWidth = ctx.guiLeft - CONTROLS_HELP_RIGHT_MARGIN - CONTROLS_HELP_LEFT_MARGIN;
@@ -297,7 +295,7 @@ public class TabRenderingHandler {
 
         // Wrap all lines
         List<String> wrappedLines = new ArrayList<>();
-        for (String line : lines) {
+        for (String line : helpLines) {
             if (line.isEmpty()) {
                 wrappedLines.add("");
             } else {

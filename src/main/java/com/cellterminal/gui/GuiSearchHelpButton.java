@@ -8,6 +8,7 @@ import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.resources.I18n;
 
 
+// TODO: add a texture for this button instead of drawing it manually
 /**
  * A small "?" button that shows search syntax help when hovered.
  */

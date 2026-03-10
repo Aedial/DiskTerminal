@@ -4,24 +4,38 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
+import net.minecraft.util.ResourceLocation;
+
+import com.cellterminal.gui.GuiConstants;
 
 
 /**
  * A small button used to navigate to/from subnet overview mode.
  * When in normal view (main or subnet), shows a left arrow to enter overview.
  * When in overview mode, shows a right arrow to go back.
+ *
+ * <p>The texture is a 32x32 sprite sheet organized as a 2x2 grid of 16x16 icons:
+ * <ul>
+ *   <li>Row 0: normal state</li>
+ *   <li>Row 1: hovered state</li>
+ *   <li>Column 0: left arrow (enter overview)</li>
+ *   <li>Column 1: right arrow (return from overview)</li>
+ * </ul>
  */
 public class GuiBackButton extends GuiButton {
 
-    public static final int BUTTON_SIZE = 12;
+    private static final int SIZE = GuiConstants.SUBNET_BUTTON_SIZE;
+    private static final ResourceLocation TEXTURE = new ResourceLocation(
+        "cellterminal", "textures/guis/atlas.png");
 
     private boolean isInOverviewMode;
 
     public GuiBackButton(int buttonId, int x, int y) {
-        super(buttonId, x, y, BUTTON_SIZE, BUTTON_SIZE, "");
+        super(buttonId, x, y, SIZE, SIZE, "");
         this.isInOverviewMode = false;
     }
 
@@ -31,7 +45,6 @@ public class GuiBackButton extends GuiButton {
     public void setInOverviewMode(boolean inOverview) {
         this.isInOverviewMode = inOverview;
     }
-
 
     public boolean isInOverviewMode() {
         return isInOverviewMode;
@@ -44,49 +57,15 @@ public class GuiBackButton extends GuiButton {
         this.hovered = mouseX >= this.x && mouseY >= this.y
             && mouseX < this.x + this.width && mouseY < this.y + this.height;
 
-        // Draw button background (matching GuiSearchHelpButton)
-        int bgColor = this.hovered ? 0xFF505050 : 0xFF606060;
-        drawRect(this.x, this.y, this.x + this.width, this.y + this.height, bgColor);
+        mc.getTextureManager().bindTexture(TEXTURE);
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.enableBlend();
 
-        // Draw border (matching GuiSearchHelpButton)
-        drawRect(this.x, this.y, this.x + this.width, this.y + 1, 0xFF808080);
-        drawRect(this.x, this.y, this.x + 1, this.y + this.height, 0xFF808080);
-        drawRect(this.x, this.y + this.height - 1, this.x + this.width, this.y + this.height, 0xFF303030);
-        drawRect(this.x + this.width - 1, this.y, this.x + this.width, this.y + this.height, 0xFF303030);
-
-        // Draw arrow icon
-        int iconColor = this.hovered ? 0xFFFFFF00 : 0xFFCCCCCC;
-        if (isInOverviewMode) {
-            // Right arrow when in overview (return to main/subnet view)
-            drawRightArrow(mc, iconColor);
-        } else {
-            // Left arrow when in normal view (enter subnet overview)
-            drawLeftArrow(mc, iconColor);
-        }
-    }
-
-    private void drawLeftArrow(Minecraft mc, int color) {
-        // TODO: we need the arrow just a pixel lower, but scaling messes with that.
-        //       Should add custom textures for the buttons.
-        // Draw a simple left arrow: <
-        int cx = this.x + this.width / 2 - mc.fontRenderer.getStringWidth("◀") / 2;  // Center the arrow
-        int cy = this.y + this.height / 2 - mc.fontRenderer.FONT_HEIGHT / 2 - 4;
-
-        GlStateManager.pushMatrix();
-        GlStateManager.scale(2.0f, 2.0f, 1.0f);  // Scale up for better visibility
-        mc.fontRenderer.drawString("◀", cx / 2, cy / 2, color);
-        GlStateManager.popMatrix();
-    }
-
-    private void drawRightArrow(Minecraft mc, int color) {
-        // Draw a simple right arrow: >
-        int cx = this.x + this.width / 2 - mc.fontRenderer.getStringWidth("▶") / 2;  // Center the arrow
-        int cy = this.y + this.height / 2 - mc.fontRenderer.FONT_HEIGHT / 2 - 4;
-
-        GlStateManager.pushMatrix();
-        GlStateManager.scale(2.0f, 2.0f, 1.0f);  // Scale up for better visibility
-        mc.fontRenderer.drawString("▶", cx / 2, cy / 2, color);
-        GlStateManager.popMatrix();
+        int texX = GuiConstants.SUBNET_BUTTON_X + (isInOverviewMode ? SIZE : 0);
+        int texY = GuiConstants.SUBNET_BUTTON_Y + (this.hovered ? SIZE : 0);
+        Gui.drawScaledCustomSizeModalRect(
+            this.x, this.y, texX, texY, SIZE, SIZE, SIZE, SIZE,
+            GuiConstants.ATLAS_WIDTH, GuiConstants.ATLAS_HEIGHT);
     }
 
     /**

@@ -22,6 +22,7 @@ import net.minecraft.inventory.Container;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.math.BlockPos;
 
 import appeng.api.AEApi;
 import appeng.api.implementations.items.IUpgradeModule;
@@ -33,51 +34,40 @@ import appeng.container.slot.AppEngSlot;
 
 import mezz.jei.api.gui.IGhostIngredientHandler;
 
+import com.cellterminal.client.CellContentRow;
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.SubnetConnectionRow;
 import com.cellterminal.client.SubnetInfo;
 import com.cellterminal.client.SubnetVisibility;
 import com.cellterminal.client.TabStateManager;
-import com.cellterminal.client.TempCellInfo;
 import com.cellterminal.config.CellTerminalClientConfig;
 import com.cellterminal.config.CellTerminalClientConfig.TerminalStyle;
 import com.cellterminal.container.ContainerCellTerminalBase;
 import com.cellterminal.client.KeyBindings;
 import com.cellterminal.client.SearchFilterMode;
+import com.cellterminal.client.StorageBusContentRow;
 import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.client.StorageInfo;
 import com.cellterminal.config.CellTerminalServerConfig;
-import com.cellterminal.gui.handler.JeiGhostHandler;
-import com.cellterminal.gui.handler.JeiGhostHandler.PartitionSlotTarget;
-import com.cellterminal.gui.handler.JeiGhostHandler.StorageBusPartitionSlotTarget;
-import com.cellterminal.gui.handler.StorageBusClickHandler;
 import com.cellterminal.gui.handler.TabRenderingHandler;
-import com.cellterminal.gui.handler.TerminalClickHandler;
 import com.cellterminal.gui.handler.TerminalDataManager;
 import com.cellterminal.gui.handler.TooltipHandler;
-import com.cellterminal.gui.handler.UpgradeClickHandler;
 import com.cellterminal.gui.networktools.INetworkTool;
 import com.cellterminal.gui.networktools.GuiToolConfirmationModal;
 import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.gui.overlay.OverlayMessageRenderer;
-import com.cellterminal.gui.render.InventoryTabRenderer;
 import com.cellterminal.gui.render.NetworkToolsTabRenderer;
-import com.cellterminal.gui.render.PartitionTabRenderer;
 import com.cellterminal.gui.render.RenderContext;
-import com.cellterminal.gui.render.StorageBusInventoryTabRenderer;
-import com.cellterminal.gui.render.StorageBusPartitionTabRenderer;
-import com.cellterminal.gui.render.TempAreaTabRenderer;
-import com.cellterminal.gui.render.TerminalTabRenderer;
-import com.cellterminal.gui.tab.ITabController;
-import com.cellterminal.gui.tab.PartitionTabController;
-import com.cellterminal.gui.tab.StorageBusPartitionTabController;
-import com.cellterminal.gui.tab.TabContext;
-import com.cellterminal.gui.tab.TempAreaTabController;
 import com.cellterminal.gui.subnet.GuiBackButton;
 import com.cellterminal.gui.subnet.SubnetOverviewRenderer;
-import com.cellterminal.gui.tab.TabControllerRegistry;
+import com.cellterminal.gui.widget.IWidget;
+import com.cellterminal.gui.widget.line.SlotsLine;
+import com.cellterminal.gui.widget.tab.AbstractTabWidget;
+import com.cellterminal.gui.widget.tab.CellContentTabWidget;
+import com.cellterminal.gui.widget.tab.StorageBusTabWidget;
+import com.cellterminal.gui.widget.tab.TempAreaTabWidget;
+import com.cellterminal.gui.widget.tab.TerminalTabWidget;
 import com.cellterminal.network.CellTerminalNetwork;
-import com.cellterminal.network.PacketExtractUpgrade;
 import com.cellterminal.network.PacketHighlightBlock;
 import com.cellterminal.network.PacketSubnetAction;
 import com.cellterminal.network.PacketSwitchNetwork;
@@ -86,13 +76,12 @@ import com.cellterminal.network.PacketRenameAction;
 import com.cellterminal.network.PacketSlotLimitChange;
 import com.cellterminal.network.PacketStorageBusPartitionAction;
 import com.cellterminal.network.PacketTabChange;
-import com.cellterminal.network.PacketTempCellAction;
 import com.cellterminal.network.PacketTempCellPartitionAction;
 import com.cellterminal.network.PacketUpgradeCell;
 import com.cellterminal.network.PacketUpgradeStorageBus;
-import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.rename.InlineRenameEditor;
 import com.cellterminal.gui.rename.Renameable;
+import com.cellterminal.gui.widget.tab.GuiContext;
 
 
 /**
@@ -100,7 +89,7 @@ import com.cellterminal.gui.rename.Renameable;
  * Contains shared functionality for displaying storage drives/chests with their cells.
  * Supports three tabs: Terminal (list view), Inventory (cell slots with contents), Partition (cell slots with partition).
  */
-public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhostIngredients {
+public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhostIngredients, GuiContext {
 
     private static final int TAB_WIDTH = 22;
     private static final int TAB_HEIGHT = 22;
@@ -117,21 +106,24 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     // Dynamic row count (computed based on terminal style)
     protected int rowsVisible = DEFAULT_ROWS;
 
-    // Tab renderers
-    protected TerminalTabRenderer terminalRenderer;
-    protected InventoryTabRenderer inventoryRenderer;
-    protected PartitionTabRenderer partitionRenderer;
-    protected TempAreaTabRenderer tempAreaRenderer;
-    protected StorageBusInventoryTabRenderer storageBusInventoryRenderer;
-    protected StorageBusPartitionTabRenderer storageBusPartitionRenderer;
+    // Tab widgets (new widget-based architecture)
+    protected TerminalTabWidget terminalTabWidget;
+    protected CellContentTabWidget inventoryTabWidget;
+    protected CellContentTabWidget partitionTabWidget;
+    protected TempAreaTabWidget tempAreaTabWidget;
+    protected StorageBusTabWidget storageBusInventoryTabWidget;
+    protected StorageBusTabWidget storageBusPartitionTabWidget;
+
+    /** Indexed lookup for tab widgets (tabs 0-5). Tab 6 (NetworkTools) has no widget. */
+    protected AbstractTabWidget[] tabWidgets;
+
+    // Legacy renderers (kept for tabs not yet migrated to widgets)
     protected NetworkToolsTabRenderer networkToolsRenderer;
     protected SubnetOverviewRenderer subnetOverviewRenderer;
     protected RenderContext renderContext;
 
     // Handlers
     protected TerminalDataManager dataManager;
-    protected TerminalClickHandler clickHandler;
-    protected StorageBusClickHandler storageBusClickHandler;
 
     // Terminal style button
     protected GuiTerminalStyleButton terminalStyleButton;
@@ -163,9 +155,6 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     // Popup states
     protected PopupCellInventory inventoryPopup = null;
     protected PopupCellPartition partitionPopup = null;
-    protected CellInfo hoveredCell = null;
-    protected int hoverType = 0; // 0=none, 1=inventory, 2=partition, 3=eject
-    protected StorageInfo hoveredStorageLine = null; // Storage header being hovered
 
     // Priority field manager (inline editable fields)
     protected PriorityFieldManager priorityFieldManager = null;
@@ -176,42 +165,9 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     // Tab hover for tooltips
     protected int hoveredTab = -1;
 
-    // Hover tracking for background highlight
-    protected int hoveredLineIndex = -1;
-
-    // Tab 2/3 hover state
-    protected CellInfo hoveredCellCell = null;
-    protected StorageInfo hoveredCellStorage = null;
-    protected int hoveredCellSlotIndex = -1;
-    protected ItemStack hoveredContentStack = ItemStack.EMPTY;
-    protected int hoveredContentX = 0;
-    protected int hoveredContentY = 0;
-    protected int hoveredContentSlotIndex = -1;
-
-    // Partition slot tracking for JEI ghost ingredients and click handling
-    protected int hoveredPartitionSlotIndex = -1;
-    protected CellInfo hoveredPartitionCell = null;
-    protected final List<JeiGhostHandler.PartitionSlotTarget> partitionSlotTargets = new ArrayList<>();
-
-    // Cell partition button tracking
-    protected CellInfo hoveredPartitionAllButtonCell = null;  // Tab 2: partition all button
-    protected CellInfo hoveredClearPartitionButtonCell = null;  // Tab 3: clear partition button
-
-    // Storage bus hover and selection tracking
-    protected StorageBusInfo hoveredStorageBus = null;
-    protected int hoveredStorageBusPartitionSlot = -1;
-    protected int hoveredStorageBusContentSlot = -1;
-    protected StorageBusInfo hoveredClearButtonStorageBus = null;
-    protected StorageBusInfo hoveredIOModeButtonStorageBus = null;
-    protected StorageBusInfo hoveredPartitionAllButtonStorageBus = null;  // Tab 4: partition all button
-    protected final Set<Long> selectedStorageBusIds = new HashSet<>();  // For Tab 5 - multi-selection of buses for keybind
-    protected final List<JeiGhostHandler.StorageBusPartitionSlotTarget> storageBusPartitionSlotTargets = new ArrayList<>();
-
-    // Temp area hover and selection tracking
-    protected int hoveredTempCellSlot = -1;  // Hovered temp cell header slot index
-    protected int hoveredTempCellPartitionSlot = -1;  // Hovered partition slot within a temp cell
-    protected final Set<Integer> selectedTempCellSlots = new HashSet<>();  // For Tab 3 - multi-selection of temp cells
-    protected final List<JeiGhostHandler.TempCellPartitionSlotTarget> tempCellPartitionSlotTargets = new ArrayList<>();
+    // Storage bus and temp area selection tracking (for quick-add keybinds)
+    protected final Set<Long> selectedStorageBusIds = new HashSet<>();
+    protected final Set<Integer> selectedTempCellSlots = new HashSet<>();
 
     // Modal search bar for expanded editing
     protected GuiModalSearchBar modalSearchBar = null;
@@ -222,9 +178,6 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
     protected long lastSearchFieldClickTime = 0;
     protected static final long DOUBLE_CLICK_THRESHOLD = 500;  // ms
-
-    // Hovered upgrade icon for tooltip and extraction
-    protected RenderContext.UpgradeIconTarget hoveredUpgradeIcon = null;
 
     // Whether we've restored the saved scroll after the first data update
     private boolean initialScrollRestored = false;
@@ -250,14 +203,12 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
         this.renderContext = new RenderContext();
         this.dataManager = new TerminalDataManager();
-        this.clickHandler = new TerminalClickHandler();
-        this.storageBusClickHandler = new StorageBusClickHandler();
         this.filterPanelManager = new FilterPanelManager();
 
         // Load persisted settings
         CellTerminalClientConfig config = CellTerminalClientConfig.getInstance();
         this.currentTab = config.getSelectedTab();
-        if (this.currentTab < 0 || this.currentTab >= TabControllerRegistry.getTabCount()) this.currentTab = GuiConstants.TAB_TERMINAL;
+        if (this.currentTab < 0 || this.currentTab > GuiConstants.TAB_NETWORK_TOOLS) this.currentTab = GuiConstants.TAB_TERMINAL;
 
         // If the persisted tab is disabled, redirect to the first enabled tab
         if (CellTerminalServerConfig.isInitialized() && !CellTerminalServerConfig.getInstance().isTabEnabled(this.currentTab)) {
@@ -299,7 +250,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
         CellTerminalServerConfig config = CellTerminalServerConfig.getInstance();
 
-        for (int i = 0; i < TabControllerRegistry.getTabCount(); i++) {
+        for (int i = 0; i <= GuiConstants.TAB_NETWORK_TOOLS; i++) {
             if (config.isTabEnabled(i)) return i;
         }
 
@@ -343,8 +294,8 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
         this.getScrollBar().setTop(18).setLeft(189).setHeight(this.rowsVisible * ROW_HEIGHT - 2);
         this.repositionSlots();
+        initTabWidgets();
         initTabIcons();
-        initRenderers();
         initTerminalStyleButton();
         initSubnetBackButton();
         initFilterButtons();
@@ -390,16 +341,58 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         this.priorityFieldManager = new PriorityFieldManager(this.fontRenderer);
     }
 
-    protected void initRenderers() {
-        this.terminalRenderer = new TerminalTabRenderer(this.fontRenderer, this.itemRender);
-        this.inventoryRenderer = new InventoryTabRenderer(this.fontRenderer, this.itemRender);
-        this.partitionRenderer = new PartitionTabRenderer(this.fontRenderer, this.itemRender);
-        this.tempAreaRenderer = new TempAreaTabRenderer(this.fontRenderer, this.itemRender);
-        this.storageBusInventoryRenderer = new StorageBusInventoryTabRenderer(this.fontRenderer, this.itemRender);
-        this.storageBusPartitionRenderer = new StorageBusPartitionTabRenderer(this.fontRenderer, this.itemRender);
+    protected void initTabWidgets() {
+        // Legacy renderers (not yet converted to widgets)
         this.networkToolsRenderer = new NetworkToolsTabRenderer(this.fontRenderer, this.itemRender);
         this.subnetOverviewRenderer = new SubnetOverviewRenderer(this.fontRenderer, this.itemRender);
         this.inlineRenameEditor = new InlineRenameEditor();
+
+        // Create tab widgets
+        this.terminalTabWidget = new TerminalTabWidget(this.fontRenderer, this.itemRender);
+        this.inventoryTabWidget = new CellContentTabWidget(SlotsLine.SlotMode.CONTENT, this.fontRenderer, this.itemRender);
+        this.partitionTabWidget = new CellContentTabWidget(SlotsLine.SlotMode.PARTITION, this.fontRenderer, this.itemRender);
+        this.tempAreaTabWidget = new TempAreaTabWidget(this.fontRenderer, this.itemRender);
+        this.storageBusInventoryTabWidget = new StorageBusTabWidget(SlotsLine.SlotMode.CONTENT, this.fontRenderer, this.itemRender);
+        this.storageBusPartitionTabWidget = new StorageBusTabWidget(SlotsLine.SlotMode.PARTITION, this.fontRenderer, this.itemRender);
+
+        // Populate indexed lookup (tab 6 = NetworkTools has no widget)
+        this.tabWidgets = new AbstractTabWidget[] {
+            terminalTabWidget,           // TAB_TERMINAL (0)
+            inventoryTabWidget,          // TAB_INVENTORY (1)
+            partitionTabWidget,          // TAB_PARTITION (2)
+            tempAreaTabWidget,           // TAB_TEMP_AREA (3)
+            storageBusInventoryTabWidget, // TAB_STORAGE_BUS_INVENTORY (4)
+            storageBusPartitionTabWidget, // TAB_STORAGE_BUS_PARTITION (5)
+            null                         // TAB_NETWORK_TOOLS (6) — legacy renderer
+        };
+
+        // Initialize all widgets with shared GUI context, offsets, and row count
+        for (AbstractTabWidget widget : tabWidgets) {
+            if (widget == null) continue;
+            widget.setGuiOffsets(this.guiLeft, this.guiTop);
+            widget.setRowsVisible(this.rowsVisible);
+            widget.init(this);
+        }
+    }
+
+    /**
+     * Get the active tab widget for the current tab, or null for tabs not yet migrated (e.g. NetworkTools).
+     */
+    protected AbstractTabWidget getActiveTabWidget() {
+        if (currentTab < 0 || currentTab >= tabWidgets.length) return null;
+
+        return tabWidgets[currentTab];
+    }
+
+    /**
+     * Get the lines data list from the data manager for the active tab widget.
+     * Delegates to the widget's {@link AbstractTabWidget#getLines(TerminalDataManager)} method.
+     */
+    protected List<Object> getWidgetLines() {
+        AbstractTabWidget activeWidget = getActiveTabWidget();
+        if (activeWidget == null) return Collections.emptyList();
+
+        return activeWidget.getLines(dataManager);
     }
 
     protected void initSubnetBackButton() {
@@ -469,7 +462,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         if (this.searchModeButton != null) this.buttonList.remove(this.searchModeButton);
 
         // Search mode button: positioned above the scrollbar (top-right corner)
-        this.searchModeButton = new GuiSearchModeButton(1, this.guiLeft + 189, this.guiTop + 4, currentSearchMode);
+        this.searchModeButton = new GuiSearchModeButton(1, this.guiLeft + 189, this.guiTop + 5, currentSearchMode);
         this.buttonList.add(this.searchModeButton);
         updateSearchModeButtonVisibility();
 
@@ -488,9 +481,8 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     protected void updateSearchModeButtonVisibility() {
         if (this.searchModeButton == null) return;
 
-        // Delegate to tab controller to determine visibility
-        ITabController controller = TabControllerRegistry.getController(currentTab);
-        this.searchModeButton.visible = (controller != null && controller.showSearchModeButton());
+        AbstractTabWidget activeWidget = getActiveTabWidget();
+        this.searchModeButton.visible = (activeWidget != null && activeWidget.showSearchModeButton());
     }
 
     protected void onSearchTextChanged() {
@@ -504,41 +496,36 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
     /**
      * Get the effective search mode based on current tab.
-     * Delegates to the active tab controller.
+     * Delegates to the active tab widget.
      */
     protected SearchFilterMode getEffectiveSearchMode() {
-        ITabController controller = TabControllerRegistry.getController(currentTab);
-        if (controller != null) {
-            return controller.getEffectiveSearchMode(currentSearchMode);
-        }
+        AbstractTabWidget activeWidget = getActiveTabWidget();
+        if (activeWidget != null) return activeWidget.getEffectiveSearchMode(currentSearchMode);
 
         return currentSearchMode;
     }
 
     protected void initTabIcons() {
-        // Terminal icon - use the interface terminal part
-        tabIconTerminal = AEApi.instance().definitions().parts().interfaceTerminal()
-            .maybeStack(1).orElse(ItemStack.EMPTY);
+        // Tab icons are now delegated to each tab widget's getTabIcon() method.
+        // These fields are kept for backwards compatibility with composite icon rendering.
 
-        // Inventory icon - use ME Chest
-        tabIconInventory = AEApi.instance().definitions().blocks().chest()
-            .maybeStack(1).orElse(ItemStack.EMPTY);
-
-        // Partition icon - use Cell Workbench
-        tabIconPartition = AEApi.instance().definitions().blocks().cellWorkbench()
-            .maybeStack(1).orElse(ItemStack.EMPTY);
-
-        // Temp Area icon - use 64k storage cell
-        tabIconTempArea = AEApi.instance().definitions().items().cell64k()
-            .maybeStack(1).orElse(ItemStack.EMPTY);
-
-        // Storage bus icon (used for composite rendering)
+        // Storage bus icon (used for composite rendering in storage bus tabs)
         tabIconStorageBus = AEApi.instance().definitions().parts().storageBus()
             .maybeStack(1).orElse(ItemStack.EMPTY);
 
-        // Network Tools icon
+        // Inventory and partition icons (used for composite rendering overlays)
+        tabIconInventory = AEApi.instance().definitions().blocks().chest()
+            .maybeStack(1).orElse(ItemStack.EMPTY);
+        tabIconPartition = AEApi.instance().definitions().blocks().cellWorkbench()
+            .maybeStack(1).orElse(ItemStack.EMPTY);
+
+        // Network Tools icon (no widget yet, so keep hardcoded)
         tabIconNetworkTool = AEApi.instance().definitions().items().networkTool()
             .maybeStack(1).orElse(ItemStack.EMPTY);
+
+        // These are now fetched from widgets, but kept for legacy code paths
+        tabIconTerminal = terminalTabWidget != null ? terminalTabWidget.getTabIcon() : ItemStack.EMPTY;
+        tabIconTempArea = tempAreaTabWidget != null ? tempAreaTabWidget.getTabIcon() : ItemStack.EMPTY;
     }
 
     protected void repositionSlots() {
@@ -566,12 +553,17 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             partitionPopup.drawTooltip(mouseX, mouseY);
         }
 
-        // Draw hover preview
-        if (currentTab == GuiConstants.TAB_TERMINAL && hoveredCell != null && inventoryPopup == null && partitionPopup == null) {
-            int previewX = mouseX + 10, previewY = mouseY + 10;
-            if (hoverType == 1) new PopupCellInventory(this, hoveredCell, previewX, previewY).draw(mouseX, mouseY);
-            else if (hoverType == 2) new PopupCellPartition(this, hoveredCell, previewX, previewY).draw(mouseX, mouseY);
-            else if (hoverType == 3) this.drawHoveringText(Collections.singletonList(I18n.format("gui.cellterminal.eject_cell")), mouseX, mouseY);
+        // Draw hover preview from terminal tab widget
+        if (currentTab == GuiConstants.TAB_TERMINAL && inventoryPopup == null && partitionPopup == null) {
+            CellInfo previewCell = terminalTabWidget.getPreviewCell();
+            int previewType = terminalTabWidget.getPreviewType();
+
+            if (previewCell != null) {
+                int previewX = mouseX + 10, previewY = mouseY + 10;
+                if (previewType == 1) new PopupCellInventory(this, previewCell, previewX, previewY).draw(mouseX, mouseY);
+                else if (previewType == 2) new PopupCellPartition(this, previewCell, previewX, previewY).draw(mouseX, mouseY);
+                else if (previewType == 3) this.drawHoveringText(Collections.singletonList(I18n.format("gui.cellterminal.eject_cell")), mouseX, mouseY);
+            }
         }
 
         drawTooltips(mouseX, mouseY);
@@ -618,19 +610,44 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     }
 
     protected void drawTooltips(int mouseX, int mouseY) {
+        int relMouseX = mouseX - guiLeft;
+        int relMouseY = mouseY - guiTop;
+
+        // Widget-based tooltips for tabs 0-5
+        AbstractTabWidget activeWidget = getActiveTabWidget();
+        if (activeWidget != null) {
+            // Get tooltip from hovered widget row
+            List<String> widgetTooltip = activeWidget.getTooltip(relMouseX, relMouseY);
+            if (!widgetTooltip.isEmpty()) {
+                this.drawHoveringText(widgetTooltip, mouseX, mouseY);
+
+                return;
+            }
+
+            // Get hovered item stack for vanilla item tooltip
+            ItemStack hoveredStack = activeWidget.getHoveredItemStack(relMouseX, relMouseY);
+            if (!hoveredStack.isEmpty()) {
+                this.renderToolTip(hoveredStack, mouseX, mouseY);
+
+                return;
+            }
+        }
+
+        // Legacy tooltip context for non-widget elements (buttons, search field, network tools)
         TooltipHandler.TooltipContext ctx = new TooltipHandler.TooltipContext();
         ctx.currentTab = currentTab;
         ctx.hoveredTab = hoveredTab;
-        ctx.hoveredCell = hoveredCell;
-        ctx.hoverType = hoverType;
-        ctx.hoveredContentStack = hoveredContentStack;
-        ctx.hoveredContentX = hoveredContentX;
-        ctx.hoveredContentY = hoveredContentY;
-        ctx.hoveredClearButtonStorageBus = hoveredClearButtonStorageBus;
-        ctx.hoveredIOModeButtonStorageBus = hoveredIOModeButtonStorageBus;
-        ctx.hoveredPartitionAllButtonStorageBus = hoveredPartitionAllButtonStorageBus;
-        ctx.hoveredPartitionAllButtonCell = hoveredPartitionAllButtonCell;
-        ctx.hoveredClearPartitionButtonCell = hoveredClearPartitionButtonCell;
+        // Widget-based tabs no longer set these hover fields — they are null/default
+        ctx.hoveredCell = null;
+        ctx.hoverType = 0;
+        ctx.hoveredContentStack = ItemStack.EMPTY;
+        ctx.hoveredContentX = 0;
+        ctx.hoveredContentY = 0;
+        ctx.hoveredClearButtonStorageBus = null;
+        ctx.hoveredIOModeButtonStorageBus = null;
+        ctx.hoveredPartitionAllButtonStorageBus = null;
+        ctx.hoveredPartitionAllButtonCell = null;
+        ctx.hoveredClearPartitionButtonCell = null;
         ctx.inventoryPopup = inventoryPopup;
         ctx.partitionPopup = partitionPopup;
         ctx.terminalStyleButton = terminalStyleButton;
@@ -650,18 +667,17 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             ctx.searchFieldHeight = searchField.height + 4;
         }
 
-        // Upgrade icon hover state
-        ctx.hoveredUpgradeIcon = hoveredUpgradeIcon;
+        // Upgrade icon hover state — now handled by widget tooltips, not legacy
+        ctx.hoveredUpgradeIcon = null;
 
-        // Network tools hover state
+        // Network tools hover state (legacy renderer)
         RenderContext renderCtx = getRenderContext();
         ctx.hoveredNetworkTool = renderCtx.hoveredNetworkTool;
         ctx.hoveredNetworkToolHelpButton = renderCtx.hoveredNetworkToolHelpButton;
         ctx.hoveredNetworkToolPreview = renderCtx.hoveredNetworkToolPreview;
 
-        // Temp area hover state (Tab 3)
-        ctx.hoveredTempCellSlot = renderCtx.hoveredTempCellSlot;
-        ctx.hoveredTempCellSendButton = renderCtx.hoveredTempCellSendButton;
+        // Tab widgets for tooltip delegation
+        ctx.tabWidgets = tabWidgets;
 
         TooltipHandler.drawTooltips(ctx, new TooltipHandler.TooltipRenderer() {
             @Override
@@ -699,15 +715,6 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             GlStateManager.popMatrix();
         }
 
-        // Reset render context hover states
-        renderContext.resetHoverState();
-        renderContext.storageMap = dataManager.getStorageMap();
-        renderContext.rowsVisible = this.rowsVisible;
-        renderContext.guiLeft = this.guiLeft;
-        renderContext.guiTop = this.guiTop;
-        renderContext.selectedStorageBusIds = this.selectedStorageBusIds;
-        renderContext.selectedTempCellSlots = this.selectedTempCellSlots;
-
         int relMouseX = mouseX - offsetX;
         int relMouseY = mouseY - offsetY;
         final int currentScroll = this.getScrollBar().getCurrentScroll();
@@ -715,47 +722,35 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         // Reset priority field visibility before rendering
         if (priorityFieldManager != null) priorityFieldManager.resetVisibility();
 
-        // Subnet overview mode takes over the content area
+        // Subnet overview mode takes over the content area (legacy renderer)
         if (this.isInSubnetOverviewMode) {
+            renderContext.resetHoverState();
+            renderContext.storageMap = dataManager.getStorageMap();
+            renderContext.rowsVisible = this.rowsVisible;
+            renderContext.guiLeft = this.guiLeft;
+            renderContext.guiTop = this.guiTop;
+
             drawSubnetOverviewContent(relMouseX, relMouseY, currentScroll);
-            syncHoverStateFromContext(relMouseX, relMouseY);
             drawControlsHelpForCurrentTab();
 
             return;
         }
 
-        // Draw based on current tab using renderers
-        switch (currentTab) {
-            case GuiConstants.TAB_TERMINAL:
-                terminalRenderer.draw(dataManager.getLines(), currentScroll, rowsVisible, relMouseX, relMouseY, renderContext);
-                break;
-            case GuiConstants.TAB_INVENTORY:
-                inventoryRenderer.draw(dataManager.getInventoryLines(), currentScroll, rowsVisible,
-                    relMouseX, relMouseY, mouseX, mouseY, dataManager.getStorageMap(), renderContext);
-                break;
-            case GuiConstants.TAB_PARTITION:
-                partitionRenderer.draw(dataManager.getPartitionLines(), currentScroll, rowsVisible,
-                    relMouseX, relMouseY, mouseX, mouseY, dataManager.getStorageMap(),
-                    this.guiLeft, this.guiTop, renderContext);
-                break;
-            case GuiConstants.TAB_TEMP_AREA:
-                tempAreaRenderer.draw(dataManager.getTempAreaLines(), currentScroll, rowsVisible,
-                    relMouseX, relMouseY, mouseX, mouseY,
-                    this.guiLeft, this.guiTop, renderContext);
-                break;
-            case GuiConstants.TAB_STORAGE_BUS_INVENTORY:
-                storageBusInventoryRenderer.draw(dataManager.getStorageBusInventoryLines(), currentScroll, rowsVisible,
-                    relMouseX, relMouseY, mouseX, mouseY, renderContext);
-                break;
-            case GuiConstants.TAB_STORAGE_BUS_PARTITION:
-                storageBusPartitionRenderer.draw(dataManager.getStorageBusPartitionLines(), currentScroll, rowsVisible,
-                    relMouseX, relMouseY, mouseX, mouseY,
-                    this.guiLeft, this.guiTop, renderContext);
-                break;
-            case GuiConstants.TAB_NETWORK_TOOLS:
-                networkToolsRenderer.draw(currentScroll, rowsVisible,
-                    relMouseX, relMouseY, createNetworkToolContext(), renderContext);
-                break;
+        // Draw based on current tab using widgets
+        AbstractTabWidget activeWidget = getActiveTabWidget();
+        if (activeWidget != null) {
+            activeWidget.buildVisibleRows(getWidgetLines(), currentScroll);
+            activeWidget.draw(relMouseX, relMouseY);
+        } else if (currentTab == GuiConstants.TAB_NETWORK_TOOLS) {
+            // Legacy renderer for network tools (not yet migrated to widgets)
+            renderContext.resetHoverState();
+            renderContext.storageMap = dataManager.getStorageMap();
+            renderContext.rowsVisible = this.rowsVisible;
+            renderContext.guiLeft = this.guiLeft;
+            renderContext.guiTop = this.guiTop;
+
+            networkToolsRenderer.draw(currentScroll, rowsVisible,
+                relMouseX, relMouseY, createNetworkToolContext(), renderContext);
         }
 
         // Draw inline rename field overlay if editing
@@ -763,23 +758,26 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             inlineRenameEditor.drawRenameField(this.fontRenderer);
         }
 
-        // Update priority field positions based on visible storages
-        if (priorityFieldManager != null) {
-            for (RenderContext.VisibleStorageEntry entry : renderContext.visibleStorages) {
-                // Only show priority field if the storage type supports it
-                if (entry.storage.supportsPriority()) {
-                    PriorityFieldManager.PriorityField field = priorityFieldManager.getOrCreateField(
-                        entry.storage, guiLeft, guiTop);
-                    priorityFieldManager.updateFieldPosition(field, entry.y, guiLeft, guiTop);
-                }
-            }
+        // Update priority field positions from widget visible rows
+        if (priorityFieldManager != null && activeWidget != null) {
+            for (Map.Entry<IWidget, Object> entry : activeWidget.getWidgetDataMap().entrySet()) {
+                Object data = entry.getValue();
+                IWidget widget = entry.getKey();
 
-            // Update storage bus priority field positions for tabs 4 and 5
-            for (RenderContext.VisibleStorageBusEntry entry : renderContext.visibleStorageBuses) {
-                if (entry.storageBus.supportsPriority()) {
-                    PriorityFieldManager.StorageBusPriorityField field = priorityFieldManager.getOrCreateStorageBusField(
-                        entry.storageBus, guiLeft, guiTop);
-                    priorityFieldManager.updateStorageBusFieldPosition(field, entry.y, guiLeft, guiTop);
+                if (data instanceof StorageInfo) {
+                    StorageInfo storage = (StorageInfo) data;
+                    if (storage.supportsPriority()) {
+                        PriorityFieldManager.PriorityField field = priorityFieldManager.getOrCreateField(
+                            storage, guiLeft, guiTop);
+                        priorityFieldManager.updateFieldPosition(field, widget.getY(), guiLeft, guiTop);
+                    }
+                } else if (data instanceof StorageBusInfo) {
+                    StorageBusInfo bus = (StorageBusInfo) data;
+                    if (bus.supportsPriority()) {
+                        PriorityFieldManager.StorageBusPriorityField field = priorityFieldManager.getOrCreateStorageBusField(
+                            bus, guiLeft, guiTop);
+                        priorityFieldManager.updateStorageBusFieldPosition(field, widget.getY(), guiLeft, guiTop);
+                    }
                 }
             }
 
@@ -790,8 +788,6 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             priorityFieldManager.cleanupStaleFields(dataManager.getStorageMap());
             priorityFieldManager.cleanupStaleStorageBusFields(dataManager.getStorageBusMap());
         }
-
-        syncHoverStateFromContext(relMouseX, relMouseY);
 
         // Draw controls help - delegate to tab controller
         drawControlsHelpForCurrentTab();
@@ -825,7 +821,11 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         TabRenderingHandler.ControlsHelpContext ctx = new TabRenderingHandler.ControlsHelpContext(
             this.guiLeft, this.guiTop, this.ySize, this.height, currentTab, this.fontRenderer, style);
 
-        TabRenderingHandler.ControlsHelpResult result = TabRenderingHandler.drawControlsHelpWidget(ctx);
+        // Get help lines from the active tab widget
+        AbstractTabWidget activeWidget = getActiveTabWidget();
+        List<String> helpLines = activeWidget != null ? activeWidget.getHelpLines() : Collections.emptyList();
+
+        TabRenderingHandler.ControlsHelpResult result = TabRenderingHandler.drawControlsHelpWidget(ctx, helpLines);
         this.cachedControlsHelpLines = result.wrappedLines;
         this.cachedControlsHelpTab = result.cachedTab;
 
@@ -942,7 +942,6 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         int panelWidth = this.guiLeft - CONTROLS_HELP_RIGHT_MARGIN - CONTROLS_HELP_LEFT_MARGIN;
         if (panelWidth < 60) panelWidth = 60;
 
-        int panelRight = -CONTROLS_HELP_RIGHT_MARGIN;
         int panelLeft = -this.guiLeft + CONTROLS_HELP_LEFT_MARGIN;
 
         // Position relative to screen bottom
@@ -990,66 +989,6 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         }
 
         return areas;
-    }
-
-    protected void syncHoverStateFromContext(int relMouseX, int relMouseY) {
-        this.hoveredCell = renderContext.hoveredCell;
-        this.hoverType = renderContext.hoverType;
-        this.hoveredStorageLine = renderContext.hoveredStorageLine;
-        this.hoveredLineIndex = renderContext.hoveredLineIndex;
-        this.hoveredContentStack = renderContext.hoveredContentStack;
-        this.hoveredCellCell = renderContext.hoveredCellCell;
-        this.hoveredCellStorage = renderContext.hoveredCellStorage;
-        this.hoveredCellSlotIndex = renderContext.hoveredCellSlotIndex;
-        this.hoveredContentSlotIndex = renderContext.hoveredContentSlotIndex;
-        this.hoveredContentX = renderContext.hoveredContentX;
-        this.hoveredContentY = renderContext.hoveredContentY;
-        this.hoveredPartitionSlotIndex = renderContext.hoveredPartitionSlotIndex;
-        this.hoveredPartitionCell = renderContext.hoveredPartitionCell;
-
-        // Storage bus tab hover state
-        this.hoveredStorageBus = renderContext.hoveredStorageBus;
-        this.hoveredStorageBusPartitionSlot = renderContext.hoveredStorageBusPartitionSlot;
-        this.hoveredStorageBusContentSlot = renderContext.hoveredStorageBusContentSlot;
-        this.hoveredClearButtonStorageBus = renderContext.hoveredClearButtonStorageBus;
-        this.hoveredIOModeButtonStorageBus = renderContext.hoveredIOModeButtonStorageBus;
-        this.hoveredPartitionAllButtonStorageBus = renderContext.hoveredPartitionAllButtonStorageBus;
-
-        // Cell partition button hover state
-        this.hoveredPartitionAllButtonCell = renderContext.hoveredPartitionAllButtonCell;
-        this.hoveredClearPartitionButtonCell = renderContext.hoveredClearPartitionButtonCell;
-
-        this.partitionSlotTargets.clear();
-        for (RenderContext.PartitionSlotTarget target : renderContext.partitionSlotTargets) {
-            this.partitionSlotTargets.add(new PartitionSlotTarget(
-                target.cell, target.slotIndex, target.x, target.y, target.width, target.height));
-        }
-
-        // Storage bus partition slot targets for JEI
-        this.storageBusPartitionSlotTargets.clear();
-        for (RenderContext.StorageBusPartitionSlotTarget target : renderContext.storageBusPartitionSlotTargets) {
-            this.storageBusPartitionSlotTargets.add(new StorageBusPartitionSlotTarget(
-                target.storageBus, target.slotIndex, target.x, target.y, target.width, target.height));
-        }
-
-        // Temp cell partition slot targets for JEI
-        this.tempCellPartitionSlotTargets.clear();
-        for (RenderContext.TempCellPartitionSlotTarget target : renderContext.tempCellPartitionSlotTargets) {
-            this.tempCellPartitionSlotTargets.add(new JeiGhostHandler.TempCellPartitionSlotTarget(
-                target.cell, target.tempSlotIndex, target.partitionSlotIndex, target.x, target.y, target.width, target.height));
-        }
-
-        // Detect hovered upgrade icon (absolute mouse coords)
-        int absMouseX = relMouseX + this.guiLeft;
-        int absMouseY = relMouseY + this.guiTop;
-        this.hoveredUpgradeIcon = null;
-
-        for (RenderContext.UpgradeIconTarget target : renderContext.upgradeIconTargets) {
-            if (target.isMouseOver(absMouseX, absMouseY)) {
-                this.hoveredUpgradeIcon = target;
-                break;
-            }
-        }
     }
 
     @Override
@@ -1116,33 +1055,26 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             }
         };
 
-        this.hoveredTab = TabRenderingHandler.drawTabs(ctx, iconProvider).hoveredTab;
+        this.hoveredTab = TabRenderingHandler.drawTabs(ctx, iconProvider, tabWidgets.length).hoveredTab;
     }
 
     protected ItemStack getTabIcon(int tab) {
-        switch (tab) {
-            case GuiConstants.TAB_TERMINAL:
-                return tabIconTerminal;
-            case GuiConstants.TAB_INVENTORY:
-                return tabIconInventory;
-            case GuiConstants.TAB_PARTITION:
-                return tabIconPartition;
-            case GuiConstants.TAB_TEMP_AREA:
-                return tabIconTempArea;
-            case GuiConstants.TAB_STORAGE_BUS_INVENTORY:
-            case GuiConstants.TAB_STORAGE_BUS_PARTITION:
-                // These use composite icons, but return storage bus as fallback
-                return tabIconStorageBus;
-            case GuiConstants.TAB_NETWORK_TOOLS:
-                return tabIconNetworkTool;
-            default:
-                return ItemStack.EMPTY;
+        // Delegate to tab widget if available
+        if (tab >= 0 && tab < tabWidgets.length && tabWidgets[tab] != null) {
+            return tabWidgets[tab].getTabIcon();
         }
+
+        // Fallback for tabs without widgets (Network Tools)
+        if (tab == GuiConstants.TAB_NETWORK_TOOLS) return tabIconNetworkTool;
+
+        return ItemStack.EMPTY;
     }
 
     @Override
     protected void handleMouseClick(Slot slot, int slotIdx, int mouseButton, ClickType clickType) {
-        // Intercept shift-clicks on upgrade items in player inventory to insert into cells or storage buses
+        // Intercept shift-clicks on upgrade items in player inventory to insert into
+        // the first visible cell/bus. This is a cross-cutting concern at the container slot level,
+        // not handled by the tab widget's content area click path (which handles held-item clicks).
         if (clickType == ClickType.QUICK_MOVE && slot != null && slot.getHasStack()) {
             ItemStack slotStack = slot.getStack();
 
@@ -1235,7 +1167,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         // Handle inline rename editor - click outside saves and closes
         if (this.inlineRenameEditor != null && this.inlineRenameEditor.isEditing()) {
             Renameable editingTarget = this.inlineRenameEditor.getEditingTarget();
-            Renameable hoveredTarget = getHoveredRenameable(mouseX - guiLeft);
+            Renameable hoveredTarget = getHoveredRenameable(mouseX - guiLeft, mouseY - guiTop);
             boolean isClickOnEditedTarget = hoveredTarget != null
                 && editingTarget != null
                 && hoveredTarget.getRenameTargetType() == editingTarget.getRenameTargetType()
@@ -1302,10 +1234,8 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
         if (priorityFieldManager != null && priorityFieldManager.handleClick(mouseX, mouseY, mouseButton)) return;
 
-        // Handle upgrade icon clicks (extraction)
-        if (mouseButton == 0 && handleUpgradeIconClick()) return;
-
-        if (mouseButton == 0 && handleUpgradeClick(mouseX, mouseY)) return;
+        // Handle upgrade insertion (player holding upgrade + left-click on cell/bus)
+        if (mouseButton == 0 && handleWidgetUpgradeClick(mouseX, mouseY)) return;
 
         if (inventoryPopup != null) {
             if (inventoryPopup.handleClick(mouseX, mouseY, mouseButton)) return;
@@ -1329,7 +1259,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         if (mouseButton == 1 && !isInSubnetOverviewMode) {
             int relMouseX = mouseX - guiLeft;
             int relMouseY = mouseY - guiTop;
-            Renameable target = getHoveredRenameable(relMouseX);
+            Renameable target = getHoveredRenameable(relMouseX, relMouseY);
 
             if (target != null && target.isRenameable()
                     && relMouseY >= GuiConstants.CONTENT_START_Y
@@ -1346,203 +1276,114 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             }
         }
 
-        if (clickHandler.handleTabClick(mouseX, mouseY, guiLeft, guiTop, currentTab, createClickCallback())) return;
+        // Handle tab header clicks (inline from old TerminalClickHandler)
+        if (handleTabHeaderClick(mouseX, mouseY)) return;
 
         super.mouseClicked(mouseX, mouseY, mouseButton);
 
-        if (currentTab == GuiConstants.TAB_TERMINAL) {
-            clickHandler.handleTerminalTabClick(mouseX, mouseY, mouseButton, guiLeft, guiTop,
-                rowsVisible, getScrollBar().getCurrentScroll(), dataManager.getLines(),
-                dataManager.getStorageMap(), dataManager.getTerminalDimension(), createClickCallback());
-        } else if (currentTab == GuiConstants.TAB_INVENTORY || currentTab == GuiConstants.TAB_PARTITION) {
-            if (handleCellPartitionButtonClick(mouseButton)) return;
+        // Delegate content area clicks to the active tab widget
+        int relMouseX = mouseX - guiLeft;
+        int relMouseY = mouseY - guiTop;
+        AbstractTabWidget activeWidget = getActiveTabWidget();
 
-            int relMouseX = mouseX - guiLeft;
-            clickHandler.handleCellTabClick(currentTab, relMouseX, hoveredCellCell, hoveredContentSlotIndex,
-                hoveredPartitionCell, hoveredPartitionSlotIndex, hoveredCellStorage, hoveredCellSlotIndex,
-                hoveredStorageLine, hoveredLineIndex, dataManager.getStorageMap(), dataManager.getTerminalDimension(), createClickCallback());
-        } else if (currentTab == GuiConstants.TAB_TEMP_AREA) {
-            handleTempAreaTabClick(mouseButton);
-        } else if (currentTab == GuiConstants.TAB_STORAGE_BUS_INVENTORY || currentTab == GuiConstants.TAB_STORAGE_BUS_PARTITION) {
-            handleStorageBusTabClick(mouseX, mouseY, mouseButton);
+        if (activeWidget != null) {
+            activeWidget.handleClick(relMouseX, relMouseY, mouseButton);
         } else if (currentTab == GuiConstants.TAB_NETWORK_TOOLS) {
             handleNetworkToolsTabClick(mouseButton);
         }
     }
 
     /**
-     * Handle clicks on the Temp Area tab.
+     * Handle clicks on tab headers at the top of the GUI.
+     * Replaces TerminalClickHandler.handleTabClick().
      */
-    protected void handleTempAreaTabClick(int mouseButton) {
-        if (mouseButton != 0) return;
+    protected boolean handleTabHeaderClick(int mouseX, int mouseY) {
+        int tabY = guiTop + GuiConstants.TAB_Y_OFFSET;
 
-        RenderContext ctx = getRenderContext();
+        for (int i = 0; i <= GuiConstants.TAB_NETWORK_TOOLS; i++) {
+            int tabX = guiLeft + 4 + (i * (GuiConstants.TAB_WIDTH + 2));
 
-        // Handle partition-all button click (green button)
-        if (ctx.hoveredTempCellPartitionAllIndex >= 0 && ctx.hoveredPartitionAllButtonCell != null) {
-            CellTerminalNetwork.INSTANCE.sendToServer(new PacketTempCellPartitionAction(
-                ctx.hoveredTempCellPartitionAllIndex,
-                PacketTempCellPartitionAction.Action.SET_ALL_FROM_CONTENTS));
+            if (mouseX >= tabX && mouseX < tabX + GuiConstants.TAB_WIDTH
+                    && mouseY >= tabY && mouseY < tabY + GuiConstants.TAB_HEIGHT) {
 
-            return;
-        }
-
-        // Handle clear partition button click (red button)
-        if (ctx.hoveredTempCellClearPartitionIndex >= 0 && ctx.hoveredClearPartitionButtonCell != null) {
-            CellTerminalNetwork.INSTANCE.sendToServer(new PacketTempCellPartitionAction(
-                ctx.hoveredTempCellClearPartitionIndex,
-                PacketTempCellPartitionAction.Action.CLEAR_ALL));
-
-            return;
-        }
-
-        // Handle clicking on a partition slot (add/remove item from partition)
-        if (ctx.hoveredPartitionSlotIndex >= 0 && ctx.hoveredPartitionCell != null) {
-            // Find the temp slot index for this cell
-            int tempSlotIndex = findTempSlotIndexForCell(ctx.hoveredPartitionCell);
-            if (tempSlotIndex >= 0) {
-                ItemStack heldStack = mc.player.inventory.getItemStack();
-                List<ItemStack> partitions = ctx.hoveredPartitionCell.getPartition();
-                boolean slotOccupied = ctx.hoveredPartitionSlotIndex < partitions.size()
-                    && !partitions.get(ctx.hoveredPartitionSlotIndex).isEmpty();
-
-                if (!heldStack.isEmpty()) {
-                    // Add item to partition slot
-                    CellTerminalNetwork.INSTANCE.sendToServer(new PacketTempCellPartitionAction(
-                        tempSlotIndex,
-                        PacketTempCellPartitionAction.Action.ADD_ITEM,
-                        ctx.hoveredPartitionSlotIndex,
-                        heldStack));
-
-                    return;
+                // Check if the tab is enabled in server config
+                if (CellTerminalServerConfig.isInitialized() && !CellTerminalServerConfig.getInstance().isTabEnabled(i)) {
+                    return true;  // Consume click but don't switch to disabled tab
                 }
 
-                if (slotOccupied) {
-                    // Remove item from partition slot
-                    CellTerminalNetwork.INSTANCE.sendToServer(new PacketTempCellPartitionAction(
-                        tempSlotIndex,
-                        PacketTempCellPartitionAction.Action.REMOVE_ITEM,
-                        ctx.hoveredPartitionSlotIndex));
-
-                    return;
-                }
-            }
-        }
-
-        // Handle clicking on a content slot (toggle partition for that item)
-        if (ctx.hoveredContentSlotIndex >= 0 && ctx.hoveredCellCell != null) {
-            int tempSlotIndex = findTempSlotIndexForCell(ctx.hoveredCellCell);
-            if (tempSlotIndex >= 0) {
-                List<ItemStack> contents = ctx.hoveredCellCell.getContents();
-                if (ctx.hoveredContentSlotIndex < contents.size()
-                        && !contents.get(ctx.hoveredContentSlotIndex).isEmpty()) {
-                    // Toggle partition for this content item
-                    CellTerminalNetwork.INSTANCE.sendToServer(new PacketTempCellPartitionAction(
-                        tempSlotIndex,
-                        PacketTempCellPartitionAction.Action.TOGGLE_ITEM,
-                        contents.get(ctx.hoveredContentSlotIndex)));
-
-                    return;
-                }
-            }
-        }
-
-        // Handle Send button click
-        if (ctx.hoveredTempCellSendButton != null) {
-            CellTerminalNetwork.INSTANCE.sendToServer(new PacketTempCellAction(
-                PacketTempCellAction.Action.SEND, ctx.hoveredTempCellSendButton.getTempSlotIndex()));
-
-            return;
-        }
-
-        // Handle clicking on a temp cell slot (for insert/extract)
-        // Only consumes the click if an actual action was performed
-        if (ctx.hoveredTempCellSlot != null) {
-            ItemStack heldStack = mc.player.inventory.getItemStack();
-
-            if (ctx.hoveredTempCellSlot.isEmpty() && !heldStack.isEmpty()) {
-                // Empty slot clicked with item in hand: insert from cursor
-                // Don't send the itemStack - let server use player.inventory.getItemStack()
-                CellTerminalNetwork.INSTANCE.sendToServer(new PacketTempCellAction(
-                    PacketTempCellAction.Action.INSERT, ctx.hoveredTempCellSlot.getTempSlotIndex()));
-
-                return;
-            }
-
-            if (!ctx.hoveredTempCellSlot.isEmpty() && heldStack.isEmpty()) {
-                // Occupied slot clicked with empty hand: extract
-                // Shift-click: send directly to inventory
-                boolean toInventory = isShiftKeyDown();
-                CellTerminalNetwork.INSTANCE.sendToServer(new PacketTempCellAction(
-                    PacketTempCellAction.Action.EXTRACT, ctx.hoveredTempCellSlot.getTempSlotIndex(), toInventory));
-
-                return;
-            }
-
-            // No action taken on cell slot - fall through to header selection
-        }
-
-        // Handle clicking on a temp cell header (for selection)
-        // This ONLY triggers when clicking on the actual header row, not on content/partition rows
-        // hoveredTempCellHeader is set only for direct TempCellInfo hover
-        if (ctx.hoveredTempCellHeader != null && ctx.hoveredTempCellHeader.hasCell()) {
-            int slotIndex = ctx.hoveredTempCellHeader.getTempSlotIndex();
-
-            if (selectedTempCellSlots.contains(slotIndex)) {
-                selectedTempCellSlots.remove(slotIndex);
-            } else {
-                // Validate that new selection is same type as existing selection
-                if (!selectedTempCellSlots.isEmpty()) {
-                    TempCellInfo existingTempCell = findExistingSelectedTempCell();
-
-                    if (existingTempCell != null && existingTempCell.getCellInfo() != null) {
-                        CellInfo existingCell = existingTempCell.getCellInfo();
-                        CellInfo newCell = ctx.hoveredTempCellHeader.getCellInfo();
-
-                        boolean sameType = (newCell.isFluid() == existingCell.isFluid())
-                            && (newCell.isEssentia() == existingCell.isEssentia());
-
-                        if (!sameType) {
-                            MessageHelper.error("gui.cellterminal.temp_area.mixed_cell_selection");
-
-                            return;
-                        }
-                    }
+                if (currentTab != i) {
+                    onTabChanged(i);
+                    CellTerminalClientConfig.getInstance().setSelectedTab(i);
                 }
 
-                selectedTempCellSlots.add(slotIndex);
+                return true;
             }
         }
+
+        return false;
     }
 
     /**
-     * Find an existing selected temp cell for type validation.
+     * Handle tab change (shared logic extracted from old TerminalClickHandler.Callback).
      */
-    protected TempCellInfo findExistingSelectedTempCell() {
-        for (Integer slotIndex : selectedTempCellSlots) {
-            for (Object line : dataManager.getTempAreaLines()) {
-                if (line instanceof TempCellInfo) {
-                    TempCellInfo tempCell = (TempCellInfo) line;
-                    if (tempCell.getTempSlotIndex() == slotIndex && tempCell.hasCell()) return tempCell;
-                }
-            }
+    protected void onTabChanged(int tab) {
+        // Exit subnet overview mode when switching tabs
+        if (isInSubnetOverviewMode) exitSubnetOverviewMode();
+
+        // Cancel any active inline rename when switching tabs
+        if (inlineRenameEditor != null && inlineRenameEditor.isEditing()) {
+            inlineRenameEditor.cancelEditing();
         }
 
-        return null;
+        // Save scroll position for current tab before switching
+        TabStateManager.TabType oldTabType = TabStateManager.TabType.fromIndex(currentTab);
+        TabStateManager.getInstance().setScrollPosition(oldTabType, getScrollBar().getCurrentScroll());
+
+        currentTab = tab;
+        getScrollBar().setRange(0, 0, 1);
+        updateScrollbarForCurrentTab();
+        updateSearchModeButtonVisibility();
+        initFilterButtons();  // Reinitialize filter buttons for new tab
+        applyFiltersToDataManager();
+        onSearchTextChanged();  // Reapply filter with tab-specific mode
+
+        // Restore scroll position for new tab
+        TabStateManager.TabType newTabType = TabStateManager.TabType.fromIndex(tab);
+        int savedScroll = TabStateManager.getInstance().getScrollPosition(newTabType);
+        scrollToLine(savedScroll);
+
+        // Notify server of tab change for polling optimization
+        CellTerminalNetwork.INSTANCE.sendToServer(new PacketTabChange(tab));
     }
 
     /**
-     * Find the temp slot index for a given cell by searching through temp area lines.
+     * Handle upgrade insertion when the player is holding an upgrade item and left-clicks.
+     * Delegates to the active tab widget for tab-specific logic.
      */
-    protected int findTempSlotIndexForCell(CellInfo cell) {
-        for (Object line : dataManager.getTempAreaLines()) {
-            if (line instanceof TempCellInfo) {
-                TempCellInfo tempCell = (TempCellInfo) line;
-                if (tempCell.getCellInfo() == cell) return tempCell.getTempSlotIndex();
-            }
+    protected boolean handleWidgetUpgradeClick(int mouseX, int mouseY) {
+        ItemStack heldStack = mc.player.inventory.getItemStack();
+        if (heldStack.isEmpty()) return false;
+        if (!(heldStack.getItem() instanceof IUpgradeModule)) return false;
+
+        // Check if upgrade insertion is enabled
+        if (CellTerminalServerConfig.isInitialized()
+                && !CellTerminalServerConfig.getInstance().isUpgradeInsertEnabled()) {
+            MessageHelper.error("cellterminal.error.upgrade_insert_disabled");
+
+            return true;  // Consume click to prevent other handlers
         }
 
-        return -1;
+        AbstractTabWidget activeWidget = getActiveTabWidget();
+        if (activeWidget == null) return false;
+
+        boolean isShiftClick = Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT);
+        if (isShiftClick) return activeWidget.handleShiftUpgradeClick(heldStack);
+
+        int relMouseX = mouseX - guiLeft;
+        int relMouseY = mouseY - guiTop;
+        Object hoveredData = activeWidget.getDataForHoveredRow(relMouseX, relMouseY);
+
+        return activeWidget.handleUpgradeClick(hoveredData, heldStack, false);
     }
 
     /**
@@ -1558,112 +1399,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         }
     }
 
-    /**
-     * Handle partition-all and clear-partition button clicks in Tabs 2 and 3.
-     */
-    protected boolean handleCellPartitionButtonClick(int mouseButton) {
-        if (mouseButton != 0) return false;
-
-        if (currentTab == GuiConstants.TAB_INVENTORY && hoveredPartitionAllButtonCell != null) {
-            CellTerminalNetwork.INSTANCE.sendToServer(new PacketPartitionAction(
-                hoveredPartitionAllButtonCell.getParentStorageId(), hoveredPartitionAllButtonCell.getSlot(),
-                PacketPartitionAction.Action.SET_ALL_FROM_CONTENTS));
-            return true;
-        }
-
-        if (currentTab == GuiConstants.TAB_PARTITION && hoveredClearPartitionButtonCell != null) {
-            CellTerminalNetwork.INSTANCE.sendToServer(new PacketPartitionAction(
-                hoveredClearPartitionButtonCell.getParentStorageId(), hoveredClearPartitionButtonCell.getSlot(),
-                PacketPartitionAction.Action.CLEAR_ALL));
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Handle click events on storage bus tabs.
-     */
-    protected void handleStorageBusTabClick(int mouseX, int mouseY, int mouseButton) {
-        if (mouseButton == 0 && handleStorageBusUpgradeClick()) return;
-
-        int relMouseX = mouseX - guiLeft;
-        StorageBusClickHandler.ClickContext ctx = StorageBusClickHandler.ClickContext.from(
-            currentTab, relMouseX, hoveredStorageBus, hoveredStorageBusPartitionSlot, hoveredStorageBusContentSlot,
-            hoveredClearButtonStorageBus, hoveredIOModeButtonStorageBus, hoveredPartitionAllButtonStorageBus,
-            hoveredContentStack, selectedStorageBusIds, dataManager.getStorageBusMap());
-
-        if (storageBusClickHandler.handleClick(ctx, mouseButton)) {
-            rebuildAndUpdateScrollbar();
-        }
-    }
-
-    protected TerminalClickHandler.Callback createClickCallback() {
-        return new TerminalClickHandler.Callback() {
-            @Override
-            public void onTabChanged(int tab) {
-                // Exit subnet overview mode when switching tabs
-                if (isInSubnetOverviewMode) exitSubnetOverviewMode();
-
-                // Cancel any active inline rename when switching tabs
-                if (inlineRenameEditor != null && inlineRenameEditor.isEditing()) {
-                    inlineRenameEditor.cancelEditing();
-                }
-
-                // Save scroll position for current tab before switching
-                TabStateManager.TabType oldTabType = TabStateManager.TabType.fromIndex(currentTab);
-                TabStateManager.getInstance().setScrollPosition(oldTabType, getScrollBar().getCurrentScroll());
-
-                currentTab = tab;
-                getScrollBar().setRange(0, 0, 1);
-                updateScrollbarForCurrentTab();
-                updateSearchModeButtonVisibility();
-                initFilterButtons();  // Reinitialize filter buttons for new tab
-                applyFiltersToDataManager();
-                onSearchTextChanged();  // Reapply filter with tab-specific mode
-
-                // Restore scroll position for new tab
-                TabStateManager.TabType newTabType = TabStateManager.TabType.fromIndex(tab);
-                int savedScroll = TabStateManager.getInstance().getScrollPosition(newTabType);
-                scrollToLine(savedScroll);
-
-                // Notify server of tab change for polling optimization
-                CellTerminalNetwork.INSTANCE.sendToServer(new PacketTabChange(tab));
-            }
-
-            @Override
-            public void onStorageToggle(StorageInfo storage) {
-                rebuildAndUpdateScrollbar();
-            }
-
-            @Override
-            public void openInventoryPopup(CellInfo cell, int mouseX, int mouseY) {
-                inventoryPopup = new PopupCellInventory(GuiCellTerminalBase.this, cell, mouseX, mouseY);
-            }
-
-            @Override
-            public void openPartitionPopup(CellInfo cell, int mouseX, int mouseY) {
-                partitionPopup = new PopupCellPartition(GuiCellTerminalBase.this, cell, mouseX, mouseY);
-            }
-
-            @Override
-            public void onTogglePartitionItem(CellInfo cell, ItemStack stack) {
-                GuiCellTerminalBase.this.onTogglePartitionItem(cell, stack);
-            }
-
-            @Override
-            public void onAddPartitionItem(CellInfo cell, int slotIndex, ItemStack stack) {
-                GuiCellTerminalBase.this.onAddPartitionItem(cell, slotIndex, stack);
-            }
-
-            @Override
-            public void onRemovePartitionItem(CellInfo cell, int slotIndex) {
-                GuiCellTerminalBase.this.onRemovePartitionItem(cell, slotIndex);
-            }
-        };
-    }
-
-    protected void rebuildAndUpdateScrollbar() {
+    public void rebuildAndUpdateScrollbar() {
         dataManager.rebuildLines();
         updateScrollbarForCurrentTab();
     }
@@ -1821,153 +1557,44 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     }
 
     /**
-     * Delegate key press to the active tab controller.
+     * Delegate key press to the active tab widget.
      * @return true if the key was handled
      */
     protected boolean handleTabKeyTyped(int keyCode) {
-        ITabController controller = TabControllerRegistry.getController(currentTab);
-        if (controller == null) return false;
+        AbstractTabWidget activeWidget = getActiveTabWidget();
+        if (activeWidget == null) return false;
 
-        TabContext tabContext = createTabContext();
-
-        // Special handling for Partition tab (needs scrollToLine callback)
-        if (currentTab == GuiConstants.TAB_PARTITION) {
-            return ((PartitionTabController) controller).handleKeyTyped(keyCode, tabContext);
-        }
-
-        // Special handling for Temp Area tab (uses ADD_TO_STORAGE_BUS keybind with selection like storage buses)
-        if (currentTab == GuiConstants.TAB_TEMP_AREA) {
-            if (!KeyBindings.ADD_TO_STORAGE_BUS.isActiveAndMatches(keyCode)) return false;
-
-            return TempAreaTabController.handleAddToTempCellKeybind(
-                selectedTempCellSlots, getSlotUnderMouse(), dataManager.getTempAreaLines());
-        }
-
-        // Special handling for Storage Bus Partition tab (needs access to selected bus IDs)
-        if (currentTab == GuiConstants.TAB_STORAGE_BUS_PARTITION) {
-            if (!KeyBindings.ADD_TO_STORAGE_BUS.isActiveAndMatches(keyCode)) return false;
-
-            return StorageBusPartitionTabController.handleAddToStorageBusKeybind(
-                selectedStorageBusIds, getSlotUnderMouse(), dataManager.getStorageBusMap());
-        }
-
-        return controller.handleKeyTyped(keyCode, tabContext);
-    }
-
-    /**
-     * Create a TabContext for the current GUI state.
-     */
-    protected TabContext createTabContext() {
-        return new TabContext(dataManager, new TabContext.TabContextCallback() {
-            @Override public void onStorageToggle(StorageInfo storage) {
-                rebuildAndUpdateScrollbar();
-            }
-
-            @Override public void openInventoryPopup(CellInfo cell, int mouseX, int mouseY) {
-                inventoryPopup = new PopupCellInventory(GuiCellTerminalBase.this, cell, mouseX, mouseY);
-            }
-
-            @Override public void openPartitionPopup(CellInfo cell, int mouseX, int mouseY) {
-                partitionPopup = new PopupCellPartition(GuiCellTerminalBase.this, cell, mouseX, mouseY);
-            }
-
-            @Override public void onTogglePartitionItem(CellInfo cell, ItemStack stack) {
-                GuiCellTerminalBase.this.onTogglePartitionItem(cell, stack);
-            }
-
-            @Override public void onAddPartitionItem(CellInfo cell, int slotIndex, ItemStack stack) {
-                GuiCellTerminalBase.this.onAddPartitionItem(cell, slotIndex, stack);
-            }
-
-            @Override public void onRemovePartitionItem(CellInfo cell, int slotIndex) {
-                GuiCellTerminalBase.this.onRemovePartitionItem(cell, slotIndex);
-            }
-
-            @Override public void scrollToLine(int lineIndex) {
-                GuiCellTerminalBase.this.scrollToLine(lineIndex);
-            }
-        }, dataManager.getTerminalDimension());
-    }
-
-    /**
-     * Handle upgrade icon click to extract upgrades from cells or storage buses.
-     * @return true if an upgrade icon click was handled
-     */
-    protected boolean handleUpgradeIconClick() {
-        if (hoveredUpgradeIcon == null) return false;
-
-        // Check if upgrade extraction is enabled
-        if (CellTerminalServerConfig.isInitialized()
-                && !CellTerminalServerConfig.getInstance().isUpgradeExtractEnabled()) {
-            MessageHelper.error("cellterminal.error.upgrade_extract_disabled");
-
-            return true;  // Consume click to prevent other handlers
-        }
-
-        boolean toInventory = Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT);
-
-        if (hoveredUpgradeIcon.cell != null) {
-            CellTerminalNetwork.INSTANCE.sendToServer(PacketExtractUpgrade.forCell(
-                hoveredUpgradeIcon.cell.getParentStorageId(),
-                hoveredUpgradeIcon.cell.getSlot(),
-                hoveredUpgradeIcon.upgradeIndex,
-                toInventory
-            ));
-        } else if (hoveredUpgradeIcon.storageBus != null) {
-            CellTerminalNetwork.INSTANCE.sendToServer(PacketExtractUpgrade.forStorageBus(
-                hoveredUpgradeIcon.storageBus.getId(),
-                hoveredUpgradeIcon.upgradeIndex,
-                toInventory
-            ));
-        } else {
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * Handle upgrade click when player is holding an upgrade item.
-     */
-    protected boolean handleUpgradeClick(int mouseX, int mouseY) {
-        UpgradeClickHandler.UpgradeClickContext ctx = new UpgradeClickHandler.UpgradeClickContext(
-            currentTab, hoveredCellCell, hoveredCellStorage, hoveredCellSlotIndex,
-            hoveredStorageLine, hoveredStorageBus, dataManager);
-
-        return UpgradeClickHandler.handleUpgradeClick(ctx);
-    }
-
-    /**
-     * Handle upgrade click on storage bus headers when player is holding an upgrade item.
-     * @return true if an upgrade click was handled
-     */
-    protected boolean handleStorageBusUpgradeClick() {
-        return UpgradeClickHandler.handleStorageBusUpgradeClick(hoveredStorageBus);
+        return activeWidget.handleTabKeyTyped(keyCode);
     }
 
     /**
      * Find the first visible cell that can accept the given upgrade.
      * Respects current tab's filtered and sorted line list.
-     * Checks both compatibility (upgrade type supported by cell) and available space.
      * @param upgradeStack The upgrade item to check compatibility with
      * @return The first CellInfo that can accept the upgrade, or null if none found
      */
     protected CellInfo findFirstVisibleCellThatCanAcceptUpgrade(ItemStack upgradeStack) {
-        UpgradeClickHandler.UpgradeClickContext ctx = new UpgradeClickHandler.UpgradeClickContext(
-            currentTab, hoveredCellCell, hoveredCellStorage, hoveredCellSlotIndex,
-            hoveredStorageLine, hoveredStorageBus, dataManager);
+        List<Object> lines = getWidgetLines();
+        Set<Long> checkedCellIds = new HashSet<>();
 
-        return UpgradeClickHandler.findFirstVisibleCellThatCanAcceptUpgrade(ctx, upgradeStack);
-    }
+        for (Object line : lines) {
+            CellInfo cell = null;
 
-    /**
-     * Find the first cell in a specific storage that can accept the given upgrade.
-     * @param storage The storage to search in
-     * @param upgradeStack The upgrade item to check compatibility with
-     * @return The first CellInfo that can accept the upgrade, or null if none found
-     */
-    protected CellInfo findFirstCellInStorageThatCanAcceptUpgrade(StorageInfo storage, ItemStack upgradeStack) {
-        return UpgradeClickHandler.findFirstCellInStorageThatCanAcceptUpgrade(storage, upgradeStack);
+            if (line instanceof CellInfo) {
+                cell = (CellInfo) line;
+            } else if (line instanceof CellContentRow) {
+                cell = ((CellContentRow) line).getCell();
+            }
+
+            if (cell == null) continue;
+
+            long cellId = cell.getParentStorageId() * 100 + cell.getSlot();
+            if (!checkedCellIds.add(cellId)) continue;
+
+            if (cell.canAcceptUpgrade(upgradeStack)) return cell;
+        }
+
+        return null;
     }
 
     /**
@@ -1977,17 +1604,31 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
      * @return The first StorageBusInfo that can accept the upgrade, or null if none found
      */
     protected StorageBusInfo findFirstVisibleStorageBusThatCanAcceptUpgrade(ItemStack upgradeStack) {
-        UpgradeClickHandler.UpgradeClickContext ctx = new UpgradeClickHandler.UpgradeClickContext(
-            currentTab, hoveredCellCell, hoveredCellStorage, hoveredCellSlotIndex,
-            hoveredStorageLine, hoveredStorageBus, dataManager);
+        List<Object> lines = getWidgetLines();
+        Set<Long> checkedBusIds = new HashSet<>();
 
-        return UpgradeClickHandler.findFirstVisibleStorageBusThatCanAcceptUpgrade(ctx, upgradeStack);
+        for (Object line : lines) {
+            StorageBusInfo bus = null;
+
+            if (line instanceof StorageBusInfo) {
+                bus = (StorageBusInfo) line;
+            } else if (line instanceof StorageBusContentRow) {
+                bus = ((StorageBusContentRow) line).getStorageBus();
+            }
+
+            if (bus == null) continue;
+            if (!checkedBusIds.add(bus.getId())) continue;
+
+            if (bus.canAcceptUpgrade(upgradeStack)) return bus;
+        }
+
+        return null;
     }
 
     /**
      * Scroll to a specific line index.
      */
-    protected void scrollToLine(int lineIndex) {
+    public void scrollToLine(int lineIndex) {
         int currentScroll = this.getScrollBar().getCurrentScroll();
 
         // wheel() clamps delta to -1/+1, so we need to call it multiple times
@@ -2287,7 +1928,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     /**
      * Send a rename packet for any Renameable target (storage, cell, storage bus).
      */
-    protected void sendRenamePacket(Renameable target, String newName) {
+    public void sendRenamePacket(Renameable target, String newName) {
         if (target == null) return;
 
         switch (target.getRenameTargetType()) {
@@ -2312,59 +1953,35 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     }
 
     /**
-     * Get the currently hovered renameable target based on the current tab and hover state.
-     * Returns null if nothing renameable is hovered, or if the click position overlaps buttons.
-     *
-     * @param relMouseX Mouse X relative to GUI left edge
-     * @return The hovered Renameable, or null
+     * Get the currently hovered renameable target, delegating to the active tab widget.
      */
-    protected Renameable getHoveredRenameable(int relMouseX) {
-        // Storage header is renameable on tabs 0-2 (exclude expand button area at x >= 165)
-        if (hoveredStorageLine != null && relMouseX < GuiConstants.BUTTON_PARTITION_X) return hoveredStorageLine;
+    protected Renameable getHoveredRenameable(int relMouseX, int relMouseY) {
+        AbstractTabWidget activeWidget = getActiveTabWidget();
+        if (activeWidget == null) return null;
 
-        // On terminal tab, cells show name text — rename if not in button area (E/I/P at x >= 135)
-        if (currentTab == GuiConstants.TAB_TERMINAL && hoveredCellCell != null && relMouseX < GuiConstants.BUTTON_EJECT_X) return hoveredCellCell;
-
-        // On inventory/partition tabs, cells are icon+content rows — rename if not on content/partition slots
-        if ((currentTab == GuiConstants.TAB_INVENTORY || currentTab == GuiConstants.TAB_PARTITION)
-                && hoveredCellCell != null
-                && hoveredContentSlotIndex < 0
-                && hoveredPartitionSlotIndex < 0) {
-            return hoveredCellCell;
-        }
-
-        // Storage bus is renameable on tabs 3-4 (exclude IO mode button at x >= 115)
-        if (hoveredStorageBus != null && relMouseX < GuiConstants.BUTTON_IO_MODE_X) return hoveredStorageBus;
-
-        return null;
+        return activeWidget.getHoveredRenameable(relMouseX, relMouseY);
     }
 
     /**
-     * Get the X position for the inline rename field based on the target type.
-     * The field has 2px internal padding, so we offset by -2 to align the text
-     * with the original name position.
-     * Cells are further indented (on a tree branch), while storages and buses start at the icon + 20.
+     * Get the X position for the inline rename field, delegating to the active tab widget.
      */
     protected int getRenameFieldX(Renameable target) {
-        // Subtract 2 so the text inside the field (at x + 2) aligns with where the name was drawn
+        AbstractTabWidget activeWidget = getActiveTabWidget();
+        if (activeWidget != null) return activeWidget.getRenameFieldX(target);
+
+        // Fallback for non-widget tabs
         if (target instanceof CellInfo) return GuiConstants.CELL_INDENT + 18 - 2;
 
-        // StorageInfo and StorageBusInfo: name drawn at GUI_INDENT + 20
         return GuiConstants.GUI_INDENT + 20 - 2;
     }
 
     /**
-     * Get the right edge for the inline rename field based on the target type and current tab.
-     * Each tab has different buttons at the right side, so the field must stop before them.
+     * Get the right edge for the inline rename field, delegating to the active tab widget.
      */
     protected int getRenameFieldRightEdge(Renameable target) {
-        // Storage buses (tabs 3-4) have IO mode button at BUTTON_IO_MODE_X (115)
-        if (target instanceof StorageBusInfo) return GuiConstants.BUTTON_IO_MODE_X - 4;
+        AbstractTabWidget activeWidget = getActiveTabWidget();
+        if (activeWidget != null) return activeWidget.getRenameFieldRightEdge(target);
 
-        // Cells on terminal tab (tab 0) have E/I/P buttons starting at BUTTON_EJECT_X (135)
-        if (target instanceof CellInfo && currentTab == GuiConstants.TAB_TERMINAL) return GuiConstants.BUTTON_EJECT_X - 4;
-
-        // Storage headers and cells on tabs 1-2 have priority field at CONTENT_RIGHT_EDGE - FIELD_WIDTH - RIGHT_MARGIN
         return GuiConstants.CONTENT_RIGHT_EDGE - PriorityFieldManager.FIELD_WIDTH - PriorityFieldManager.RIGHT_MARGIN - 4;
     }
 
@@ -2378,10 +1995,8 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     }
 
     protected void updateScrollbarForCurrentTab() {
-        ITabController controller = TabControllerRegistry.getController(currentTab);
-        int lineCount = (controller != null)
-            ? controller.getLineCount(createTabContext())
-            : dataManager.getLineCount(currentTab);
+        List<Object> lines = getWidgetLines();
+        int lineCount = lines.size();
         this.getScrollBar().setRange(0, Math.max(0, lineCount - this.rowsVisible), 1);
     }
 
@@ -2445,11 +2060,12 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
     @Override
     public List<IGhostIngredientHandler.Target<?>> getPhantomTargets(Object ingredient) {
-        return JeiGhostHandler.getPhantomTargets(currentTab, partitionPopup, partitionSlotTargets,
-            storageBusPartitionSlotTargets, tempCellPartitionSlotTargets,
-            (cell, slotIndex, stack) -> onAddPartitionItem(cell, slotIndex, stack),
-            (storageBus, slotIndex, stack) -> onAddStorageBusPartitionItem(storageBus, slotIndex, stack),
-            (tempSlotIndex, slotIndex, stack) -> onAddTempCellPartitionItem(tempSlotIndex, slotIndex, stack));
+        if (partitionPopup != null) return partitionPopup.getGhostTargets();
+
+        AbstractTabWidget activeWidget = getActiveTabWidget();
+        if (activeWidget == null) return Collections.emptyList();
+
+        return activeWidget.getPhantomTargets(ingredient);
     }
 
     // Accessors for popups and renderers
@@ -2514,5 +2130,99 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
                 networkToolModal = null;
             },
             () -> networkToolModal = null);
+    }
+
+    // ---- GuiContext interface implementation ----
+
+    @Override
+    public TerminalDataManager getDataManager() {
+        return dataManager;
+    }
+
+    @Override
+    public ItemStack getHeldStack() {
+        return mc.player.inventory.getItemStack();
+    }
+
+    @Override
+    public boolean isShiftDown() {
+        return isShiftKeyDown();
+    }
+
+    @Override
+    public void sendPacket(Object packet) {
+        CellTerminalNetwork.INSTANCE.sendToServer((net.minecraftforge.fml.common.network.simpleimpl.IMessage) packet);
+    }
+
+    @Override
+    public void openInventoryPopup(CellInfo cell) {
+        inventoryPopup = new PopupCellInventory(this, cell, 0, 0);
+    }
+
+    @Override
+    public void openPartitionPopup(CellInfo cell) {
+        partitionPopup = new PopupCellPartition(this, cell, 0, 0);
+    }
+
+    @Override
+    public void startInlineRename(Renameable target, int rowY, int renameX, int renameRightEdge) {
+        if (inlineRenameEditor != null) {
+            inlineRenameEditor.startEditing(target, rowY, renameX, renameRightEdge);
+        }
+    }
+
+    @Override
+    public void showError(String translationKey, Object... args) {
+        MessageHelper.error(translationKey, args);
+    }
+
+    @Override
+    public void showSuccess(String translationKey, Object... args) {
+        MessageHelper.success(translationKey, args);
+    }
+
+    @Override
+    public void showWarning(String translationKey, Object... args) {
+        MessageHelper.warning(translationKey, args);
+    }
+
+    @Override
+    public void highlightInWorld(BlockPos pos, int dimension, String displayName) {
+        if (pos == null || pos.equals(BlockPos.ORIGIN)) return;
+
+        // Check if in different dimension
+        if (dimension != Minecraft.getMinecraft().player.dimension) {
+            MessageHelper.error("cellterminal.error.different_dimension");
+            return;
+        }
+
+        CellTerminalNetwork.INSTANCE.sendToServer(
+            new PacketHighlightBlock(pos, dimension)
+        );
+
+        // Send green chat message with block name and coordinates
+        MessageHelper.success("gui.cellterminal.highlighted",
+            pos.getX(), pos.getY(), pos.getZ(), displayName);
+    }
+
+    @Override
+    public void highlightCellInWorld(CellInfo cell) {
+        if (cell == null) return;
+
+        // Find the parent storage to get its position
+        StorageInfo storage = dataManager.findStorageForCell(cell);
+        if (storage == null) return;
+
+        highlightInWorld(storage.getPos(), storage.getDimension(), cell.getDisplayName());
+    }
+
+    @Override
+    public Set<Long> getSelectedStorageBusIds() {
+        return selectedStorageBusIds;
+    }
+
+    @Override
+    public Set<Integer> getSelectedTempCellSlots() {
+        return selectedTempCellSlots;
     }
 }

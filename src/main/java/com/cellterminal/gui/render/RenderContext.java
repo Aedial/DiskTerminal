@@ -11,7 +11,6 @@ import net.minecraft.item.ItemStack;
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.client.StorageInfo;
-import com.cellterminal.client.TempCellInfo;
 import com.cellterminal.gui.networktools.INetworkTool;
 
 
@@ -91,15 +90,6 @@ public class RenderContext {
     public INetworkTool hoveredNetworkToolHelpButton = null;
     public INetworkTool.ToolPreviewInfo hoveredNetworkToolPreview = null;
 
-    // Temp Area tab hover state (Tab 3)
-    public TempCellInfo hoveredTempCell = null;
-    public TempCellInfo hoveredTempCellHeader = null;  // Directly hovering header (not content row)
-    public TempCellInfo hoveredTempCellSendButton = null;  // Hovering send button
-    public TempCellInfo hoveredTempCellSlot = null;  // Hovering cell slot for insert/extract
-    public final List<TempCellPartitionSlotTarget> tempCellPartitionSlotTargets = new ArrayList<>();
-    public int hoveredTempCellPartitionAllIndex = -1;  // Temp slot index for partition-all button hover
-    public int hoveredTempCellClearPartitionIndex = -1;  // Temp slot index for clear partition button hover
-
     /**
      * Tracks a visible storage entry and its Y position for priority field placement.
      */
@@ -159,13 +149,6 @@ public class RenderContext {
         hoveredNetworkToolLaunchButton = null;
         hoveredNetworkToolHelpButton = null;
         hoveredNetworkToolPreview = null;
-        hoveredTempCell = null;
-        hoveredTempCellHeader = null;
-        hoveredTempCellSendButton = null;
-        hoveredTempCellSlot = null;
-        tempCellPartitionSlotTargets.clear();
-        hoveredTempCellPartitionAllIndex = -1;
-        hoveredTempCellClearPartitionIndex = -1;
     }
 
     /**

@@ -563,10 +563,28 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
         ItemStack upgradeStack = fromSlot >= 0 ? player.inventory.getStackInSlot(fromSlot) : player.inventory.getItemStack();
 
-        // For shift-click, iterate through all cells to find one that actually accepts this upgrade
-        // The client's guess might be wrong if the cell doesn't support this specific upgrade type
-        // Sort by distance to match visual order on client
+        // For shift-click with a specific storage ID: iterate cells within that storage
+        // For shift-click without storage ID: iterate all storages and cells
+        // This handles: (1) shift-click on empty space, (2) click on storage header
         if (shiftClick) {
+            // If a specific storage is targeted, only iterate its cells
+            StorageTracker targetTracker = this.byId.get(storageId);
+            if (targetTracker != null) {
+                IItemHandler cellInventory = CellDataHandler.getCellInventory(targetTracker.storage);
+                if (cellInventory != null) {
+                    for (int slot = 0; slot < cellInventory.getSlots(); slot++) {
+                        if (CellActionHandler.upgradeCell(targetTracker.storage, targetTracker.tile, slot, upgradeStack, player, fromSlot)) {
+                            this.needsFullRefresh = true;
+
+                            return;
+                        }
+                    }
+                }
+
+                return;  // Targeted storage but no cell accepted
+            }
+
+            // No specific storage: iterate all storages and cells (global shift-click)
             int terminalDim = getTerminalDimension();
             List<StorageTracker> sortedTrackers = new ArrayList<>(this.byId.values());
             sortedTrackers.sort(createTrackerComparator(BlockPos.ORIGIN, terminalDim));

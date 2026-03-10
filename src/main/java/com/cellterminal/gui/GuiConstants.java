@@ -69,6 +69,7 @@ public final class GuiConstants {
     // ========================================
 
     /** Tab indices */
+    // FIXME: these should probably be derived from tab widget registration
     public static final int TAB_TERMINAL = 0;
     public static final int TAB_INVENTORY = 1;
     public static final int TAB_PARTITION = 2;
@@ -87,14 +88,81 @@ public final class GuiConstants {
     public static final int TAB_Y_OFFSET = -22;
 
     // ========================================
-    // SLOT CONFIGURATION
+    // ATLAS POSITIONS
     // ========================================
+
+    /** Texture atlas width (for buttons, slots, etc.) */
+    public static final int ATLAS_WIDTH = 64;
+
+    /** Texture atlas height (for buttons, slots, etc.) */
+    public static final int ATLAS_HEIGHT = 128;
+
+    /** Small button size (e.g., partition-all, clear) */
+    public static final int SMALL_BUTTON_SIZE = 8;
+
+    /** Tab 1 button size */
+    public static final int TAB1_BUTTON_SIZE = 12;
+
+    /** Subnet button size */
+    public static final int SUBNET_BUTTON_SIZE = 12;
+
+    /** Search Mode button size */
+    public static final int SEARCH_MODE_BUTTON_SIZE = 10;
 
     /** Size of a standard slot (16x16 item + 2px border) */
     public static final int SLOT_SIZE = 18;
 
     /** Size of a mini slot for cell contents (16x16) */
     public static final int MINI_SLOT_SIZE = 16;
+
+    // 5x2 * 8x8 for small buttons
+
+    /** Small Buttons: Texture X positions in the atlas */
+    public static final int SMALL_BUTTON_X = 0;
+
+    /** Small Buttons: Texture Y positions in the atlas */
+    public static final int SMALL_BUTTON_Y = 0;
+
+    // 3x2 * 12x12 for terminal tab buttons
+    // + 2x2 * 12x12 for subnet buttons
+
+    /** Tab 1 Buttons: Texture X positions in the atlas */
+    public static final int TAB1_BUTTON_X = 0;
+
+    /** Tab 1 Buttons: Texture Y positions in the atlas */
+    public static final int TAB1_BUTTON_Y = SMALL_BUTTON_Y + 2 * SMALL_BUTTON_SIZE;
+
+    /** Subnet Buttons: Texture X positions in the atlas */
+    public static final int SUBNET_BUTTON_X = 3 * TAB1_BUTTON_SIZE;
+
+    /** Subnet Buttons: Texture Y positions in the atlas */
+    public static final int SUBNET_BUTTON_Y = TAB1_BUTTON_Y;
+
+    // 3x2 * 10x10 for search mode buttons
+    // + 1x2 * 18x18 for slots
+    // + 1x2 * 16x16 for mini slots
+
+    /** Search Mode Buttons: Texture X positions in the atlas */
+    public static final int SEARCH_MODE_BUTTON_X = 0;
+
+    /** Search Mode Buttons: Texture Y positions in the atlas */
+    public static final int SEARCH_MODE_BUTTON_Y = TAB1_BUTTON_Y + 2 * TAB1_BUTTON_SIZE;
+
+    /** Slot background: Texture X position */
+    public static final int SLOT_X = SEARCH_MODE_BUTTON_X + 3 * SEARCH_MODE_BUTTON_SIZE;
+
+    /** Slot background: Texture Y position */
+    public static final int SLOT_Y = SEARCH_MODE_BUTTON_Y;
+
+    /** Mini Slot background: Texture X position */
+    public static final int MINI_SLOT_X = SLOT_X + SLOT_SIZE;
+
+    /** Mini Slot background: Texture Y position */
+    public static final int MINI_SLOT_Y = SLOT_Y;
+
+    // ========================================
+    // SLOT CONFIGURATION
+    // ========================================
 
     /** Number of content slots per row for cells */
     public static final int CELL_SLOTS_PER_ROW = 8;
@@ -113,10 +181,7 @@ public final class GuiConstants {
     // ========================================
 
     /** Standard button size */
-    public static final int BUTTON_SIZE = 14;
-
-    /** Small button size (e.g., partition-all, clear) */
-    public static final int SMALL_BUTTON_SIZE = 8;
+    public static final int BUTTON_SIZE = 16;
 
     /** X position of eject button in terminal tab */
     public static final int BUTTON_EJECT_X = 135;
@@ -129,6 +194,44 @@ public final class GuiConstants {
 
     /** X position of IO mode button in storage bus headers (before priority field) */
     public static final int BUTTON_IO_MODE_X = 120;
+
+    /** X position for upgrade card icons (left margin area) */
+    public static final int CARDS_X = 3;
+
+    /** Size of the small button background texture (button SIZE + 1px padding each side) */
+    public static final int SMALL_BUTTON_BG_SIZE = SMALL_BUTTON_SIZE + 2;
+
+    // ========================================
+    // TERMINAL TAB CELL LAYOUT
+    // ========================================
+
+    /** X offset from CELL_INDENT to the name/bar/buttons area */
+    public static final int CELL_NAME_X_OFFSET = 18;
+
+    /** Usage bar width in pixels */
+    public static final int USAGE_BAR_WIDTH = BUTTON_EJECT_X - CELL_INDENT - CELL_NAME_X_OFFSET - 4;
+
+    /** Usage bar height in pixels */
+    public static final int USAGE_BAR_HEIGHT = 4;
+
+    // ========================================
+    // HEADER LAYOUT
+    // ========================================
+
+    /** X position of header name/location text (icon + gap) */
+    public static final int HEADER_NAME_X = GUI_INDENT + 20;
+
+    /** Maximum pixel width for header name text (before IO mode / priority area) */
+    public static final int HEADER_NAME_MAX_WIDTH = BUTTON_IO_MODE_X - HEADER_NAME_X - 4;
+
+    /** Maximum pixel width for location text (extends to right edge unlike name) */
+    public static final int HEADER_LOCATION_MAX_WIDTH = CONTENT_RIGHT_EDGE - HEADER_NAME_X;
+
+    /** X position of expand/collapse indicator text "[+]"/"[-]" */
+    public static final int EXPAND_ICON_X = 167;
+
+    /** Y offset for the tree connector at the bottom of a header */
+    public static final int HEADER_CONNECTOR_Y_OFFSET = ROW_HEIGHT - 3;
 
     // ========================================
     // CONTROLS HELP WIDGET
@@ -226,11 +329,20 @@ public final class GuiConstants {
     /** Selection background color (light blue) */
     public static final int COLOR_SELECTION = 0x405599DD;
 
+    /** Selected header name color (dark blue) */
+    public static final int COLOR_NAME_SELECTED = 0x204080;
+
     /** Green button (partition all) */
     public static final int COLOR_BUTTON_GREEN = 0xFF33CC33;
 
     /** Red button (clear) */
     public static final int COLOR_BUTTON_RED = 0xFFCC3333;
+
+    /** Custom display name color (green, used for renamed cells/storages) */
+    public static final int COLOR_CUSTOM_NAME = 0xFF2E7D32;
+
+    /** Usage bar background color */
+    public static final int COLOR_USAGE_BAR_BACKGROUND = 0xFF555555;
 
     /** Usage bar colors */
     public static final int COLOR_USAGE_LOW = 0xFF33FF33;
