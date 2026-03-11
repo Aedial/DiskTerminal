@@ -1,47 +1,31 @@
-package com.cellterminal.gui;
+package com.cellterminal.gui.buttons;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiButton;
+import com.cellterminal.gui.GuiConstants;
 import net.minecraft.client.resources.I18n;
 
 
-// TODO: add a texture for this button instead of drawing it manually
 /**
  * A small "?" button that shows search syntax help when hovered.
  */
-public class GuiSearchHelpButton extends GuiButton {
+public class GuiSearchHelpButton extends GuiAtlasButton {
 
-    public static final int BUTTON_SIZE = 10;
+    public static final int SIZE = GuiConstants.TOOLTIP_BUTTON_SIZE;
 
     public GuiSearchHelpButton(int buttonId, int x, int y) {
-        super(buttonId, x, y, BUTTON_SIZE, BUTTON_SIZE, "?");
+        super(buttonId, x, y, SIZE);
     }
 
     @Override
-    public void drawButton(Minecraft mc, int mouseX, int mouseY, float partialTicks) {
-        if (!this.visible) return;
+    protected int getBackgroundTexX() {
+        return GuiConstants.TOOLTIP_BUTTON_X;
+    }
 
-        this.hovered = mouseX >= this.x && mouseY >= this.y
-            && mouseX < this.x + this.width && mouseY < this.y + this.height;
-
-        // Draw button background
-        int bgColor = this.hovered ? 0xFF505050 : 0xFF606060;
-        drawRect(this.x, this.y, this.x + this.width, this.y + this.height, bgColor);
-
-        // Draw border
-        drawRect(this.x, this.y, this.x + this.width, this.y + 1, 0xFF808080);
-        drawRect(this.x, this.y, this.x + 1, this.y + this.height, 0xFF808080);
-        drawRect(this.x, this.y + this.height - 1, this.x + this.width, this.y + this.height, 0xFF303030);
-        drawRect(this.x + this.width - 1, this.y, this.x + this.width, this.y + this.height, 0xFF303030);
-
-        // Draw "?" centered
-        int textX = this.x + (this.width - mc.fontRenderer.getStringWidth("?")) / 2;
-        int textY = this.y + (this.height - 8) / 2;
-        int textColor = this.hovered ? 0xFFFFFF00 : 0xFFCCCCCC;
-        mc.fontRenderer.drawString("?", textX, textY, textColor);
+    @Override
+    protected int getBackgroundTexY() {
+        return GuiConstants.TOOLTIP_BUTTON_Y + (this.hovered ? SIZE : 0);
     }
 
     /**

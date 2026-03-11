@@ -10,12 +10,12 @@ import com.cellterminal.gui.GuiConstants;
 
 /**
  * A continuation row for multi-row cells.
- *
+ * <p>
  * When a cell has more items than fit in a single row, additional rows
  * are rendered using ContinuationLine. These rows have:
  * - Tree line connectors (vertical line up + horizontal branch, like all rows)
  * - Content/partition slots only (no cell slot, no cards, no button)
- *
+ * <p>
  * The spec states: "nothing, as it's a continuation row. No Cell, no cards, no button."
  *
  * @see CellSlotsLine

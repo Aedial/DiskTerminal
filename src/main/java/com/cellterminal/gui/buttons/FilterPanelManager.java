@@ -1,4 +1,4 @@
-package com.cellterminal.gui;
+package com.cellterminal.gui.buttons;
 
 import java.awt.Rectangle;
 import java.util.ArrayList;
@@ -6,6 +6,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
+import com.cellterminal.gui.GuiConstants;
 import net.minecraft.client.gui.GuiButton;
 
 import com.cellterminal.client.CellFilter;
@@ -30,7 +31,7 @@ import com.cellterminal.network.PacketSlotLimitChange;
  */
 public class FilterPanelManager {
 
-    private static final int BUTTON_SIZE = GuiFilterButton.BUTTON_SIZE;
+    private static final int BUTTON_SIZE = GuiFilterButton.SIZE;
     private static final int BUTTON_SPACING = 2;
     private static final int BUTTON_WITH_SPACING = BUTTON_SIZE + BUTTON_SPACING;
 

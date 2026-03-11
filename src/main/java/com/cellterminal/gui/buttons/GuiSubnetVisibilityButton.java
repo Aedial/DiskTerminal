@@ -1,10 +1,10 @@
-package com.cellterminal.gui;
+package com.cellterminal.gui.buttons;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import com.cellterminal.gui.GuiConstants;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.resources.I18n;
 
 import com.cellterminal.client.SubnetVisibility;
@@ -16,19 +16,19 @@ import com.cellterminal.client.SubnetVisibility;
  * - Show Favorites: Star icon
  * - Show All: Globe/network icon
  */
-public class GuiSubnetVisibilityButton extends GuiButton {
-
-    private static final int BUTTON_SIZE = 12;
+public class GuiSubnetVisibilityButton extends GuiAtlasButton {
 
     // Colors
     private static final int COLOR_DISABLED = 0xFF808080;  // Grey for "don't show"
     private static final int COLOR_FAVORITES = 0xFFFFD700;  // Gold for favorites
     private static final int COLOR_ALL = 0xFF4CAF50;       // Green for show all
 
+    private static final int SIZE = GuiConstants.TERMINAL_SIDE_BUTTON_SIZE;
+
     private SubnetVisibility currentMode;
 
     public GuiSubnetVisibilityButton(int buttonId, int x, int y, SubnetVisibility initialMode) {
-        super(buttonId, x, y, BUTTON_SIZE, BUTTON_SIZE, "");
+        super(buttonId, x, y, SIZE);
         this.currentMode = initialMode;
     }
 
@@ -47,29 +47,23 @@ public class GuiSubnetVisibilityButton extends GuiButton {
     }
 
     @Override
-    public void drawButton(Minecraft mc, int mouseX, int mouseY, float partialTicks) {
-        if (!this.visible) return;
+    protected int getBackgroundTexX() {
+        return GuiConstants.TERMINAL_STYLE_BUTTON_X;
+    }
 
-        this.hovered = mouseX >= this.x && mouseY >= this.y
-            && mouseX < this.x + this.width && mouseY < this.y + this.height;
+    @Override
+    protected int getBackgroundTexY() {
+        return GuiConstants.TERMINAL_STYLE_BUTTON_Y + (this.hovered ? SIZE : 0);
+    }
 
-        // Draw button background
-        int bgColor = this.hovered ? 0xFF707070 : 0xFF8B8B8B;
-        drawRect(this.x, this.y, this.x + this.width, this.y + this.height, bgColor);
-
-        // Draw outline
-        drawRect(this.x, this.y, this.x + this.width, this.y + 1, 0xFFFFFFFF);
-        drawRect(this.x, this.y, this.x + 1, this.y + this.height, 0xFFFFFFFF);
-        drawRect(this.x, this.y + this.height - 1, this.x + this.width, this.y + this.height, 0xFF555555);
-        drawRect(this.x + this.width - 1, this.y, this.x + this.width, this.y + this.height, 0xFF555555);
-
-        // Draw the mode indicator
+    @Override
+    protected void drawForeground(Minecraft mc) {
         drawModeIndicator(mc);
     }
 
     private void drawModeIndicator(Minecraft mc) {
-        int centerX = this.x + BUTTON_SIZE / 2;
-        int centerY = this.y + BUTTON_SIZE / 2;
+        int centerX = this.x + SIZE / 2;
+        int centerY = this.y + SIZE / 2;
 
         switch (currentMode) {
             case DONT_SHOW:

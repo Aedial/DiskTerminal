@@ -3,7 +3,7 @@ package com.cellterminal.gui.widget.button;
 
 /**
  * A small button that cycles through multiple {@link ButtonType}s on each click.
- *
+ * <p>
  * The type is advanced to the next value in the provided array before the
  * onClick callback is invoked. This allows the callback to read the new type
  * and act accordingly (e.g., switch IO mode).

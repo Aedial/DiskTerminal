@@ -201,7 +201,7 @@ public class StorageBusInfo implements Renameable {
     public int getAvailableConfigSlots() {
         int raw = baseConfigSlots + slotsPerUpgrade * Math.max(0, getInstalledUpgrades(Upgrades.CAPACITY));
 
-        return raw > maxConfigSlots ? maxConfigSlots : raw;
+        return Math.min(raw, maxConfigSlots);
     }
 
     public boolean hasInverter() {

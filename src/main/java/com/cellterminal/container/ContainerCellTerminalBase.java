@@ -1181,7 +1181,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         // Find the primary interface host (same logic as SubnetDataHandler)
         IInterfaceHost interfaceHost = SubnetDataHandler.findPrimaryInterfaceHost(grid);
 
-        if (interfaceHost != null && interfaceHost instanceof ICustomNameObject) {
+        if (interfaceHost instanceof ICustomNameObject) {
             ICustomNameObject nameable = (ICustomNameObject) interfaceHost;
             if (nameable.hasCustomInventoryName()) return nameable.getCustomInventoryName();
         }

@@ -375,9 +375,8 @@ public class StorageBusDataHandler {
         int max = busData.hasKey("maxConfigSlots") ? busData.getInteger("maxConfigSlots") : StorageBusInfo.MAX_CONFIG_SLOTS;
 
         int raw = base + perUpg * Math.max(0, capacityUpgrades);
-        if (raw > max) return max;
+        return Math.min(raw, max);
 
-        return raw;
     }
 
     private static void addUpgradesData(NBTTagCompound busData, IItemHandler upgradesInv) {

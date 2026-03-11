@@ -28,7 +28,6 @@ import appeng.api.config.SortOrder;
 import appeng.api.config.ViewItems;
 import appeng.api.features.ILocatable;
 import appeng.api.features.IWirelessTermHandler;
-import appeng.api.storage.ICellWorkbenchItem;
 import appeng.api.util.IConfigManager;
 import appeng.core.AEConfig;
 import appeng.core.localization.GuiText;
@@ -184,15 +183,6 @@ public class ItemWirelessCellTerminal extends AEBasePoweredItem implements IWire
 
     private static final String NBT_TEMP_CELLS = "tempCells";
     private static final int MAX_TEMP_CELLS = 16;
-
-    /**
-     * Check if a stack is a valid storage cell.
-     */
-    public static boolean isValidTempCellItem(ItemStack stack) {
-        if (stack.isEmpty()) return true;
-
-        return stack.getItem() instanceof ICellWorkbenchItem;
-    }
 
     /**
      * Get the number of temp cells stored in this terminal.

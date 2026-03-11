@@ -1,10 +1,10 @@
-package com.cellterminal.gui;
+package com.cellterminal.gui.buttons;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import com.cellterminal.gui.GuiConstants;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.RenderItem;
@@ -26,17 +26,13 @@ import com.cellterminal.client.CellFilter.State;
  * A toggle button for cell/storage bus filters.
  * Cycles through three states: SHOW_ALL (neutral), SHOW_ONLY (green), HIDE (red).
  */
-public class GuiFilterButton extends GuiButton {
-
-    public static final int BUTTON_SIZE = 16;
+public class GuiFilterButton extends GuiAtlasButton {
 
     private final CellFilter filter;
     private State currentState;
 
     // Colors for different states
-    private static final int COLOR_NEUTRAL = 0xFF8B8B8B;  // Grey - show all
-    private static final int COLOR_SHOW = 0xFF4CAF50;     // Green - show only
-    private static final int COLOR_HIDE = 0xFFE53935;     // Red - hide
+    public static final int SIZE = GuiConstants.TERMINAL_SIDE_BUTTON_SIZE;
 
     private static final ItemStack ITEM_CELL_ICON = new ItemStack(Blocks.STONE);
     private static final ItemStack FLUID_CELL_ICON = new ItemStack(Items.BUCKET);
@@ -46,7 +42,7 @@ public class GuiFilterButton extends GuiButton {
         cellWorkbench().maybeStack(1).orElse(ItemStack.EMPTY);
 
     public GuiFilterButton(int buttonId, int x, int y, CellFilter filter, State initialState) {
-        super(buttonId, x, y, BUTTON_SIZE, BUTTON_SIZE, "");
+        super(buttonId, x, y, SIZE);
         this.filter = filter;
         this.currentState = initialState;
     }
@@ -70,41 +66,25 @@ public class GuiFilterButton extends GuiButton {
     }
 
     @Override
-    public void drawButton(Minecraft mc, int mouseX, int mouseY, float partialTicks) {
-        if (!this.visible) return;
-
-        this.hovered = mouseX >= this.x && mouseY >= this.y
-            && mouseX < this.x + this.width && mouseY < this.y + this.height;
-
-        // Draw button background based on state
-        int bgColor = getBackgroundColor();
-        if (this.hovered) bgColor = brightenColor(bgColor, 0.2f);
-
-        drawRect(this.x, this.y, this.x + this.width, this.y + this.height, bgColor);
-
-        // Draw 3D border
-        drawRect(this.x, this.y, this.x + this.width, this.y + 1, brightenColor(bgColor, 0.3f));
-        drawRect(this.x, this.y, this.x + 1, this.y + this.height, brightenColor(bgColor, 0.3f));
-        drawRect(this.x, this.y + this.height - 1, this.x + this.width, this.y + this.height, darkenColor(bgColor, 0.3f));
-        drawRect(this.x + this.width - 1, this.y, this.x + this.width, this.y + this.height, darkenColor(bgColor, 0.3f));
-
-        // Draw filter icon
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        drawFilterIcon(mc);
-    }
-
-    private int getBackgroundColor() {
+    protected int getBackgroundTexX() {
         switch (currentState) {
             case SHOW_ONLY:
-                return COLOR_SHOW;
+                return GuiConstants.TERMINAL_STYLE_BUTTON_X + SIZE;  // Green background
             case HIDE:
-                return COLOR_HIDE;
+                return GuiConstants.TERMINAL_STYLE_BUTTON_X + 2 * SIZE;  // Red background
             default:
-                return COLOR_NEUTRAL;
+                return GuiConstants.TERMINAL_STYLE_BUTTON_X;  // Default background
         }
     }
 
-    private void drawFilterIcon(Minecraft mc) {
+    @Override
+    protected int getBackgroundTexY() {
+        return GuiConstants.TERMINAL_STYLE_BUTTON_Y + (this.hovered ? SIZE : 0);
+    }
+
+    @Override
+    protected void drawForeground(Minecraft mc) {
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         ItemStack iconStack;
 
         switch (filter) {
@@ -184,23 +164,5 @@ public class GuiFilterButton extends GuiButton {
         tooltip.add(colorCode + I18n.format(stateKey));
 
         return tooltip;
-    }
-
-    private static int brightenColor(int color, float factor) {
-        int a = (color >> 24) & 0xFF;
-        int r = Math.min(255, (int) (((color >> 16) & 0xFF) * (1 + factor)));
-        int g = Math.min(255, (int) (((color >> 8) & 0xFF) * (1 + factor)));
-        int b = Math.min(255, (int) ((color & 0xFF) * (1 + factor)));
-
-        return (a << 24) | (r << 16) | (g << 8) | b;
-    }
-
-    private static int darkenColor(int color, float factor) {
-        int a = (color >> 24) & 0xFF;
-        int r = (int) (((color >> 16) & 0xFF) * (1 - factor));
-        int g = (int) (((color >> 8) & 0xFF) * (1 - factor));
-        int b = (int) ((color & 0xFF) * (1 - factor));
-
-        return (a << 24) | (r << 16) | (g << 8) | b;
     }
 }

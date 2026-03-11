@@ -5,7 +5,7 @@ import net.minecraft.client.resources.I18n;
 
 /**
  * Defines the types of small buttons (8x8) used in the Cell Terminal GUI.
- *
+ * <p>
  * Each type maps to a column in the {@code textures/guis/atlas.png} sprite sheet
  * (5x2 grid of 8x8 icons). The hover state is the row (0=normal, 1=hovered).
  *

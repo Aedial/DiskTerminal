@@ -22,13 +22,13 @@ import com.cellterminal.gui.widget.AbstractWidget;
 
 /**
  * A line widget that renders a grid of content or partition slots.
- *
+ * <p>
  * Supports two modes:
  * - **Content mode**: Shows item contents with count labels and partition indicators ("P").
  *   Click toggles the item into/out of partition.
  * - **Partition mode**: Shows partition entries with amber tint.
  *   Click sets/clears individual partition slots. Supports JEI ghost ingredient drop.
- *
+ * <p>
  * Configuration:
  * - {@code slotsPerRow}: Number of slots per row (8 for cells, 9 for storage buses)
  * - {@code slotsXOffset}: X offset from GUI left for the first slot
@@ -81,7 +81,7 @@ public class SlotsLine extends AbstractLine {
     }
 
     private static final int SIZE = GuiConstants.MINI_SLOT_SIZE;
-    private static final ResourceLocation SLOT_MINI_TEXTURE =
+    private static final ResourceLocation TEXTURE =
         new ResourceLocation("cellterminal", "textures/guis/atlas.png");
 
     protected final int slotsPerRow;
@@ -122,6 +122,9 @@ public class SlotsLine extends AbstractLine {
 
     /** Supplier for the selection state (selected lines get a highlight overlay) */
     protected Supplier<Boolean> selectedSupplier;
+
+    /** Whether to draw a horizontal separator line at the top of this row */
+    protected boolean drawTopSeparator = false;
 
     /**
      * @param y Y position relative to GUI
@@ -169,6 +172,14 @@ public class SlotsLine extends AbstractLine {
 
     public void setMaxSlots(int maxSlots) {
         this.maxSlots = maxSlots;
+    }
+
+    /**
+     * Set whether to draw a horizontal separator line at the top of this row.
+     * Used for the first partition row in temp area to visually separate from content rows.
+     */
+    public void setDrawTopSeparator(boolean draw) {
+        this.drawTopSeparator = draw;
     }
 
     public void setGuiOffsets(int guiLeft, int guiTop) {
@@ -220,6 +231,12 @@ public class SlotsLine extends AbstractLine {
     @Override
     public void draw(int mouseX, int mouseY) {
         if (!visible) return;
+
+        // Draw horizontal separator at top if requested (before selection background)
+        if (drawTopSeparator) {
+            Gui.drawRect(GuiConstants.GUI_INDENT, y - 1, GuiConstants.CONTENT_RIGHT_EDGE, y,
+                GuiConstants.COLOR_SEPARATOR);
+        }
 
         // Draw selection background first (below everything else)
         boolean isSelected = selectedSupplier != null && selectedSupplier.get();
@@ -282,13 +299,14 @@ public class SlotsLine extends AbstractLine {
         List<ItemStack> partition = partitionSupplier != null ? partitionSupplier.get() : Collections.emptyList();
         ContentCountProvider counts = countProvider != null ? countProvider.get() : null;
 
-        for (int i = 0; i < slotsPerRow; i++) {
+        for (int x = slotsXOffset; x < slotsXOffset + (slotsPerRow * SIZE); x += SIZE) {
+            drawSlotBackground(x, y);
+        }
+
+        int slots = Integer.min(startIndex + slotsPerRow, items.size()) - startIndex;
+        for (int i = 0; i < slots; i++) {
             int absIndex = startIndex + i;
-            int slotX = slotsXOffset + (i * GuiConstants.MINI_SLOT_SIZE);
-
-            drawSlotBackground(slotX, y);
-
-            if (absIndex >= items.size()) continue;
+            int slotX = slotsXOffset + (i * SIZE);
 
             ItemStack stack = items.get(absIndex);
             if (stack.isEmpty()) continue;
@@ -307,8 +325,7 @@ public class SlotsLine extends AbstractLine {
             }
 
             // Check hover
-            if (mouseX >= slotX && mouseX < slotX + GuiConstants.MINI_SLOT_SIZE
-                && mouseY >= y && mouseY < y + GuiConstants.MINI_SLOT_SIZE) {
+            if (mouseX >= slotX && mouseX < slotX + SIZE && mouseY >= y && mouseY < y + SIZE) {
                 drawSlotHoverHighlight(slotX, y);
                 hoveredSlotIndex = absIndex;
                 hoveredStack = stack;
@@ -323,19 +340,19 @@ public class SlotsLine extends AbstractLine {
     protected void drawPartitionSlots(int mouseX, int mouseY) {
         List<ItemStack> partition = itemsSupplier != null ? itemsSupplier.get() : Collections.emptyList();
 
+        for (int x = slotsXOffset; x < slotsXOffset + (slotsPerRow * SIZE); x += SIZE) {
+            drawPartitionSlotBackground(x, y);
+        }
+
         for (int i = 0; i < slotsPerRow; i++) {
             int absIndex = startIndex + i;
             if (absIndex >= maxSlots) break;
 
-            int slotX = slotsXOffset + (i * GuiConstants.MINI_SLOT_SIZE);
-
-            // Partition slots have amber tint
-            drawPartitionSlotBackground(slotX, y);
+            int slotX = slotsXOffset + (i * SIZE);
 
             // Register JEI ghost target
             partitionTargets.add(new PartitionSlotTarget(
-                absIndex, guiLeft + slotX, guiTop + y,
-                GuiConstants.MINI_SLOT_SIZE, GuiConstants.MINI_SLOT_SIZE));
+                absIndex, guiLeft + slotX, guiTop + y, SIZE, SIZE));
 
             // Draw partition item if present
             ItemStack partItem = absIndex < partition.size() ? partition.get(absIndex) : ItemStack.EMPTY;
@@ -344,8 +361,7 @@ public class SlotsLine extends AbstractLine {
             }
 
             // Check hover
-            if (mouseX >= slotX && mouseX < slotX + GuiConstants.MINI_SLOT_SIZE
-                && mouseY >= y && mouseY < y + GuiConstants.MINI_SLOT_SIZE) {
+            if (mouseX >= slotX && mouseX < slotX + SIZE && mouseY >= y && mouseY < y + SIZE) {
                 drawSlotHoverHighlight(slotX, y);
                 hoveredSlotIndex = absIndex;
 
@@ -358,10 +374,10 @@ public class SlotsLine extends AbstractLine {
         }
     }
 
-    // ---- Drawing helpers (self-contained, no dependency on CellSlotRenderer) ----
+    // ---- Drawing helpers ----
 
     protected void drawSlotBackground(int slotX, int slotY) {
-        Minecraft.getMinecraft().getTextureManager().bindTexture(SLOT_MINI_TEXTURE);
+        Minecraft.getMinecraft().getTextureManager().bindTexture(TEXTURE);
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         GlStateManager.enableBlend();
 
@@ -373,13 +389,13 @@ public class SlotsLine extends AbstractLine {
     }
 
     protected void drawPartitionSlotBackground(int slotX, int slotY) {
-        Minecraft.getMinecraft().getTextureManager().bindTexture(SLOT_MINI_TEXTURE);
+        Minecraft.getMinecraft().getTextureManager().bindTexture(TEXTURE);
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         GlStateManager.enableBlend();
 
-        // Partition variant uses the bottom half of the texture (y uv 16-31)
-        int texX = GuiConstants.MINI_SLOT_X;
-        int texY = GuiConstants.MINI_SLOT_Y + SIZE;
+        // Partition variant uses the right half of the texture (x uv 16-31)
+        int texX = GuiConstants.MINI_SLOT_X + SIZE;
+        int texY = GuiConstants.MINI_SLOT_Y;
         Gui.drawScaledCustomSizeModalRect(
             slotX, slotY, texX, texY, SIZE, SIZE, SIZE, SIZE,
             GuiConstants.ATLAS_WIDTH, GuiConstants.ATLAS_HEIGHT);

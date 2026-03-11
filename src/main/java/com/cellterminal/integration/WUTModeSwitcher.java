@@ -4,13 +4,14 @@ import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.cellterminal.gui.GuiConstants;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -57,7 +58,7 @@ public class WUTModeSwitcher {
         if (modes == null || modes.length == 0) return startButtonId;
 
         // Position toggle button on the right side, below the title/search bar area
-        this.baseX = guiLeft + 208 + 2;  // Just to the right of the main GUI
+        this.baseX = guiLeft + GuiConstants.GUI_WIDTH + 2;  // Just to the right of the main GUI
         this.baseY = guiTop + 18;  // Below the title/search bar area
         this.maxY = Math.max(baseY + 100, screenHeight - BUTTON_SIZE - 4);  // Leave margin at bottom
 
@@ -201,13 +202,13 @@ public class WUTModeSwitcher {
 
     /**
      * Custom button for WUT mode switching.
-     * Uses AE2's states.png texture for consistent styling with other terminal buttons.
      * Toggle button shows 2x scaled black arrows; mode buttons show terminal icons.
+     * <p>
+     * TODO: Once atlas textures are added for WUT mode buttons, convert this to
+     * extend GuiAtlasButton instead of GuiButton (see GuiTerminalStyleButton for reference).
      */
     @SideOnly(Side.CLIENT)
     private static class WUTModeButton extends GuiButton {
-
-        private static final ResourceLocation STATES_TEXTURE = new ResourceLocation("appliedenergistics2", "textures/guis/states.png");
 
         private final byte mode;
         private final boolean isToggle;
@@ -227,6 +228,8 @@ public class WUTModeSwitcher {
             if (!this.visible) return;
 
             this.hovered = mouseX >= this.x && mouseY >= this.y && mouseX < this.x + this.width && mouseY < this.y + this.height;
+
+            // TODO: add a proper texture for the buttons, under the red one in atlas.png
 
             GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
             GlStateManager.enableBlend();

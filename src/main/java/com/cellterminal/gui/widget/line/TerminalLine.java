@@ -15,11 +15,12 @@ import net.minecraft.util.ResourceLocation;
 import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.widget.AbstractWidget;
 import com.cellterminal.gui.widget.CardsDisplay;
+import com.cellterminal.gui.widget.DoubleClickTracker;
 
 
 /**
  * Terminal tab (Tab 1) line widget.
- *
+ * <p>
  * Each line represents a single cell in the terminal overview. Shows:
  * - Tree line connector to parent storage
  * - Upgrade card icons (left of cell)
@@ -27,7 +28,7 @@ import com.cellterminal.gui.widget.CardsDisplay;
  * - Cell name (clickable to rename)
  * - Byte usage bar
  * - Action buttons: Eject, Inventory, Partition (textured from atlas.png)
- *
+ * <p>
  * Unlike other line types, terminal lines are single-row-per-cell and don't
  * have content/partition slot grids.
  */
@@ -42,7 +43,7 @@ public class TerminalLine extends AbstractLine {
     public static final int HOVER_EJECT = 3;
 
     private static final int SIZE = GuiConstants.TAB1_BUTTON_SIZE;
-    private static final ResourceLocation TAB1_BUTTONS_TEXTURE =
+    private static final ResourceLocation TEXTURE =
         new ResourceLocation("cellterminal", "textures/guis/atlas.png");
 
     // Texture column indices for each button type
@@ -92,8 +93,8 @@ public class TerminalLine extends AbstractLine {
     private int hoveredButton = HOVER_NONE;
     private boolean nameHovered = false;
 
-    // Double-click tracking for highlight
-    private long lastNameClickTime = 0;
+    /** Target ID for double-click tracking (stored in DoubleClickTracker for persistence across rebuilds) */
+    private long doubleClickTargetId = -1;
 
     /**
      * @param y Y position relative to GUI
@@ -128,6 +129,18 @@ public class TerminalLine extends AbstractLine {
 
     public void setCallback(TerminalLineCallback callback) {
         this.callback = callback;
+    }
+
+    /**
+     * Set the target ID for double-click tracking.
+     * <p>
+     * Since widgets are recreated every frame, we use {@link DoubleClickTracker}
+     * for centralized tracking keyed by target ID.
+     *
+     * @param targetId Unique identifier for this target (use DoubleClickTracker.cellTargetId())
+     */
+    public void setDoubleClickTargetId(long targetId) {
+        this.doubleClickTargetId = targetId;
     }
 
     /**
@@ -205,15 +218,16 @@ public class TerminalLine extends AbstractLine {
             return true;
         }
 
-        // Name double-click for highlight in world (left-click)
-        if (button == 0 && nameHovered && callback != null) {
-            long currentTime = System.currentTimeMillis();
-            if (currentTime - lastNameClickTime < GuiConstants.DOUBLE_CLICK_TIME_MS) {
+        // Double-click for highlight in world (left-click) - full line area excluding buttons
+        // Uses centralized DoubleClickTracker since widgets are recreated every frame
+        if (button == 0 && callback != null && doubleClickTargetId != -1) {
+            // Check if in the main line area (not on buttons)
+            boolean inLineArea = mouseX >= GuiConstants.GUI_INDENT && mouseX < GuiConstants.BUTTON_EJECT_X
+                && mouseY >= y && mouseY < y + GuiConstants.ROW_HEIGHT;
+            if (inLineArea && DoubleClickTracker.isDoubleClick(doubleClickTargetId)) {
                 callback.onNameDoubleClicked();
-                lastNameClickTime = 0;  // Reset to avoid triple-click triggering
                 return true;
             }
-            lastNameClickTime = currentTime;
         }
 
         return false;
@@ -316,7 +330,7 @@ public class TerminalLine extends AbstractLine {
      * Draw a textured button from atlas.png.
      */
     private void drawTexturedButton(int drawX, int drawY, int column, boolean hovered) {
-        Minecraft.getMinecraft().getTextureManager().bindTexture(TAB1_BUTTONS_TEXTURE);
+        Minecraft.getMinecraft().getTextureManager().bindTexture(TEXTURE);
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         GlStateManager.enableBlend();
 

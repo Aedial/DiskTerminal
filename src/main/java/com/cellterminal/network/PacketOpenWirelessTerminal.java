@@ -80,9 +80,7 @@ public class PacketOpenWirelessTerminal implements IMessage {
             }
 
             // Check baubles slots
-            if (Loader.isModLoaded("baubles")) {
-                if (tryOpenFromBaubles(player)) return;
-            }
+            if (Loader.isModLoaded("baubles")) tryOpenFromBaubles(player);
 
             // No terminal found, ignore
         }

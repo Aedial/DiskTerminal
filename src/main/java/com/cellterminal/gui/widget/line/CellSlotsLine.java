@@ -14,17 +14,17 @@ import com.cellterminal.gui.widget.CardsDisplay;
 
 /**
  * A slot line with an additional cell slot on the left.
- *
+ * <p>
  * This is used in Tab 2 (Inventory) and Tab 3 (Partition) where each cell
  * occupies one or more rows. The first row shows:
  * - Cell slot (the cell item itself, clickable for insert/extract)
  * - Upgrade card icons (at the left of the cell slot, only if cell is filled)
  * - Content/partition slots (to the right of cell slot)
  * - Tree junction button (DoPartition or ClearPartition)
- *
+ * <p>
  * If the cell slot is empty (no cell inserted), the content/partition slots
  * are not rendered - only the empty cell slot is shown.
- *
+ * <p>
  * Continuation rows for multi-row cells are handled by {@link ContinuationLine}.
  *
  * @see SlotsLine

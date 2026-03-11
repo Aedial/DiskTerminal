@@ -51,7 +51,7 @@ import com.cellterminal.network.PacketTempCellPartitionAction;
 
 /**
  * Tab widget for the Temp Area tab (Tab 3).
- *
+ * <p>
  * The temp area shows temporary cell storage slots. Each slot has a header
  * (with a cell drop zone and Send button) followed by interleaved content
  * and partition rows for the inserted cell.
@@ -157,9 +157,15 @@ public class TempAreaTabWidget extends AbstractTabWidget {
     }
 
     @Override
+    public int getRenameFieldYOffset(Renameable target) {
+        // TempAreaHeader draws name at y+5 instead of y+1, so offset by 4
+        return 4;
+    }
+
+    @Override
     public int getRenameFieldRightEdge(Renameable target) {
-        // Temp area has send button at x=150, so stop the rename field before that
-        return 146;  // SEND_BUTTON_X - 4 = 150 - 4
+        // Temp area has send button, so stop the rename field before that
+        return TempAreaHeader.SEND_BUTTON_X - 4;
     }
 
     // ---- JEI ghost targets ----
@@ -241,56 +247,6 @@ public class TempAreaTabWidget extends AbstractTabWidget {
         return false;
     }
 
-    @Override
-    protected void propagateTreeLines(List<?> allLines, int scrollOffset) {
-        // Track the "cut Y" from the previous row - separate for content and partition sections
-        int lastContentCutY = GuiConstants.CONTENT_START_Y;
-        int lastPartitionCutY = GuiConstants.CONTENT_START_Y;
-        boolean hasContentAbove = scrollOffset > 0 && isContentLine(allLines, scrollOffset - 1);
-
-        for (int i = 0; i < visibleRows.size(); i++) {
-            IWidget widget = visibleRows.get(i);
-            int lineIndex = scrollOffset + i;
-
-            if (widget instanceof AbstractHeader) {
-                AbstractHeader header = (AbstractHeader) widget;
-                // Only draw connector if content rows follow below
-                // For temp area, we only connect to content rows, NOT partition rows
-                boolean hasContentBelow = hasNonPartitionContentBelow(allLines, lineIndex);
-                header.setDrawConnector(hasContentBelow);
-                lastContentCutY = header.getConnectorY();
-                // Reset partition cut Y for each new header (new temp cell)
-                lastPartitionCutY = GuiConstants.CONTENT_START_Y;
-
-            } else if (widget instanceof AbstractLine) {
-                AbstractLine line = (AbstractLine) widget;
-                boolean currentIsPartition = isPartitionRow(allLines, lineIndex);
-                boolean prevIsPartition = lineIndex > 0 && isPartitionRow(allLines, lineIndex - 1);
-
-                if (currentIsPartition) {
-                    // First partition row after content: don't draw tree line connecting to content
-                    // Subsequent partition rows: draw tree lines connecting to each other
-                    if (!prevIsPartition) {
-                        // First partition row - no tree line (breaks connection to content above)
-                        line.setTreeLineParams(false, lastPartitionCutY);
-                        lastPartitionCutY = line.getTreeLineCutY();
-                    } else {
-                        // Continuation partition row - draw tree line to previous partition
-                        line.setTreeLineParams(true, lastPartitionCutY);
-                        lastPartitionCutY = line.getTreeLineCutY();
-                    }
-                } else if (i == 0 && hasContentAbove) {
-                    // First visible row with content above
-                    line.setTreeLineParams(true, GuiConstants.CONTENT_START_Y);
-                    lastContentCutY = line.getTreeLineCutY();
-                } else {
-                    line.setTreeLineParams(true, lastContentCutY);
-                    lastContentCutY = line.getTreeLineCutY();
-                }
-            }
-        }
-    }
-
     /**
      * Check if there's a non-partition content row below the given index.
      * Used to determine whether to draw the header connector.
@@ -305,6 +261,55 @@ public class TempAreaTabWidget extends AbstractTabWidget {
         }
 
         return false;
+    }
+
+    @Override
+    protected void propagateTreeLines(List<?> allLines, int scrollOffset) {
+        // Track the "cut Y" from the previous row - separate for content and partition sections
+        int lastContentCutY = GuiConstants.CONTENT_START_Y;
+        int lastPartitionCutY = GuiConstants.CONTENT_START_Y;
+        boolean hasContentAbove = scrollOffset > 0 && isContentLine(allLines, scrollOffset - 1);
+
+        for (int i = 0; i < visibleRows.size(); i++) {
+            IWidget widget = visibleRows.get(i);
+            int lineIndex = scrollOffset + i;
+
+            if (widget instanceof AbstractHeader) {
+                AbstractHeader header = (AbstractHeader) widget;
+                // Only draw connector if non-partition content rows follow below
+                // The vertical line connects header to content, NOT to partition
+                boolean hasContentBelow = hasNonPartitionContentBelow(allLines, lineIndex);
+                header.setDrawConnector(hasContentBelow);
+                lastContentCutY = header.getConnectorY();
+                // Reset partition cut Y for each new header (new temp cell)
+                lastPartitionCutY = GuiConstants.CONTENT_START_Y;
+
+            } else if (widget instanceof AbstractLine) {
+                AbstractLine line = (AbstractLine) widget;
+                boolean currentIsPartition = isPartitionRow(allLines, lineIndex);
+                boolean prevIsPartition = lineIndex > 0 && isPartitionRow(allLines, lineIndex - 1);
+
+                if (currentIsPartition) {
+                    if (!prevIsPartition) {
+                        // First partition row after content: draw horizontal line and button, but NO vertical line
+                        // Set lineAboveCutY to row's own junction so vertical line has zero length
+                        line.setTreeLineParams(true, line.getY() + 5);
+                        lastPartitionCutY = line.getTreeLineCutY();
+                    } else {
+                        // Continuation partition row: draw tree line connecting to previous partition
+                        line.setTreeLineParams(true, lastPartitionCutY);
+                        lastPartitionCutY = line.getTreeLineCutY();
+                    }
+                } else if (i == 0 && hasContentAbove) {
+                    // First visible row with content above
+                    line.setTreeLineParams(true, GuiConstants.CONTENT_START_Y);
+                    lastContentCutY = line.getTreeLineCutY();
+                } else {
+                    line.setTreeLineParams(true, lastContentCutY);
+                    lastContentCutY = line.getTreeLineCutY();
+                }
+            }
+        }
     }
 
     // ---- TempAreaHeader creation ----
@@ -345,7 +350,7 @@ public class TempAreaTabWidget extends AbstractTabWidget {
             guiContext.sendPacket(new PacketTempCellAction(
                 PacketTempCellAction.Action.SEND, tempCell.getTempSlotIndex())));
 
-        // Name click (rename) - y + 4 to align with vertically centered name (drawn at y + 5)
+        // Name click (rename) - y + 4 so field background (editingY + 1) aligns with name at y + 5
         if (cellInfo != null) {
             header.setOnNameClick(() -> guiContext.startInlineRename(cellInfo,
                 y + 4, getRenameFieldX(cellInfo), getRenameFieldRightEdge(cellInfo)));

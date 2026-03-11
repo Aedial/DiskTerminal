@@ -20,6 +20,7 @@ import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.handler.TerminalDataManager;
 import com.cellterminal.gui.rename.Renameable;
 import com.cellterminal.gui.widget.CardsDisplay;
+import com.cellterminal.gui.widget.DoubleClickTracker;
 import com.cellterminal.gui.widget.IWidget;
 import com.cellterminal.gui.widget.header.StorageHeader;
 import com.cellterminal.gui.widget.line.TerminalLine;
@@ -30,7 +31,7 @@ import com.cellterminal.config.CellTerminalServerConfig;
 
 /**
  * Tab widget for the Terminal tab (Tab 0).
- *
+ * <p>
  * Displays storage groups with expandable cell lists. Each row is either:
  * <ul>
  *   <li>{@link StorageInfo} → {@link StorageHeader} (name, location, expand/collapse)</li>
@@ -136,7 +137,8 @@ public class TerminalTabWidget extends AbstractTabWidget {
         header.setOnNameClick(() -> guiContext.startInlineRename(storage,
             y, getRenameFieldX(storage), getRenameFieldRightEdge(storage)));
         header.setOnNameDoubleClick(() -> guiContext.highlightInWorld(
-            storage.getPos(), storage.getDimension(), storage.getName()));
+            storage.getPos(), storage.getDimension(), storage.getName()),
+            DoubleClickTracker.storageTargetId(storage.getId()));
         header.setOnExpandToggle(() -> {
             TabStateManager.getInstance().toggleExpanded(TabStateManager.TabType.TERMINAL, storage.getId());
             guiContext.rebuildAndUpdateScrollbar();
@@ -153,6 +155,10 @@ public class TerminalTabWidget extends AbstractTabWidget {
         line.setCellNameSupplier(cell::getDisplayName);
         line.setHasCustomNameSupplier(cell::hasCustomName);
         line.setByteUsageSupplier(cell::getByteUsagePercent);
+
+        // Set target ID for double-click tracking (parent storage + slot = unique cell ID)
+        line.setDoubleClickTargetId(DoubleClickTracker.cellTargetId(
+            cell.getParentStorageId(), cell.getSlot()));
 
         // Create upgrade cards display
         CardsDisplay cards = createCellCards(cell, y);
@@ -195,7 +201,7 @@ public class TerminalTabWidget extends AbstractTabWidget {
     // ---- Cards helper ----
 
     private CardsDisplay createCellCards(CellInfo cell, int rowY) {
-        return createCellCardsDisplay(cell, rowY, (c, upgradeSlot) -> handleCardClick(c, upgradeSlot));
+        return createCellCardsDisplay(cell, rowY, this::handleCardClick);
     }
 
     private void handleCardClick(CellInfo cell, int upgradeSlotIndex) {

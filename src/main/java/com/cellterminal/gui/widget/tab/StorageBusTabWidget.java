@@ -26,6 +26,7 @@ import com.cellterminal.client.KeyBindings;
 import com.cellterminal.client.SearchFilterMode;
 import com.cellterminal.client.StorageBusContentRow;
 import com.cellterminal.client.StorageBusInfo;
+import com.cellterminal.client.TabStateManager;
 import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.handler.JeiGhostHandler;
@@ -34,6 +35,7 @@ import com.cellterminal.gui.rename.Renameable;
 import com.cellterminal.gui.handler.QuickPartitionHandler;
 import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.gui.widget.CardsDisplay;
+import com.cellterminal.gui.widget.DoubleClickTracker;
 import com.cellterminal.gui.widget.IWidget;
 import com.cellterminal.gui.widget.button.ButtonType;
 import com.cellterminal.gui.widget.button.SmallButton;
@@ -50,7 +52,7 @@ import com.cellterminal.network.PacketUpgradeStorageBus;
 
 /**
  * Tab widget for Storage Bus Inventory (Tab 4) and Storage Bus Partition (Tab 5) tabs.
- *
+ * <p>
  * Both tabs display storage bus groups with expandable content rows. Each row is either:
  * <ul>
  *   <li>{@link StorageBusInfo} → {@link StorageBusHeader} (name, location, IO mode, expand)</li>
@@ -283,7 +285,12 @@ public class StorageBusTabWidget extends AbstractTabWidget {
         header.setIconSupplier(bus::getConnectedInventoryIcon);
         header.setNameSupplier(bus::getLocalizedName);
         header.setHasCustomNameSupplier(bus::hasCustomName);
-        header.setExpandedSupplier(bus::isExpanded);
+        // Use TabStateManager for expand/collapse state (persists across rebuilds)
+        TabStateManager.TabType tabType = isPartitionMode
+            ? TabStateManager.TabType.STORAGE_BUS_PARTITION
+            : TabStateManager.TabType.STORAGE_BUS_INVENTORY;
+        header.setExpandedSupplier(() ->
+            TabStateManager.getInstance().isBusExpanded(tabType, bus.getId()));
         header.setLocationSupplier(bus::getLocationString);
         header.setAccessModeSupplier(bus::getAccessRestriction);
         header.setSupportsIOModeSupplier(bus::supportsIOMode);
@@ -295,9 +302,10 @@ public class StorageBusTabWidget extends AbstractTabWidget {
         header.setOnNameClick(() -> guiContext.startInlineRename(bus,
             y, getRenameFieldX(bus), getRenameFieldRightEdge(bus)));
         header.setOnNameDoubleClick(() -> guiContext.highlightInWorld(
-            bus.getPos(), bus.getDimension(), bus.getLocalizedName()));
+            bus.getPos(), bus.getDimension(), bus.getLocalizedName()),
+            DoubleClickTracker.storageBusTargetId(bus.getId()));
         header.setOnExpandToggle(() -> {
-            bus.toggleExpanded();
+            TabStateManager.getInstance().toggleBusExpanded(tabType, bus.getId());
             guiContext.rebuildAndUpdateScrollbar();
         });
         header.setOnIOModeClick(() ->
@@ -354,6 +362,7 @@ public class StorageBusTabWidget extends AbstractTabWidget {
             }
         });
         line.setTreeButton(treeBtn);
+        line.setTreeButtonXOffset(-3);  // 2px to the right vs cells for tighter storage bus layout
 
         line.setGuiOffsets(guiLeft, guiTop);
 
@@ -557,11 +566,7 @@ public class StorageBusTabWidget extends AbstractTabWidget {
         if (entries.isEmpty()) return null;
 
         // Position cards at left margin (x=3)
-        CardsDisplay cards = new CardsDisplay(
-            GuiConstants.CARDS_X, rowY,
-            () -> entries,
-            fontRenderer, itemRender
-        );
+        CardsDisplay cards = new CardsDisplay(GuiConstants.CARDS_X, rowY, () -> entries, itemRender);
 
         cards.setClickCallback(slotIndex -> handleBusCardClick(bus, slotIndex));
 

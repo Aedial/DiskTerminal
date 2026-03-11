@@ -11,10 +11,10 @@ import net.minecraft.item.ItemStack;
 
 /**
  * Base implementation of {@link IWidget} providing common fields and behavior.
- *
+ * <p>
  * Subclasses must implement {@link #draw(int, int)} and {@link #handleClick(int, int, int)}.
  * Hover detection is provided by default based on the widget's bounding rectangle.
- *
+ * <p>
  * Also provides shared utility methods for common rendering tasks used
  * across the widget hierarchy (line, header, tab, etc.).
  */
@@ -85,7 +85,7 @@ public abstract class AbstractWidget implements IWidget {
     /**
      * Truncate a string to fit within a pixel width, appending "..." if needed.
      * Correctly handles §X formatting codes via fontRenderer.getStringWidth.
-     *
+     * <p>
      * Shared across both line and header widget hierarchies
      * to avoid duplicating the truncation logic.
      */
@@ -108,7 +108,7 @@ public abstract class AbstractWidget implements IWidget {
     /**
      * Render an item stack at the given position with standard GUI lighting.
      * Restores GL state (lighting, blend) after rendering.
-     *
+     * <p>
      * Shared across both line and header widget hierarchies
      * to avoid duplicating the item rendering boilerplate.
      */

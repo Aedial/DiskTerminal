@@ -1,12 +1,12 @@
-package com.cellterminal.gui;
+package com.cellterminal.gui.buttons;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import com.cellterminal.gui.GuiConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.resources.I18n;
-import net.minecraft.client.gui.GuiButton;
 
 import com.cellterminal.client.SlotLimit;
 
@@ -15,18 +15,15 @@ import com.cellterminal.client.SlotLimit;
  * Button for cycling through slot limit options (8, 32, 64, unlimited).
  * Controls how many content types are displayed per cell/storage bus.
  */
-public class GuiSlotLimitButton extends GuiButton {
+public class GuiSlotLimitButton extends GuiAtlasButton {
 
-    public static final int BUTTON_SIZE = 16;
-
-    private static final int COLOR_NORMAL = 0xFF8B8B8B;
-    private static final int COLOR_HOVER = 0xFF707070;
+    private static final int SIZE = GuiConstants.TERMINAL_SIDE_BUTTON_SIZE;
     private static final int COLOR_TEXT = 0xFFFFFFFF;
 
     private SlotLimit currentLimit;
 
     public GuiSlotLimitButton(int buttonId, int x, int y, SlotLimit initialLimit) {
-        super(buttonId, x, y, BUTTON_SIZE, BUTTON_SIZE, "");
+        super(buttonId, x, y, SIZE);
         this.currentLimit = initialLimit;
     }
 
@@ -48,22 +45,17 @@ public class GuiSlotLimitButton extends GuiButton {
     }
 
     @Override
-    public void drawButton(Minecraft mc, int mouseX, int mouseY, float partialTicks) {
-        if (!this.visible) return;
+    protected int getBackgroundTexX() {
+        return GuiConstants.TERMINAL_STYLE_BUTTON_X;
+    }
 
-        this.hovered = mouseX >= this.x && mouseY >= this.y
-            && mouseX < this.x + this.width && mouseY < this.y + this.height;
+    @Override
+    protected int getBackgroundTexY() {
+        return GuiConstants.TERMINAL_STYLE_BUTTON_Y + (this.hovered ? SIZE : 0);
+    }
 
-        int bgColor = this.hovered ? COLOR_HOVER : COLOR_NORMAL;
-        drawRect(this.x, this.y, this.x + this.width, this.y + this.height, bgColor);
-
-        // Draw 3D border
-        drawRect(this.x, this.y, this.x + this.width, this.y + 1, brightenColor(bgColor, 0.3f));
-        drawRect(this.x, this.y, this.x + 1, this.y + this.height, brightenColor(bgColor, 0.3f));
-        drawRect(this.x, this.y + this.height - 1, this.x + this.width, this.y + this.height, darkenColor(bgColor, 0.3f));
-        drawRect(this.x + this.width - 1, this.y, this.x + this.width, this.y + this.height, darkenColor(bgColor, 0.3f));
-
-        // Draw limit text centered
+    @Override
+    protected void drawForeground(Minecraft mc) {
         FontRenderer fr = mc.fontRenderer;
         String text = currentLimit.getDisplayText();
         int textWidth = fr.getStringWidth(text);
@@ -103,23 +95,5 @@ public class GuiSlotLimitButton extends GuiButton {
         List<String> tooltip = new ArrayList<>();
         tooltip.add(I18n.format("gui.cellterminal.slot_limit", limitText));
         return tooltip;
-    }
-
-    private static int brightenColor(int color, float amount) {
-        int a = (color >> 24) & 0xFF;
-        int r = Math.min(255, (int) (((color >> 16) & 0xFF) + 255 * amount));
-        int g = Math.min(255, (int) (((color >> 8) & 0xFF) + 255 * amount));
-        int b = Math.min(255, (int) ((color & 0xFF) + 255 * amount));
-
-        return (a << 24) | (r << 16) | (g << 8) | b;
-    }
-
-    private static int darkenColor(int color, float amount) {
-        int a = (color >> 24) & 0xFF;
-        int r = (int) (((color >> 16) & 0xFF) * (1 - amount));
-        int g = (int) (((color >> 8) & 0xFF) * (1 - amount));
-        int b = (int) ((color & 0xFF) * (1 - amount));
-
-        return (a << 24) | (r << 16) | (g << 8) | b;
     }
 }

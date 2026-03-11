@@ -31,7 +31,7 @@ import com.cellterminal.gui.widget.header.AbstractHeader;
 
 /**
  * Base class for all tab container widgets in the Cell Terminal GUI.
- *
+ * <p>
  * A tab widget manages the visible window of rows in the scrollable content area.
  * Each frame, it builds a list of {@link IWidget} instances (headers and lines)
  * for the currently visible scroll region and draws them in order.
@@ -108,12 +108,22 @@ public abstract class AbstractTabWidget extends AbstractWidget {
         this.height = rowsVisible * GuiConstants.ROW_HEIGHT;
     }
 
+    /**
+     * Get the number of items that fit in the visible scroll area.
+     * Defaults to {@link #rowsVisible} (one item per 18px row).
+     * Tabs with non-standard row heights (e.g., NetworkTools at 36px per tool)
+     * override this to return the correct number.
+     */
+    public int getVisibleItemCount() {
+        return rowsVisible;
+    }
+
     // ---- Row building ----
 
     /**
      * Build the list of visible row widgets for the current scroll window.
      * Called once per frame before draw. Subclasses implement
-     * {@link #createRowWidget(Object, int)} to map line data → widget.
+     * {@link #createRowWidget(Object, int, List, int)} to map line data → widget.
      *
      * @param lines All line data objects for this tab (from DataManager)
      * @param scrollOffset The current scroll position (index of first visible line)
@@ -301,11 +311,7 @@ public abstract class AbstractTabWidget extends AbstractWidget {
             entries.add(new CardsDisplay.CardEntry(upgrades.get(i), cell.getUpgradeSlotIndex(i)));
         }
 
-        CardsDisplay cards = new CardsDisplay(
-            GuiConstants.CARDS_X, rowY,
-            () -> entries,
-            fontRenderer, itemRender
-        );
+        CardsDisplay cards = new CardsDisplay(GuiConstants.CARDS_X, rowY, () -> entries, itemRender);
 
         if (cardClickCallback != null) {
             cards.setClickCallback(slotIndex -> cardClickCallback.accept(cell, slotIndex));
@@ -492,6 +498,15 @@ public abstract class AbstractTabWidget extends AbstractWidget {
 
         // StorageInfo and StorageBusInfo: name drawn at GUI_INDENT + 20
         return GuiConstants.GUI_INDENT + 20 - 2;
+    }
+
+    /**
+     * Get the Y offset for the inline rename field relative to the row top.
+     * The editor draws the field at (rowY + yOffset + 1), where +1 aligns with text.
+     * Default is 0 (name drawn at y+1, field at rowY+1). TempArea overrides for y+5.
+     */
+    public int getRenameFieldYOffset(Renameable target) {
+        return 0;
     }
 
     /**

@@ -12,11 +12,12 @@ import net.minecraft.item.ItemStack;
 import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.widget.AbstractWidget;
 import com.cellterminal.gui.widget.CardsDisplay;
+import com.cellterminal.gui.widget.DoubleClickTracker;
 
 
 /**
  * Base class for all header widgets in the Cell Terminal GUI.
- *
+ * <p>
  * A header represents the top row of a storage group (drive, chest, storage bus,
  * or temp area cell slot). It shows:
  * <ul>
@@ -71,11 +72,11 @@ public abstract class AbstractHeader extends AbstractWidget {
     /** Callback when the name area is double-clicked (for highlight in world) */
     protected Runnable onNameDoubleClick;
 
+    /** Target ID for double-click tracking (stored in DoubleClickTracker for persistence across rebuilds) */
+    protected long doubleClickTargetId = -1;
+
     /** Callback when the header row is clicked (for area selection / quick add) */
     protected Runnable onHeaderClick;
-
-    /** Double-click detection: time of last name area click */
-    private long lastNameClickTime = 0;
 
     /** Supplier for the selection state (selected headers get a highlight overlay) */
     protected Supplier<Boolean> selectedSupplier;
@@ -120,8 +121,25 @@ public abstract class AbstractHeader extends AbstractWidget {
     }
 
     /**
-     * Set the callback for double-clicking the name area (for highlight in world).
+     * Set the callback and target ID for double-clicking the name area (for highlight in world).
+     * <p>
+     * The target ID is used by {@link DoubleClickTracker} to track clicks across widget
+     * rebuilds. Since widgets are recreated every frame, storing the last click time on
+     * the widget instance doesn't work - we need centralized tracking keyed by target ID.
+     *
+     * @param callback The action to perform on double-click
+     * @param targetId Unique identifier for this target (use DoubleClickTracker.storageTargetId() etc.)
      */
+    public void setOnNameDoubleClick(Runnable callback, long targetId) {
+        this.onNameDoubleClick = callback;
+        this.doubleClickTargetId = targetId;
+    }
+
+    /**
+     * Set the callback for double-clicking the name area (for highlight in world).
+     * @deprecated Use {@link #setOnNameDoubleClick(Runnable, long)} instead for proper tracking
+     */
+    @Deprecated
     public void setOnNameDoubleClick(Runnable callback) {
         this.onNameDoubleClick = callback;
     }
@@ -282,21 +300,19 @@ public abstract class AbstractHeader extends AbstractWidget {
         // Only left-click for remaining actions
         if (button != 0) return false;
 
-        // Name double-click for highlight in world (left-click)
-        if (nameHovered && onNameDoubleClick != null) {
-            long currentTime = System.currentTimeMillis();
-            if (currentTime - lastNameClickTime < GuiConstants.DOUBLE_CLICK_TIME_MS) {
-                onNameDoubleClick.run();
-                lastNameClickTime = 0;  // Reset to avoid triple-click triggering
-                return true;
-            }
-            lastNameClickTime = currentTime;
-            // Don't return - let it fall through in case something else needs to handle it
-        }
-
-        // Cards click
+        // Cards click takes priority over header double-click
         if (cardsDisplay != null && cardsDisplay.isHovered(mouseX, mouseY)) {
             return cardsDisplay.handleClick(mouseX, mouseY, button);
+        }
+
+        // Header double-click for highlight in world (full header area, not just name)
+        // Uses centralized DoubleClickTracker since widgets are recreated every frame
+        if (headerHovered && onNameDoubleClick != null && doubleClickTargetId != -1) {
+            if (DoubleClickTracker.isDoubleClick(doubleClickTargetId)) {
+                onNameDoubleClick.run();
+                return true;
+            }
+            // Don't return - let it fall through in case something else needs to handle it
         }
 
         // Header row click for area selection / quick add (fallthrough: nothing specific was hit)

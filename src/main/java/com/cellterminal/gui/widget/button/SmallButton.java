@@ -14,7 +14,7 @@ import com.cellterminal.gui.widget.AbstractWidget;
 
 /**
  * A small 8x8 button widget rendered from a texture atlas.
- *
+ * <p>
  * The texture is {@code textures/guis/atlas.png}, arranged as an 5x2 grid
  * of 8x8 icons. The column is determined by the {@link ButtonType} and the
  * row is determined by the hover state (0=normal, 1=hovered).
@@ -25,8 +25,8 @@ import com.cellterminal.gui.widget.AbstractWidget;
 public class SmallButton extends AbstractWidget {
 
     private static final int SIZE = GuiConstants.SMALL_BUTTON_SIZE;
-
-    private static final ResourceLocation TEXTURE = new ResourceLocation("cellterminal", "textures/guis/atlas.png");
+    private static final ResourceLocation TEXTURE =
+        new ResourceLocation("cellterminal", "textures/guis/atlas.png");
 
     protected ButtonType type;
     private final Runnable onClick;

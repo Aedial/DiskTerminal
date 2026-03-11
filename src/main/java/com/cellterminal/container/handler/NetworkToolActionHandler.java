@@ -2,6 +2,7 @@ package com.cellterminal.container.handler;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
@@ -431,9 +432,7 @@ public final class NetworkToolActionHandler {
         // Sort by probed capacity (SMALLEST first for best-fit algorithm)
         // Best-fit assigns items to the smallest cell that can hold them,
         // preventing huge cells from being wasted on small stacks
-        targetCells.sort((a, b) -> Long.compare(
-            cellCapacities.getOrDefault(a, 0L),
-            cellCapacities.getOrDefault(b, 0L)));
+        targetCells.sort(Comparator.comparingLong(a -> cellCapacities.getOrDefault(a, 0L)));
 
         // Log sorted order
         CellTerminal.LOGGER.info("[AttributeUnique] Cells sorted by capacity (smallest first for best-fit):");

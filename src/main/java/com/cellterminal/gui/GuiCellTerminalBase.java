@@ -49,6 +49,7 @@ import com.cellterminal.client.StorageBusContentRow;
 import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.client.StorageInfo;
 import com.cellterminal.config.CellTerminalServerConfig;
+import com.cellterminal.gui.buttons.*;
 import com.cellterminal.gui.handler.TabRenderingHandler;
 import com.cellterminal.gui.handler.TerminalDataManager;
 import com.cellterminal.gui.handler.TooltipHandler;
@@ -56,14 +57,12 @@ import com.cellterminal.gui.networktools.INetworkTool;
 import com.cellterminal.gui.networktools.GuiToolConfirmationModal;
 import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.gui.overlay.OverlayMessageRenderer;
-import com.cellterminal.gui.render.NetworkToolsTabRenderer;
-import com.cellterminal.gui.render.RenderContext;
-import com.cellterminal.gui.subnet.GuiBackButton;
 import com.cellterminal.gui.subnet.SubnetOverviewRenderer;
 import com.cellterminal.gui.widget.IWidget;
 import com.cellterminal.gui.widget.line.SlotsLine;
 import com.cellterminal.gui.widget.tab.AbstractTabWidget;
 import com.cellterminal.gui.widget.tab.CellContentTabWidget;
+import com.cellterminal.gui.widget.tab.NetworkToolsTabWidget;
 import com.cellterminal.gui.widget.tab.StorageBusTabWidget;
 import com.cellterminal.gui.widget.tab.TempAreaTabWidget;
 import com.cellterminal.gui.widget.tab.TerminalTabWidget;
@@ -81,7 +80,6 @@ import com.cellterminal.network.PacketUpgradeCell;
 import com.cellterminal.network.PacketUpgradeStorageBus;
 import com.cellterminal.gui.rename.InlineRenameEditor;
 import com.cellterminal.gui.rename.Renameable;
-import com.cellterminal.gui.widget.tab.GuiContext;
 
 
 /**
@@ -89,19 +87,19 @@ import com.cellterminal.gui.widget.tab.GuiContext;
  * Contains shared functionality for displaying storage drives/chests with their cells.
  * Supports three tabs: Terminal (list view), Inventory (cell slots with contents), Partition (cell slots with partition).
  */
-public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhostIngredients, GuiContext {
+public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhostIngredients, NetworkToolsTabWidget.NetworkToolGuiContext {
 
     private static final int TAB_WIDTH = 22;
     private static final int TAB_HEIGHT = 22;
     private static final int TAB_Y_OFFSET = -22;
 
     // Layout constants
-    protected static final int ROW_HEIGHT = 18;
-    protected static final int MIN_ROWS = 6;
-    protected static final int DEFAULT_ROWS = 8;
+    protected static final int ROW_HEIGHT = GuiConstants.ROW_HEIGHT;
+    protected static final int MIN_ROWS = GuiConstants.MIN_ROWS;
+    protected static final int DEFAULT_ROWS = GuiConstants.DEFAULT_ROWS;
 
     // Magic height number for tall mode calculation (header + footer heights)
-    private static final int MAGIC_HEIGHT_NUMBER = 18 + 98;
+    private static final int MAGIC_HEIGHT_NUMBER = GuiConstants.MAGIC_HEIGHT_NUMBER;
 
     // Dynamic row count (computed based on terminal style)
     protected int rowsVisible = DEFAULT_ROWS;
@@ -113,14 +111,13 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     protected TempAreaTabWidget tempAreaTabWidget;
     protected StorageBusTabWidget storageBusInventoryTabWidget;
     protected StorageBusTabWidget storageBusPartitionTabWidget;
+    protected NetworkToolsTabWidget networkToolsTabWidget;
 
-    /** Indexed lookup for tab widgets (tabs 0-5). Tab 6 (NetworkTools) has no widget. */
+    /** Indexed lookup for tab widgets (tabs 0-6). */
     protected AbstractTabWidget[] tabWidgets;
 
     // Legacy renderers (kept for tabs not yet migrated to widgets)
-    protected NetworkToolsTabRenderer networkToolsRenderer;
     protected SubnetOverviewRenderer subnetOverviewRenderer;
-    protected RenderContext renderContext;
 
     // Handlers
     protected TerminalDataManager dataManager;
@@ -144,13 +141,10 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     // Current tab
     protected int currentTab;
 
-    // Tab icons (lazy initialized)
-    protected ItemStack tabIconTerminal = null;
+    // Tab icons for composite rendering (lazy initialized)
     protected ItemStack tabIconInventory = null;
     protected ItemStack tabIconPartition = null;
-    protected ItemStack tabIconTempArea = null;  // Temp Area tab icon (64k cell)
-    protected ItemStack tabIconStorageBus = null;  // Storage bus icon for composite rendering
-    protected ItemStack tabIconNetworkTool = null;  // Network Tools tab icon
+    protected ItemStack tabIconStorageBus = null;
 
     // Popup states
     protected PopupCellInventory inventoryPopup = null;
@@ -196,19 +190,18 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     public GuiCellTerminalBase(Container container) {
         super(container);
 
-        this.xSize = 208;
+        this.xSize = GuiConstants.GUI_WIDTH;
         this.rowsVisible = calculateRowsCount();
         this.ySize = MAGIC_HEIGHT_NUMBER + this.rowsVisible * ROW_HEIGHT;
         this.setScrollBar(new GuiScrollbar());
 
-        this.renderContext = new RenderContext();
         this.dataManager = new TerminalDataManager();
         this.filterPanelManager = new FilterPanelManager();
 
         // Load persisted settings
         CellTerminalClientConfig config = CellTerminalClientConfig.getInstance();
         this.currentTab = config.getSelectedTab();
-        if (this.currentTab < 0 || this.currentTab > GuiConstants.TAB_NETWORK_TOOLS) this.currentTab = GuiConstants.TAB_TERMINAL;
+        if (this.currentTab < 0 || this.currentTab > GuiConstants.LAST_TAB) this.currentTab = GuiConstants.TAB_TERMINAL;
 
         // If the persisted tab is disabled, redirect to the first enabled tab
         if (CellTerminalServerConfig.isInitialized() && !CellTerminalServerConfig.getInstance().isTabEnabled(this.currentTab)) {
@@ -250,7 +243,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
         CellTerminalServerConfig config = CellTerminalServerConfig.getInstance();
 
-        for (int i = 0; i <= GuiConstants.TAB_NETWORK_TOOLS; i++) {
+        for (int i = 0; i <= GuiConstants.LAST_TAB; i++) {
             if (config.isTabEnabled(i)) return i;
         }
 
@@ -295,7 +288,6 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         this.getScrollBar().setTop(18).setLeft(189).setHeight(this.rowsVisible * ROW_HEIGHT - 2);
         this.repositionSlots();
         initTabWidgets();
-        initTabIcons();
         initTerminalStyleButton();
         initSubnetBackButton();
         initFilterButtons();
@@ -343,7 +335,6 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
     protected void initTabWidgets() {
         // Legacy renderers (not yet converted to widgets)
-        this.networkToolsRenderer = new NetworkToolsTabRenderer(this.fontRenderer, this.itemRender);
         this.subnetOverviewRenderer = new SubnetOverviewRenderer(this.fontRenderer, this.itemRender);
         this.inlineRenameEditor = new InlineRenameEditor();
 
@@ -354,16 +345,17 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         this.tempAreaTabWidget = new TempAreaTabWidget(this.fontRenderer, this.itemRender);
         this.storageBusInventoryTabWidget = new StorageBusTabWidget(SlotsLine.SlotMode.CONTENT, this.fontRenderer, this.itemRender);
         this.storageBusPartitionTabWidget = new StorageBusTabWidget(SlotsLine.SlotMode.PARTITION, this.fontRenderer, this.itemRender);
+        this.networkToolsTabWidget = new NetworkToolsTabWidget(this.fontRenderer, this.itemRender);
 
-        // Populate indexed lookup (tab 6 = NetworkTools has no widget)
+        // Populate indexed lookup
         this.tabWidgets = new AbstractTabWidget[] {
-            terminalTabWidget,           // TAB_TERMINAL (0)
-            inventoryTabWidget,          // TAB_INVENTORY (1)
-            partitionTabWidget,          // TAB_PARTITION (2)
-            tempAreaTabWidget,           // TAB_TEMP_AREA (3)
-            storageBusInventoryTabWidget, // TAB_STORAGE_BUS_INVENTORY (4)
-            storageBusPartitionTabWidget, // TAB_STORAGE_BUS_PARTITION (5)
-            null                         // TAB_NETWORK_TOOLS (6) — legacy renderer
+            terminalTabWidget,              // TAB_TERMINAL (0)
+            inventoryTabWidget,             // TAB_INVENTORY (1)
+            partitionTabWidget,             // TAB_PARTITION (2)
+            tempAreaTabWidget,              // TAB_TEMP_AREA (3)
+            storageBusInventoryTabWidget,   // TAB_STORAGE_BUS_INVENTORY (4)
+            storageBusPartitionTabWidget,   // TAB_STORAGE_BUS_PARTITION (5)
+            networkToolsTabWidget           // TAB_NETWORK_TOOLS (6)
         };
 
         // Initialize all widgets with shared GUI context, offsets, and row count
@@ -376,7 +368,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     }
 
     /**
-     * Get the active tab widget for the current tab, or null for tabs not yet migrated (e.g. NetworkTools).
+     * Get the active tab widget for the current tab.
      */
     protected AbstractTabWidget getActiveTabWidget() {
         if (currentTab < 0 || currentTab >= tabWidgets.length) return null;
@@ -409,7 +401,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     protected void initTerminalStyleButton() {
         if (this.terminalStyleButton != null) this.buttonList.remove(this.terminalStyleButton);
 
-        // Calculate button Y as if in SMALL mode (for consistent positioning across style changes)
+        // Calculate button Y like in SMALL mode (for consistent positioning across style changes)
         int smallModeYSize = MAGIC_HEIGHT_NUMBER + DEFAULT_ROWS * ROW_HEIGHT;
         int buttonY = Math.max(8, (this.height - smallModeYSize) / 2 + 8);
         this.terminalStyleButton = new GuiTerminalStyleButton(0, this.guiLeft - 18, buttonY, CellTerminalClientConfig.getInstance().getTerminalStyle());
@@ -432,6 +424,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         dataManager.updateFiltersQuiet(filterPanelManager.getAllFilterStates());
     }
 
+    // TODO: delegate more to the search field itself
     protected void initSearchField() {
         // Search help button: positioned at the start of the search area
         int titleWidth = this.fontRenderer.getStringWidth(getGuiTitle());
@@ -443,7 +436,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         this.buttonList.add(this.searchHelpButton);
 
         // Search field: positioned after help button
-        int searchX = helpButtonX + GuiSearchHelpButton.BUTTON_SIZE + 2;
+        int searchX = helpButtonX + GuiSearchHelpButton.SIZE + 2;
         int searchY = 4;
         int availableWidth = 189 - searchX;
 
@@ -503,29 +496,6 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         if (activeWidget != null) return activeWidget.getEffectiveSearchMode(currentSearchMode);
 
         return currentSearchMode;
-    }
-
-    protected void initTabIcons() {
-        // Tab icons are now delegated to each tab widget's getTabIcon() method.
-        // These fields are kept for backwards compatibility with composite icon rendering.
-
-        // Storage bus icon (used for composite rendering in storage bus tabs)
-        tabIconStorageBus = AEApi.instance().definitions().parts().storageBus()
-            .maybeStack(1).orElse(ItemStack.EMPTY);
-
-        // Inventory and partition icons (used for composite rendering overlays)
-        tabIconInventory = AEApi.instance().definitions().blocks().chest()
-            .maybeStack(1).orElse(ItemStack.EMPTY);
-        tabIconPartition = AEApi.instance().definitions().blocks().cellWorkbench()
-            .maybeStack(1).orElse(ItemStack.EMPTY);
-
-        // Network Tools icon (no widget yet, so keep hardcoded)
-        tabIconNetworkTool = AEApi.instance().definitions().items().networkTool()
-            .maybeStack(1).orElse(ItemStack.EMPTY);
-
-        // These are now fetched from widgets, but kept for legacy code paths
-        tabIconTerminal = terminalTabWidget != null ? terminalTabWidget.getTabIcon() : ItemStack.EMPTY;
-        tabIconTempArea = tempAreaTabWidget != null ? tempAreaTabWidget.getTabIcon() : ItemStack.EMPTY;
     }
 
     protected void repositionSlots() {
@@ -637,17 +607,6 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         TooltipHandler.TooltipContext ctx = new TooltipHandler.TooltipContext();
         ctx.currentTab = currentTab;
         ctx.hoveredTab = hoveredTab;
-        // Widget-based tabs no longer set these hover fields — they are null/default
-        ctx.hoveredCell = null;
-        ctx.hoverType = 0;
-        ctx.hoveredContentStack = ItemStack.EMPTY;
-        ctx.hoveredContentX = 0;
-        ctx.hoveredContentY = 0;
-        ctx.hoveredClearButtonStorageBus = null;
-        ctx.hoveredIOModeButtonStorageBus = null;
-        ctx.hoveredPartitionAllButtonStorageBus = null;
-        ctx.hoveredPartitionAllButtonCell = null;
-        ctx.hoveredClearPartitionButtonCell = null;
         ctx.inventoryPopup = inventoryPopup;
         ctx.partitionPopup = partitionPopup;
         ctx.terminalStyleButton = terminalStyleButton;
@@ -666,15 +625,6 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             ctx.searchFieldWidth = searchField.width + 4;
             ctx.searchFieldHeight = searchField.height + 4;
         }
-
-        // Upgrade icon hover state — now handled by widget tooltips, not legacy
-        ctx.hoveredUpgradeIcon = null;
-
-        // Network tools hover state (legacy renderer)
-        RenderContext renderCtx = getRenderContext();
-        ctx.hoveredNetworkTool = renderCtx.hoveredNetworkTool;
-        ctx.hoveredNetworkToolHelpButton = renderCtx.hoveredNetworkToolHelpButton;
-        ctx.hoveredNetworkToolPreview = renderCtx.hoveredNetworkToolPreview;
 
         // Tab widgets for tooltip delegation
         ctx.tabWidgets = tabWidgets;
@@ -724,12 +674,6 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
         // Subnet overview mode takes over the content area (legacy renderer)
         if (this.isInSubnetOverviewMode) {
-            renderContext.resetHoverState();
-            renderContext.storageMap = dataManager.getStorageMap();
-            renderContext.rowsVisible = this.rowsVisible;
-            renderContext.guiLeft = this.guiLeft;
-            renderContext.guiTop = this.guiTop;
-
             drawSubnetOverviewContent(relMouseX, relMouseY, currentScroll);
             drawControlsHelpForCurrentTab();
 
@@ -741,16 +685,6 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         if (activeWidget != null) {
             activeWidget.buildVisibleRows(getWidgetLines(), currentScroll);
             activeWidget.draw(relMouseX, relMouseY);
-        } else if (currentTab == GuiConstants.TAB_NETWORK_TOOLS) {
-            // Legacy renderer for network tools (not yet migrated to widgets)
-            renderContext.resetHoverState();
-            renderContext.storageMap = dataManager.getStorageMap();
-            renderContext.rowsVisible = this.rowsVisible;
-            renderContext.guiLeft = this.guiLeft;
-            renderContext.guiTop = this.guiTop;
-
-            networkToolsRenderer.draw(currentScroll, rowsVisible,
-                relMouseX, relMouseY, createNetworkToolContext(), renderContext);
         }
 
         // Draw inline rename field overlay if editing
@@ -1039,18 +973,36 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
                 return GuiCellTerminalBase.this.getTabIcon(tab);
             }
 
+            // Icons used for composite tab rendering
+            // TODO: get proper icons for composite tabs
+
             @Override
             public ItemStack getStorageBusIcon() {
+                if (tabIconStorageBus == null) {
+                    tabIconStorageBus = AEApi.instance().definitions().parts().storageBus()
+                        .maybeStack(1).orElse(ItemStack.EMPTY);
+                }
+
                 return tabIconStorageBus;
             }
 
             @Override
             public ItemStack getInventoryIcon() {
+                if (tabIconInventory == null) {
+                    tabIconInventory = AEApi.instance().definitions().blocks().chest()
+                        .maybeStack(1).orElse(ItemStack.EMPTY);
+                }
+
                 return tabIconInventory;
             }
 
             @Override
             public ItemStack getPartitionIcon() {
+                if (tabIconPartition == null) {
+                    tabIconPartition = AEApi.instance().definitions().blocks().cellWorkbench()
+                        .maybeStack(1).orElse(ItemStack.EMPTY);
+                }
+
                 return tabIconPartition;
             }
         };
@@ -1064,9 +1016,6 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             return tabWidgets[tab].getTabIcon();
         }
 
-        // Fallback for tabs without widgets (Network Tools)
-        if (tab == GuiConstants.TAB_NETWORK_TOOLS) return tabIconNetworkTool;
-
         return ItemStack.EMPTY;
     }
 
@@ -1077,6 +1026,8 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         // not handled by the tab widget's content area click path (which handles held-item clicks).
         if (clickType == ClickType.QUICK_MOVE && slot != null && slot.getHasStack()) {
             ItemStack slotStack = slot.getStack();
+
+            // TODO: move logic to the tab widgets
 
             if (slotStack.getItem() instanceof IUpgradeModule) {
                 // Check if upgrade insertion is enabled
@@ -1267,10 +1218,11 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
                 int row = (relMouseY - GuiConstants.CONTENT_START_Y) / ROW_HEIGHT;
                 int rowY = GuiConstants.CONTENT_START_Y + row * ROW_HEIGHT;
 
-                // Determine X position and right edge based on target type and current tab
+                // Determine X position, Y offset, and right edge based on target type and current tab
                 int renameX = getRenameFieldX(target);
+                int renameYOffset = getRenameFieldYOffset(target);
                 int renameRightEdge = getRenameFieldRightEdge(target);
-                inlineRenameEditor.startEditing(target, rowY, renameX, renameRightEdge);
+                inlineRenameEditor.startEditing(target, rowY + renameYOffset, renameX, renameRightEdge);
 
                 return;
             }
@@ -1288,10 +1240,10 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
         if (activeWidget != null) {
             activeWidget.handleClick(relMouseX, relMouseY, mouseButton);
-        } else if (currentTab == GuiConstants.TAB_NETWORK_TOOLS) {
-            handleNetworkToolsTabClick(mouseButton);
         }
     }
+
+    // TODO: create a tabs handler class to encapsulate all tab-related logic (rendering, clicking, state management) instead of having it in the main GUI class
 
     /**
      * Handle clicks on tab headers at the top of the GUI.
@@ -1300,7 +1252,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     protected boolean handleTabHeaderClick(int mouseX, int mouseY) {
         int tabY = guiTop + GuiConstants.TAB_Y_OFFSET;
 
-        for (int i = 0; i <= GuiConstants.TAB_NETWORK_TOOLS; i++) {
+        for (int i = 0; i <= GuiConstants.LAST_TAB; i++) {
             int tabX = guiLeft + 4 + (i * (GuiConstants.TAB_WIDTH + 2));
 
             if (mouseX >= tabX && mouseX < tabX + GuiConstants.TAB_WIDTH
@@ -1386,19 +1338,6 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         return activeWidget.handleUpgradeClick(hoveredData, heldStack, false);
     }
 
-    /**
-     * Handle clicks on the Network Tools tab.
-     */
-    protected void handleNetworkToolsTabClick(int mouseButton) {
-        if (mouseButton != 0) return;
-
-        // Handle launch button click
-        RenderContext ctx = getRenderContext();
-        if (ctx.hoveredNetworkToolLaunchButton != null) {
-            showNetworkToolConfirmation(ctx.hoveredNetworkToolLaunchButton);
-        }
-    }
-
     public void rebuildAndUpdateScrollbar() {
         dataManager.rebuildLines();
         updateScrollbarForCurrentTab();
@@ -1470,6 +1409,8 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
+        // TODO: handle rename, priority, and other stuff at a lower level
+
         // Handle subnet rename field first (blocks other input when editing)
         if (this.subnetOverviewRenderer != null && this.subnetOverviewRenderer.isEditing()) {
             if (keyCode == Keyboard.KEY_ESCAPE) {
@@ -1668,6 +1609,8 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             this.initialScrollRestored = true;
         }
     }
+
+    // TODO: move subnet handling to a pseudo-tab widget to clean up GuiCellTerminalBase and separate concerns better
 
     /**
      * Handle subnet list update from server.
@@ -1913,6 +1856,8 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             subnet.getDisplayName());
     }
 
+    // TODO: handle renaming at a lower level (widget)
+
     /**
      * Send a packet to rename a subnet.
      */
@@ -1976,6 +1921,17 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     }
 
     /**
+     * Get the Y offset for the inline rename field, delegating to the active tab widget.
+     * Most tabs return 0 (name at y+1). TempArea returns 4 (name at y+5).
+     */
+    protected int getRenameFieldYOffset(Renameable target) {
+        AbstractTabWidget activeWidget = getActiveTabWidget();
+        if (activeWidget != null) return activeWidget.getRenameFieldYOffset(target);
+
+        return 0;
+    }
+
+    /**
      * Get the right edge for the inline rename field, delegating to the active tab widget.
      */
     protected int getRenameFieldRightEdge(Renameable target) {
@@ -1997,10 +1953,16 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     protected void updateScrollbarForCurrentTab() {
         List<Object> lines = getWidgetLines();
         int lineCount = lines.size();
-        this.getScrollBar().setRange(0, Math.max(0, lineCount - this.rowsVisible), 1);
+
+        // Use the tab widget's visible item count (accounts for non-standard row heights)
+        AbstractTabWidget activeWidget = getActiveTabWidget();
+        int visibleItems = activeWidget != null ? activeWidget.getVisibleItemCount() : this.rowsVisible;
+
+        this.getScrollBar().setRange(0, Math.max(0, lineCount - visibleItems), 1);
     }
 
     // Callbacks from popups
+    // TODO: move these to the popups themselves
 
     public void onPartitionAllClicked(CellInfo cell) {
         CellTerminalNetwork.INSTANCE.sendToServer(new PacketPartitionAction(
@@ -2074,14 +2036,10 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         return dataManager.getStorageMap();
     }
 
-    public RenderContext getRenderContext() {
-        return renderContext;
-    }
-
     /**
      * Create a ToolContext for the Network Tools tab.
      */
-    protected INetworkTool.ToolContext createNetworkToolContext() {
+    public INetworkTool.ToolContext createNetworkToolContext() {
         return new INetworkTool.ToolContext(
             dataManager.getStorageMap(),
             dataManager.getStorageBusMap(),
@@ -2213,7 +2171,8 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         StorageInfo storage = dataManager.findStorageForCell(cell);
         if (storage == null) return;
 
-        highlightInWorld(storage.getPos(), storage.getDimension(), cell.getDisplayName());
+        // Use storage name (block name) since we're highlighting the block, not the cell
+        highlightInWorld(storage.getPos(), storage.getDimension(), storage.getName());
     }
 
     @Override

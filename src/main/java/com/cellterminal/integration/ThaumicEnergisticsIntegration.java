@@ -134,7 +134,7 @@ public class ThaumicEnergisticsIntegration {
 
             return cellData;
         } catch (Exception e) {
-            CellTerminal.LOGGER.debug("Failed to get Essentia cell data: " + e.getMessage());
+            CellTerminal.LOGGER.debug("Failed to get Essentia cell data: {}", e.getMessage());
 
             return null;
         }
@@ -247,7 +247,7 @@ public class ThaumicEnergisticsIntegration {
                 ItemHandlerUtil.setStackInSlot(configInv, slot++, stack.asItemStackRepresentation());
             }
         } catch (Exception e) {
-            CellTerminal.LOGGER.debug("Failed to set Essentia partition from contents: " + e.getMessage());
+            CellTerminal.LOGGER.debug("Failed to set Essentia partition from contents: {}", e.getMessage());
         }
     }
 
@@ -294,7 +294,7 @@ public class ThaumicEnergisticsIntegration {
                 }
             }
         } catch (Exception e) {
-            CellTerminal.LOGGER.debug("Failed to collect unique essentia from cell: " + e.getMessage());
+            CellTerminal.LOGGER.debug("Failed to collect unique essentia from cell: {}", e.getMessage());
         }
     }
 
@@ -346,7 +346,7 @@ public class ThaumicEnergisticsIntegration {
 
             cellInv.persist();
         } catch (Exception e) {
-            CellTerminal.LOGGER.debug("Failed to extract essentia from cell: " + e.getMessage());
+            CellTerminal.LOGGER.debug("Failed to extract essentia from cell: {}", e.getMessage());
         }
     }
 
@@ -382,7 +382,7 @@ public class ThaumicEnergisticsIntegration {
                 appeng.api.config.Actionable.MODULATE, null);
             cellInv.persist();
         } catch (Exception e) {
-            CellTerminal.LOGGER.debug("Failed to inject essentia into cell: " + e.getMessage());
+            CellTerminal.LOGGER.debug("Failed to inject essentia into cell: {}", e.getMessage());
         }
     }
 
@@ -466,7 +466,7 @@ public class ThaumicEnergisticsIntegration {
 
             return essentiaStack.getStackSize() - rejected.getStackSize();
         } catch (Exception e) {
-            CellTerminal.LOGGER.debug("Failed to simulate essentia injection: " + e.getMessage());
+            CellTerminal.LOGGER.debug("Failed to simulate essentia injection: {}", e.getMessage());
             return 0;
         }
     }
@@ -587,7 +587,7 @@ public class ThaumicEnergisticsIntegration {
                 tracker.add(key, stack);
             }
         } catch (Exception e) {
-            CellTerminal.LOGGER.debug("Failed to collect essentia with counts from cell: " + e.getMessage());
+            CellTerminal.LOGGER.debug("Failed to collect essentia with counts from cell: {}", e.getMessage());
         }
     }
 
@@ -657,7 +657,7 @@ public class ThaumicEnergisticsIntegration {
 
             return aeEssentiaStack.asItemStackRepresentation();
         } catch (Exception e) {
-            CellTerminal.LOGGER.debug("Failed to convert essentia container to aspect: " + e.getMessage());
+            CellTerminal.LOGGER.debug("Failed to convert essentia container to aspect: {}", e.getMessage());
 
             return ItemStack.EMPTY;
         }
@@ -751,7 +751,7 @@ public class ThaumicEnergisticsIntegration {
 
             return ItemStack.EMPTY;
         } catch (Exception e) {
-            CellTerminal.LOGGER.debug("Failed to convert JEI ingredient to essentia: " + e.getMessage());
+            CellTerminal.LOGGER.debug("Failed to convert JEI ingredient to essentia: {}", e.getMessage());
 
             return ItemStack.EMPTY;
         }
@@ -937,7 +937,7 @@ public class ThaumicEnergisticsIntegration {
 
             return busData;
         } catch (Exception e) {
-            CellTerminal.LOGGER.debug("Failed to create essentia storage bus data: " + e.getMessage());
+            CellTerminal.LOGGER.debug("Failed to create essentia storage bus data: {}", e.getMessage());
 
             return null;
         }
@@ -1028,7 +1028,7 @@ public class ThaumicEnergisticsIntegration {
                     break;
             }
         } catch (Exception e) {
-            CellTerminal.LOGGER.debug("Failed to handle essentia storage bus partition: " + e.getMessage());
+            CellTerminal.LOGGER.debug("Failed to handle essentia storage bus partition: {}", e.getMessage());
         }
     }
 
@@ -1128,7 +1128,7 @@ public class ThaumicEnergisticsIntegration {
                 if (a != null) return true;
             }
         } catch (Exception e) {
-            CellTerminal.LOGGER.debug("Error checking essentia storage bus partition: " + e.getMessage());
+            CellTerminal.LOGGER.debug("Error checking essentia storage bus partition: {}", e.getMessage());
         }
 
         return false;

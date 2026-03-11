@@ -18,7 +18,7 @@ import com.cellterminal.gui.GuiConstants;
 
 /**
  * Temp area header widget for the Cell Terminal (tab 3).
- *
+ * <p>
  * Unlike other headers, the temp area header has:
  * <ul>
  *   <li>An interactive cell slot (insert/extract cells by clicking/shift-clicking)</li>
@@ -29,7 +29,7 @@ import com.cellterminal.gui.GuiConstants;
  *
  * The icon position at {@link GuiConstants#GUI_INDENT} becomes a cell slot with
  * background and hover highlight, supporting cell insertion and extraction.
- *
+ * <p>
  * The name is vertically centered (y+5) instead of top-aligned (y+1) since
  * there is no location text below.
  *
@@ -39,7 +39,7 @@ import com.cellterminal.gui.GuiConstants;
 public class TempAreaHeader extends AbstractHeader {
 
     // Send button layout
-    private static final int SEND_BUTTON_X = 150;
+    public static final int SEND_BUTTON_X = 150;
     private static final int SEND_BUTTON_Y_OFFSET = 2;
     private static final int SEND_BUTTON_WIDTH = 28;
     private static final int SEND_BUTTON_HEIGHT = 12;
@@ -53,7 +53,7 @@ public class TempAreaHeader extends AbstractHeader {
     private static final int MAX_NAME_WIDTH = SEND_BUTTON_X - GuiConstants.HEADER_NAME_X - 4;
 
     private static final int SIZE = GuiConstants.MINI_SLOT_SIZE;
-    private static final ResourceLocation SLOT_MINI_TEXTURE =
+    private static final ResourceLocation TEXTURE =
         new ResourceLocation("cellterminal", "textures/guis/atlas.png");
 
     /** Supplier for whether a cell is inserted in this slot */
@@ -158,6 +158,10 @@ public class TempAreaHeader extends AbstractHeader {
         nameHovered = false;
         headerHovered = false;
 
+        // Draw horizontal separator line at the top of the header (between cells)
+        Gui.drawRect(GuiConstants.GUI_INDENT, y - 1, GuiConstants.CONTENT_RIGHT_EDGE, y,
+            GuiConstants.COLOR_SEPARATOR);
+
         // Draw selection background (below everything else)
         boolean isSelected = selectedSupplier != null && selectedSupplier.get();
         if (isSelected) {
@@ -198,10 +202,7 @@ public class TempAreaHeader extends AbstractHeader {
      */
     private void checkCellSlotHover(int mouseX, int mouseY) {
         int slotX = GuiConstants.GUI_INDENT;
-        int slotSize = GuiConstants.MINI_SLOT_SIZE;
-
-        if (mouseX >= slotX && mouseX < slotX + slotSize
-            && mouseY >= y && mouseY < y + slotSize) {
+        if (mouseX >= slotX && mouseX < slotX + SIZE && mouseY >= y && mouseY < y + SIZE) {
             cellSlotHovered = true;
             drawSlotHoverHighlight(slotX, y);
         }
@@ -327,11 +328,11 @@ public class TempAreaHeader extends AbstractHeader {
     // ---- Slot rendering helpers ----
 
     private void drawSlotBackground(int slotX, int slotY) {
-        Minecraft.getMinecraft().getTextureManager().bindTexture(SLOT_MINI_TEXTURE);
+        Minecraft.getMinecraft().getTextureManager().bindTexture(TEXTURE);
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         GlStateManager.enableBlend();
 
-        // Mini slot: top half of slot (y uv 0-15)
+        // Mini slot: left half of slot (y uv 0-15)
         int texX = GuiConstants.MINI_SLOT_X;
         int texY = GuiConstants.MINI_SLOT_Y;
         Gui.drawScaledCustomSizeModalRect(

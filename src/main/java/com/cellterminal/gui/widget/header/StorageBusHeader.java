@@ -14,7 +14,7 @@ import com.cellterminal.gui.widget.button.SmallButton;
 
 /**
  * Storage bus header widget for the Cell Terminal (tabs 4-5).
- *
+ * <p>
  * Extends the storage header with:
  * <ul>
  *   <li>IO mode button (texture-based, cycles through Read/Write/ReadWrite)</li>
@@ -22,8 +22,7 @@ import com.cellterminal.gui.widget.button.SmallButton;
  *   <li>Selection support for batch operations (quick-add via keybind)</li>
  * </ul>
  *
- * The IO mode button uses textured icons from {@code atlas.png} to indicate
- * the current access mode:
+ * The IO mode button uses textured icons to indicate the current access mode:
  * <ul>
  *   <li>{@link ButtonType#READ_ONLY} = Read-only (extract)</li>
  *   <li>{@link ButtonType#WRITE_ONLY} = Write-only (insert)</li>
@@ -92,7 +91,7 @@ public class StorageBusHeader extends StorageHeader {
         // Draw expand/collapse indicator
         drawExpandIcon(mouseX, mouseY);
 
-        // Draw IO mode button (textured from atlas.png)
+        // Draw IO mode button
         drawIOModeButton(mouseX, mouseY);
 
         // Draw upgrade cards (from AbstractHeader)

@@ -7,23 +7,11 @@ import java.util.List;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.item.ItemStack;
 
-import com.cellterminal.client.CellInfo;
-import com.cellterminal.client.StorageBusInfo;
-import com.cellterminal.client.TempCellInfo;
 import com.cellterminal.config.CellTerminalServerConfig;
-import com.cellterminal.gui.FilterPanelManager;
-import com.cellterminal.gui.GuiConstants;
-import com.cellterminal.gui.GuiFilterButton;
-import com.cellterminal.gui.GuiSlotLimitButton;
-import com.cellterminal.gui.GuiSearchHelpButton;
-import com.cellterminal.gui.GuiSearchModeButton;
-import com.cellterminal.gui.GuiSubnetVisibilityButton;
-import com.cellterminal.gui.GuiTerminalStyleButton;
+import com.cellterminal.gui.buttons.*;
 import com.cellterminal.gui.PopupCellInventory;
 import com.cellterminal.gui.PopupCellPartition;
 import com.cellterminal.gui.PriorityFieldManager;
-import com.cellterminal.gui.networktools.INetworkTool;
-import com.cellterminal.gui.render.RenderContext;
 import com.cellterminal.gui.widget.tab.AbstractTabWidget;
 
 
@@ -39,22 +27,6 @@ public class TooltipHandler {
         // Tab state
         public int currentTab;
         public int hoveredTab = -1;
-
-        // Hover state
-        public CellInfo hoveredCell;
-        public int hoverType = 0;
-        public ItemStack hoveredContentStack = ItemStack.EMPTY;
-        public int hoveredContentX;
-        public int hoveredContentY;
-
-        // Storage bus state
-        public StorageBusInfo hoveredClearButtonStorageBus;
-        public StorageBusInfo hoveredIOModeButtonStorageBus;
-        public StorageBusInfo hoveredPartitionAllButtonStorageBus;
-
-        // Cell partition button state
-        public CellInfo hoveredPartitionAllButtonCell;
-        public CellInfo hoveredClearPartitionButtonCell;
 
         // Popup state
         public PopupCellInventory inventoryPopup;
@@ -73,14 +45,6 @@ public class TooltipHandler {
         public List<String> searchErrorMessage = null;
         public int searchFieldX, searchFieldY, searchFieldWidth, searchFieldHeight;
 
-        // Upgrade icon hover state
-        public RenderContext.UpgradeIconTarget hoveredUpgradeIcon = null;
-
-        // Network tools hover state
-        public INetworkTool hoveredNetworkTool = null;
-        public INetworkTool hoveredNetworkToolHelpButton = null;
-        public INetworkTool.ToolPreviewInfo hoveredNetworkToolPreview = null;
-
         // Tab widgets for delegation
         public AbstractTabWidget[] tabWidgets = null;
     }
@@ -97,54 +61,6 @@ public class TooltipHandler {
      * Draw all tooltips for the current state.
      */
     public static void drawTooltips(TooltipContext ctx, TooltipRenderer renderer, int mouseX, int mouseY) {
-
-        // Network tools help button tooltip
-        if (ctx.hoveredNetworkToolHelpButton != null) {
-            List<String> tooltip = new ArrayList<>();
-            tooltip.add("§e" + ctx.hoveredNetworkToolHelpButton.getName());
-            tooltip.add("");
-            for (String line : ctx.hoveredNetworkToolHelpButton.getHelpLines()) tooltip.add("§7" + line);
-
-            renderer.drawHoveringText(tooltip, mouseX, mouseY);
-
-            return;
-        }
-
-        // Network tools preview tooltip - show tooltip lines from the preview
-        if (ctx.hoveredNetworkToolPreview != null) {
-            List<String> tooltipLines = ctx.hoveredNetworkToolPreview.getTooltipLines();
-            if (tooltipLines != null && !tooltipLines.isEmpty()) {
-                List<String> lines = new ArrayList<>();
-                lines.add("§e" + ctx.hoveredNetworkTool.getName());
-                lines.add("");
-                lines.addAll(tooltipLines);
-                renderer.drawHoveringText(lines, mouseX, mouseY);
-
-                return;
-            }
-        }
-
-        // Upgrade icon tooltips
-        if (ctx.hoveredUpgradeIcon != null) {
-            List<String> tooltip = new ArrayList<>();
-            tooltip.add("§6" + ctx.hoveredUpgradeIcon.upgrade.getDisplayName());
-            tooltip.add("");
-            tooltip.add("§b" + I18n.format("gui.cellterminal.upgrade.click_extract"));
-            tooltip.add("§b" + I18n.format("gui.cellterminal.upgrade.shift_click_inventory"));
-            renderer.drawHoveringText(tooltip, mouseX, mouseY);
-
-            return;
-        }
-
-        // Content item tooltips (including temp area tab)
-        if ((ctx.currentTab == GuiConstants.TAB_INVENTORY || ctx.currentTab == GuiConstants.TAB_PARTITION
-                || ctx.currentTab == GuiConstants.TAB_STORAGE_BUS_INVENTORY || ctx.currentTab == GuiConstants.TAB_STORAGE_BUS_PARTITION
-                || ctx.currentTab == GuiConstants.TAB_TEMP_AREA)
-                && !ctx.hoveredContentStack.isEmpty()) {
-            renderer.drawHoveringText(renderer.getItemToolTip(ctx.hoveredContentStack), ctx.hoveredContentX, ctx.hoveredContentY);
-
-            return;
-        }
 
         // Tab tooltips
         if (ctx.hoveredTab >= 0 && ctx.inventoryPopup == null && ctx.partitionPopup == null) {
@@ -217,47 +133,7 @@ public class TooltipHandler {
                     && mouseY >= slotBtn.y && mouseY < slotBtn.y + slotBtn.height) {
                 renderer.drawHoveringText(slotBtn.getTooltip(), mouseX, mouseY);
 
-                return;
             }
-        }
-
-        // Storage bus button tooltips
-        if (ctx.hoveredClearButtonStorageBus != null) {
-            renderer.drawHoveringText(Collections.singletonList(I18n.format("gui.cellterminal.storagebus.clear")), mouseX, mouseY);
-
-            return;
-        }
-
-        if (ctx.hoveredIOModeButtonStorageBus != null) {
-            if (ctx.hoveredIOModeButtonStorageBus.supportsIOMode()) {
-                String currentMode = ctx.hoveredIOModeButtonStorageBus.getIOModeDisplayName();
-                renderer.drawHoveringText(Collections.singletonList(
-                    I18n.format("gui.cellterminal.storagebus.iomode.current", currentMode)), mouseX, mouseY);
-            } else {
-                renderer.drawHoveringText(Collections.singletonList(
-                    I18n.format("gui.cellterminal.storagebus.iomode.unsupported")), mouseX, mouseY);
-            }
-
-            return;
-        }
-
-        // Partition button tooltips
-        if (ctx.hoveredPartitionAllButtonCell != null) {
-            renderer.drawHoveringText(Collections.singletonList(I18n.format("gui.cellterminal.cell.partitionall")), mouseX, mouseY);
-
-            return;
-        }
-
-        if (ctx.hoveredPartitionAllButtonStorageBus != null) {
-            renderer.drawHoveringText(Collections.singletonList(I18n.format("gui.cellterminal.storagebus.partitionall")), mouseX, mouseY);
-
-            return;
-        }
-
-        if (ctx.hoveredClearPartitionButtonCell != null) {
-            renderer.drawHoveringText(Collections.singletonList(I18n.format("gui.cellterminal.cell.clearpartition")), mouseX, mouseY);
-
-            return;
         }
     }
 
@@ -267,9 +143,6 @@ public class TooltipHandler {
         // Delegate to tab widget if available
         if (tabWidgets != null && tab >= 0 && tab < tabWidgets.length && tabWidgets[tab] != null) {
             baseTooltip = tabWidgets[tab].getTabTooltip();
-        } else if (tab == GuiConstants.TAB_NETWORK_TOOLS) {
-            // Network Tools tab has no widget yet
-            baseTooltip = I18n.format("gui.cellterminal.tab.network_tools.tooltip");
         } else {
             return "";
         }

@@ -10,7 +10,7 @@ import com.cellterminal.gui.GuiConstants;
 
 /**
  * Storage header widget for the Cell Terminal (tabs 0-2).
- *
+ * <p>
  * Extends the base header with:
  * <ul>
  *   <li>Location string (dimension + coordinates, rendered below the name)</li>

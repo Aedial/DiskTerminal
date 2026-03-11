@@ -78,6 +78,8 @@ public final class GuiConstants {
     public static final int TAB_STORAGE_BUS_PARTITION = 5;
     public static final int TAB_NETWORK_TOOLS = 6;
 
+    public static final int LAST_TAB = TAB_NETWORK_TOOLS;
+
     /** Width of each tab */
     public static final int TAB_WIDTH = 22;
 
@@ -115,6 +117,15 @@ public final class GuiConstants {
     /** Size of a mini slot for cell contents (16x16) */
     public static final int MINI_SLOT_SIZE = 16;
 
+    /** Size of the run button for Network Tools */
+    public static final int NETWORK_TOOL_RUN_BUTTON_SIZE = 16;
+
+    /** Size of the side buttons for the terminal (settings) */
+    public static final int TERMINAL_SIDE_BUTTON_SIZE = 16;
+
+    /** Size of the ? tooltip pseudo-button for Search Bar and Network Tools */
+    public static final int TOOLTIP_BUTTON_SIZE = 10;
+
     // 5x2 * 8x8 for small buttons
 
     /** Small Buttons: Texture X positions in the atlas */
@@ -139,8 +150,6 @@ public final class GuiConstants {
     public static final int SUBNET_BUTTON_Y = TAB1_BUTTON_Y;
 
     // 3x2 * 10x10 for search mode buttons
-    // + 1x2 * 18x18 for slots
-    // + 1x2 * 16x16 for mini slots
 
     /** Search Mode Buttons: Texture X positions in the atlas */
     public static final int SEARCH_MODE_BUTTON_X = 0;
@@ -148,17 +157,57 @@ public final class GuiConstants {
     /** Search Mode Buttons: Texture Y positions in the atlas */
     public static final int SEARCH_MODE_BUTTON_Y = TAB1_BUTTON_Y + 2 * TAB1_BUTTON_SIZE;
 
+    // 1x3 * 16x16 for network tool buttons
+    // + 1x2 * 16x16 for terminal style buttons
+    // + 1x2 * 16x16 for red terminal buttons
+    // + 1x2 * 16x16 for green terminal buttons
+
+    /** Network Tool Run Button: Texture X position */
+    public static final int NETWORK_TOOL_RUN_BUTTON_X = 0;
+
+    /** Network Tool Run Button: Texture Y position */
+    public static final int NETWORK_TOOL_RUN_BUTTON_Y = SEARCH_MODE_BUTTON_Y + 2 * SEARCH_MODE_BUTTON_SIZE;
+
+    /** Terminal Style Button: Texture X position */
+    public static final int TERMINAL_STYLE_BUTTON_X = NETWORK_TOOL_RUN_BUTTON_X + NETWORK_TOOL_RUN_BUTTON_SIZE;
+
+    /** Terminal Style Button: Texture Y position */
+    public static final int TERMINAL_STYLE_BUTTON_Y = NETWORK_TOOL_RUN_BUTTON_Y;
+
+    /** Terminal Red Button: Texture X position */
+    public static final int TERMINAL_RED_BUTTON_X = TERMINAL_STYLE_BUTTON_X + TERMINAL_SIDE_BUTTON_SIZE;
+
+    /** Terminal Red Button: Texture Y position */
+    public static final int TERMINAL_RED_BUTTON_Y = TERMINAL_STYLE_BUTTON_Y;
+
+    /** Terminal Green Button: Texture X position */
+    public static final int TERMINAL_GREEN_BUTTON_X = TERMINAL_RED_BUTTON_X + TERMINAL_SIDE_BUTTON_SIZE;
+
+    /** Terminal Green Button: Texture Y position */
+    public static final int TERMINAL_GREEN_BUTTON_Y = TERMINAL_STYLE_BUTTON_Y;
+
+    // 2x1 * 16x16 for mini slots
+
+    /** Mini slot background: Texture X position */
+    public static final int MINI_SLOT_X = NETWORK_TOOL_RUN_BUTTON_X + NETWORK_TOOL_RUN_BUTTON_SIZE;
+
+    /** Mini slot background: Texture Y position */
+    public static final int MINI_SLOT_Y = NETWORK_TOOL_RUN_BUTTON_Y + 2 * NETWORK_TOOL_RUN_BUTTON_SIZE;
+
+    // 1x2 * 10x10 for tooltip buttons
+    // + 2x1 * 18x18 for slot backgrounds
+
+    /** Tooltip Button: Texture X position */
+    public static final int TOOLTIP_BUTTON_X = 0;
+
+    /** Tooltip Button: Texture Y position */
+    public static final int TOOLTIP_BUTTON_Y = NETWORK_TOOL_RUN_BUTTON_Y + 3 * NETWORK_TOOL_RUN_BUTTON_SIZE;
+
     /** Slot background: Texture X position */
-    public static final int SLOT_X = SEARCH_MODE_BUTTON_X + 3 * SEARCH_MODE_BUTTON_SIZE;
+    public static final int SLOT_BACKGROUND_X = TOOLTIP_BUTTON_X + TOOLTIP_BUTTON_SIZE;
 
     /** Slot background: Texture Y position */
-    public static final int SLOT_Y = SEARCH_MODE_BUTTON_Y;
-
-    /** Mini Slot background: Texture X position */
-    public static final int MINI_SLOT_X = SLOT_X + SLOT_SIZE;
-
-    /** Mini Slot background: Texture Y position */
-    public static final int MINI_SLOT_Y = SLOT_Y;
+    public static final int SLOT_BACKGROUND_Y = TOOLTIP_BUTTON_Y;
 
     // ========================================
     // SLOT CONFIGURATION
@@ -296,12 +345,6 @@ public final class GuiConstants {
     /** Tree line color */
     public static final int COLOR_TREE_LINE = 0xFF808080;
 
-    /** Button color (normal) */
-    public static final int COLOR_BUTTON_NORMAL = 0xFF8B8B8B;
-
-    /** Button color (hovered) */
-    public static final int COLOR_BUTTON_HOVER = 0xFF707070;
-
     /** Button highlight (top-left) */
     public static final int COLOR_BUTTON_HIGHLIGHT = 0xFFFFFFFF;
 
@@ -320,9 +363,6 @@ public final class GuiConstants {
     /** Partition indicator color (green) */
     public static final int COLOR_PARTITION_INDICATOR = 0xFF55FF55;
 
-    /** Partition slot tint color (amber) */
-    public static final int COLOR_PARTITION_SLOT_TINT = 0x30FFAA00;
-
     /** Selection highlight color (for multi-select) */
     public static final int COLOR_SELECTION_HIGHLIGHT = 0x5055FF55;
 
@@ -331,12 +371,6 @@ public final class GuiConstants {
 
     /** Selected header name color (dark blue) */
     public static final int COLOR_NAME_SELECTED = 0x204080;
-
-    /** Green button (partition all) */
-    public static final int COLOR_BUTTON_GREEN = 0xFF33CC33;
-
-    /** Red button (clear) */
-    public static final int COLOR_BUTTON_RED = 0xFFCC3333;
 
     /** Custom display name color (green, used for renamed cells/storages) */
     public static final int COLOR_CUSTOM_NAME = 0xFF2E7D32;
@@ -355,9 +389,6 @@ public final class GuiConstants {
 
     /** Double-click detection time in milliseconds */
     public static final long DOUBLE_CLICK_TIME_MS = 400;
-
-    /** Storage bus polling interval in ticks */
-    public static final int STORAGE_BUS_POLL_INTERVAL_TICKS = 20;
 
     // ========================================
     // TEXT COLORS

@@ -9,10 +9,10 @@ import net.minecraft.item.ItemStack;
 
 /**
  * A container that manages a list of child widgets.
- *
+ * <p>
  * Provides ordered iteration for drawing (first added = drawn first = background)
  * and reverse iteration for click handling (last added = drawn on top = gets first click).
- *
+ * <p>
  * Events propagate to children in the appropriate order and stop at the first
  * handler that returns true (indicating the event was consumed).
  */

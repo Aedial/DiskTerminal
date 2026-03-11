@@ -30,6 +30,7 @@ import com.cellterminal.gui.handler.QuickPartitionHandler;
 import com.cellterminal.gui.handler.TerminalDataManager;
 import com.cellterminal.gui.rename.Renameable;
 import com.cellterminal.gui.widget.CardsDisplay;
+import com.cellterminal.gui.widget.DoubleClickTracker;
 import com.cellterminal.gui.widget.IWidget;
 import com.cellterminal.gui.widget.button.ButtonType;
 import com.cellterminal.gui.widget.button.SmallButton;
@@ -46,7 +47,7 @@ import com.cellterminal.network.PacketPickupCell;
 
 /**
  * Tab widget for the Inventory (Tab 1) and Partition (Tab 2) tabs.
- *
+ * <p>
  * Both tabs display the same structure (StorageInfo headers + cell content rows)
  * but differ in the slot mode (CONTENT vs PARTITION) and tree button type:
  * <ul>
@@ -311,7 +312,8 @@ public class CellContentTabWidget extends AbstractTabWidget {
         header.setOnNameClick(() -> guiContext.startInlineRename(storage,
             y, getRenameFieldX(storage), getRenameFieldRightEdge(storage)));
         header.setOnNameDoubleClick(() -> guiContext.highlightInWorld(
-            storage.getPos(), storage.getDimension(), storage.getName()));
+            storage.getPos(), storage.getDimension(), storage.getName()),
+            DoubleClickTracker.storageTargetId(storage.getId()));
         header.setOnExpandToggle(() -> {
             TabStateManager.getInstance().toggleExpanded(tabType, storage.getId());
             guiContext.rebuildAndUpdateScrollbar();
@@ -366,8 +368,7 @@ public class CellContentTabWidget extends AbstractTabWidget {
         configureSlotData(line, cell);
 
         // Upgrade cards
-        CardsDisplay cards = createCellCardsDisplay(cell, y,
-            (c, upgradeSlot) -> handleCardClick(c, upgradeSlot));
+        CardsDisplay cards = createCellCardsDisplay(cell, y, this::handleCardClick);
         if (cards != null) line.setCardsDisplay(cards);
 
         // Tree junction button (DoPartition or ClearPartition)

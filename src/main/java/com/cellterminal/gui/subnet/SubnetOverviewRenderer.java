@@ -30,7 +30,7 @@ import com.cellterminal.gui.GuiConstants;
  */
 public class SubnetOverviewRenderer {
 
-    // Layout constants - matching StorageBusRenderer style
+    // Layout constants
     private static final int ROW_HEIGHT = 18;
     private static final int ICON_X = GuiConstants.GUI_INDENT;
     private static final int STAR_X = 6;  // Left sidebar, same as upgrade icons
@@ -198,7 +198,7 @@ public class SubnetOverviewRenderer {
     }
 
     // ========================================
-    // HEADER RENDERING (matches StorageBusRenderer.drawStorageBusPartitionHeader style)
+    // HEADER RENDERING
     // ========================================
 
     private void drawSubnetHeader(SubnetInfo subnet, int y, int relMouseX, int relMouseY,
@@ -394,6 +394,7 @@ public class SubnetOverviewRenderer {
     }
 
     private void drawSlotBackground(int x, int y) {
+        // TODO: we now have proper slot backgrounds in the atlas
         int size = MINI_SLOT_SIZE;
         Gui.drawRect(x, y, x + size, y + size, GuiConstants.COLOR_SLOT_BACKGROUND);
         Gui.drawRect(x, y, x + size - 1, y + 1, GuiConstants.COLOR_SLOT_BORDER_DARK);

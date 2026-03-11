@@ -391,6 +391,7 @@ public class CellTerminalServerConfig {
         return tabNetworkToolsEnabled;
     }
 
+    // TODO: index is not really realiable
     /**
      * Check if a specific tab is enabled by its index.
      * @param tabIndex The tab index (0-6)

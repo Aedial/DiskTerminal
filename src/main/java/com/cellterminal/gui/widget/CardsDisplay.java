@@ -7,7 +7,6 @@ import java.util.function.Supplier;
 
 import org.lwjgl.opengl.GL11;
 
-import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.RenderItem;
@@ -17,11 +16,11 @@ import net.minecraft.item.ItemStack;
 
 /**
  * Widget that displays cell upgrade cards (small 8x8 icons).
- *
+ * <p>
  * Cards are drawn as half-size item icons in a 2-column grid layout.
  * Columns are placed left-to-right, rows top-to-bottom.
  * Supports hover tracking for tooltip display and click-to-extract behavior.
- *
+ * <p>
  * Usage: created by line or header widgets, positioned relative to the cell icon.
  * The cards data comes from a supplier so the widget always reflects current state.
  */
@@ -37,7 +36,6 @@ public class CardsDisplay extends AbstractWidget {
     private static final int COLUMNS = 2;
 
     private final Supplier<List<CardEntry>> cardsSupplier;
-    private final FontRenderer fontRenderer;
     private final RenderItem itemRender;
 
     // Tracked hover state
@@ -74,14 +72,11 @@ public class CardsDisplay extends AbstractWidget {
      * @param x X position (relative to GUI)
      * @param y Y position (relative to GUI, aligned with top of cell icon)
      * @param cardsSupplier Supplier for the card entries to display
-     * @param fontRenderer Font renderer for text
      * @param itemRender Item renderer for icons
      */
-    public CardsDisplay(int x, int y, Supplier<List<CardEntry>> cardsSupplier,
-                        FontRenderer fontRenderer, RenderItem itemRender) {
+    public CardsDisplay(int x, int y, Supplier<List<CardEntry>> cardsSupplier, RenderItem itemRender) {
         super(x, y, 0, CARD_ICON_SIZE);
         this.cardsSupplier = cardsSupplier;
-        this.fontRenderer = fontRenderer;
         this.itemRender = itemRender;
     }
 
@@ -161,9 +156,10 @@ public class CardsDisplay extends AbstractWidget {
 
         // Return the item's display name with extraction hint
         List<String> lines = new ArrayList<>();
-        lines.add(hoveredCardStack.getDisplayName());
-        lines.add(I18n.format("gui.cellterminal.upgrade.click_extract"));
-        lines.add(I18n.format("gui.cellterminal.upgrade.shift_click_inventory"));
+        lines.add("§6" + hoveredCardStack.getDisplayName());
+        lines.add("");
+        lines.add("§b" + I18n.format("gui.cellterminal.upgrade.click_extract"));
+        lines.add("§b" + I18n.format("gui.cellterminal.upgrade.shift_click_inventory"));
 
         return lines;
     }

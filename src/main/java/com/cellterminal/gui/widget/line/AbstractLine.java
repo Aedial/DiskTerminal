@@ -3,10 +3,7 @@ package com.cellterminal.gui.widget.line;
 import java.util.Collections;
 import java.util.List;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
-import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.util.ResourceLocation;
 
 import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.widget.AbstractWidget;
@@ -15,12 +12,12 @@ import com.cellterminal.gui.widget.button.SmallButton;
 
 /**
  * Base class for all line widgets in the Cell Terminal GUI.
- *
+ * <p>
  * A line is a single row in the scrollable content area. It handles:
  * - Tree line rendering (vertical + horizontal connectors)
  * - Optional small button at the tree line junction
  * - Base layout and hover detection
- *
+ * <p>
  * Subclasses add slot grids, cell slots, cards, and tab-specific elements.
  *
  * <h3>Tree line model</h3>
@@ -61,6 +58,9 @@ public abstract class AbstractLine extends AbstractWidget {
     /** Optional button at the tree line junction (e.g. DoPartition, ClearPartition) */
     protected SmallButton treeButton;
 
+    /** X offset for tree button (default: -5 from TREE_LINE_X). Storage buses use -3 for tighter layout. */
+    protected int treeButtonXOffset = -5;
+
     protected AbstractLine(int x, int y, int width) {
         super(x, y, width, GuiConstants.ROW_HEIGHT);
     }
@@ -86,9 +86,8 @@ public abstract class AbstractLine extends AbstractWidget {
      */
     public int getTreeLineCutY() {
         if (treeButton != null) {
-            // Button background extends from y+4 to y+4+SIZE+4 (buttonY-1 to buttonY+SIZE+1)
-            // Extend 1px closer to the button (reduced gap)
-            return y + 5 + GuiConstants.SMALL_BUTTON_SIZE + 1;
+            // Button extends from y+5 to y+5+SIZE (buttonY-1 to buttonY+SIZE+1)
+            return y + 5 + GuiConstants.SMALL_BUTTON_SIZE;
         }
 
         // Default: bottom of the horizontal branch
@@ -100,6 +99,14 @@ public abstract class AbstractLine extends AbstractWidget {
      */
     public void setTreeButton(SmallButton button) {
         this.treeButton = button;
+    }
+
+    /**
+     * Set the X offset for the tree button relative to TREE_LINE_X.
+     * Default is -5. Storage bus tabs use -3 for tighter layout.
+     */
+    public void setTreeButtonXOffset(int offset) {
+        this.treeButtonXOffset = offset;
     }
 
     /**
@@ -122,8 +129,7 @@ public abstract class AbstractLine extends AbstractWidget {
         // Where the vertical line ends depends on whether there's a button
         // covering the junction. If there is, stop at the top of the button
         // background so the button is drawn on top cleanly.
-        // Extend 1px closer to the button (reduced gap)
-        int verticalEndY = (treeButton != null) ? y + 4 : branchY;
+        int verticalEndY = (treeButton != null) ? y + 5 : branchY;
 
         // Vertical line from the row above's cut point down to our junction
         if (lineAboveCutY < verticalEndY) {
@@ -135,7 +141,7 @@ public abstract class AbstractLine extends AbstractWidget {
 
         // Draw tree junction button if present (covers part of tree line)
         if (treeButton != null) {
-            int buttonX = TREE_LINE_X - 5;
+            int buttonX = TREE_LINE_X + treeButtonXOffset;
             int buttonY = y + 5;
             treeButton.setPosition(buttonX, buttonY);
 

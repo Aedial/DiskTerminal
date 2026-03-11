@@ -8,14 +8,14 @@ import net.minecraft.item.ItemStack;
 
 /**
  * Base interface for all widgets in the Cell Terminal GUI.
- *
+ * <p>
  * A widget is a self-contained visual component that handles its own:
  * - Rendering (draw)
  * - Click handling (handleClick)
  * - Keyboard handling (handleKey)
  * - Hover detection (isHovered)
  * - Tooltip provision (getTooltip)
- *
+ * <p>
  * Widgets do not need to know about sibling widgets. They only communicate
  * upward through return values (e.g., "I handled this click") or callbacks
  * provided at construction time.

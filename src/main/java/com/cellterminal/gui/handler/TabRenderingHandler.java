@@ -270,10 +270,10 @@ public class TabRenderingHandler {
     }
 
     // Constants for controls help layout
-    private static final int CONTROLS_HELP_LEFT_MARGIN = 4;
-    private static final int CONTROLS_HELP_RIGHT_MARGIN = 4;
-    private static final int CONTROLS_HELP_PADDING = 6;
-    private static final int CONTROLS_HELP_LINE_HEIGHT = 10;
+    private static final int CONTROLS_HELP_LEFT_MARGIN = GuiConstants.CONTROLS_HELP_LEFT_MARGIN;
+    private static final int CONTROLS_HELP_RIGHT_MARGIN = GuiConstants.CONTROLS_HELP_RIGHT_MARGIN;
+    private static final int CONTROLS_HELP_PADDING = GuiConstants.CONTROLS_HELP_PADDING;
+    private static final int CONTROLS_HELP_LINE_HEIGHT = GuiConstants.CONTROLS_HELP_LINE_HEIGHT;
 
     /**
      * Draw the controls help widget for the current tab.
