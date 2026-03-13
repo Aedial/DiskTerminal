@@ -8,6 +8,31 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.5.1] - 2026-03-14
+### Fixed
+- Fix Subnets Overview not handling Fluids.
+
+
+## [1.5.0] - 2026-03-13
+### Added
+- Add proper content/partition handling to the Subnet Overview, mirroring the behavior of the Temporary Area tab.
+- Add tooltip for Temporary Cells stored in the Wireless Terminal.
+
+### Fixed
+- Fix Upgrade Cards not being handled at all in the Temporary Area tab.
+- Fix the Temporary Area not working at all with the Wireless Universal Terminal.
+- (and probably many other small bugs I may add later as I compare in parallel)
+
+### Changed
+- Rewrite the whole GUI part of the mod, with proper icons and missing features implemented. Similar widgets have been unified for a more consistent experience across the different tabs.
+
+### Technical
+- Convert the heavy-handed context passing into a tree-like widgets structure. Tab Manager -> Tabs (Terminal/Inventory/Partition) -> Headers (Drive/Storage Bus) -> Tree Lines (Cell entries, partition entries, inventory entries). This allows to share a lot of the logic and code between the different tabs, as they are now mostly just different renderings of the same underlying data, and to avoid passing a huge amount of context parameters everywhere.
+- The new widgets unify the behaviors by separating the implementation into the relevant widget classes, sharing the common logic and only implementing the specific rendering and interactions in the relevant classes. For example, the inventory and partition entries are the same widget with slightly different data (same data but different key), slightly different rendering, and slightly different interactions.
+- The widgets handle clicks, hovering, and keybinds themselves at the lowest level, instead of delegating to a central handler in the main GUI class. This allows to move the logic for each interaction into the relevant widget, and avoid having a huge central handler with a lot of context parameters and special cases for different tabs. The main GUI delegates interactions to the top level widgets which then decide what to do with them, e.g. delegating further down to the relevant child widgets.
+- The renaming logic has been moved to a singleton manager that just handles the state of the currently renaming entry and the renaming actions, the widgets themselves just call the manager when they need to trigger a rename. This allows to easily add renaming to *pretty much anything* in the GUI just by calling the manager with the relevant parameters and adding a new type in confirmEditing() for the network packet.
+- The priority fields have also been (partially) moved to a singleton manager controlled by the headers. This case is slightly different, as they still need to keep state and they use a native text field for convenience.
+
 ## [1.4.0] - 2026-03-04
 ### Added
 - Add keybind for Subnet Overview toggle (default: back).

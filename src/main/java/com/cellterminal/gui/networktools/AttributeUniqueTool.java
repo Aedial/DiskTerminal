@@ -166,6 +166,7 @@ public class AttributeUniqueTool implements INetworkTool {
     }
 
     private String getItemKey(ItemStack stack, CellType type) {
+        // FIXME: use ItemStackKey and FluidStackKey from util
         if (type == CellType.FLUID) {
             // For fluids, use a simpler key based on the representation item
             return "fluid:" + stack.getItem().getRegistryName().toString() + "@" + stack.getMetadata();

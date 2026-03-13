@@ -30,8 +30,10 @@ public class UpgradeTooltipHandler {
         ItemStack stack = event.getItemStack();
         if (stack.isEmpty()) return;
 
-        // Only add hints to upgrade items
+        // Only add hints to real upgrade items, not storage components that
+        // also implement IUpgradeModule but return null from getType()
         if (!(stack.getItem() instanceof IUpgradeModule)) return;
+        if (((IUpgradeModule) stack.getItem()).getType(stack) == null) return;
 
         List<String> tooltip = event.getToolTip();
 

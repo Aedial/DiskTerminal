@@ -77,8 +77,6 @@ public class ContainerWirelessCellTerminal extends ContainerCellTerminalBase {
         return getPlayerInv().getStackInSlot(slot);
     }
 
-
-
     @Override
     protected boolean canSendUpdates() {
         ItemStack currentStack = getTerminalStack();

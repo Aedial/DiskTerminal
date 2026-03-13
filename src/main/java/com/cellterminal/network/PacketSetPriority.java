@@ -49,9 +49,7 @@ public class PacketSetPriority implements IMessage {
         public IMessage onMessage(PacketSetPriority message, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
 
-            player.getServerWorld().addScheduledTask(() -> {
-                handleGuiPriority(player, message);
-            });
+            player.getServerWorld().addScheduledTask(() -> handleGuiPriority(player, message));
 
             return null;
         }

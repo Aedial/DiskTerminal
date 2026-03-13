@@ -44,30 +44,18 @@ public final class SubnetScannerRegistry {
      * @param out NBTTagList to append subnet data to
      * @param trackerMap Map to populate with subnet trackers
      * @param playerId The player ID for security permission checks
+     * @param slotLimit Maximum number of inventory item types to include per subnet
      */
-    public static void scanAll(IGrid grid, NBTTagList out, Map<Long, SubnetTracker> trackerMap, int playerId) {
+    public static void scanAll(IGrid grid, NBTTagList out, Map<Long, SubnetTracker> trackerMap, int playerId, int slotLimit) {
         for (ISubnetScanner scanner : scanners) {
             if (!scanner.isAvailable()) continue;
 
             try {
-                scanner.scanSubnets(grid, out, trackerMap, playerId);
+                scanner.scanSubnets(grid, out, trackerMap, playerId, slotLimit);
             } catch (Exception e) {
                 CellTerminal.LOGGER.error("Error scanning subnets with {}: {}", scanner.getId(), e.getMessage());
             }
         }
     }
 
-    /**
-     * Check if any subnet scanners are available.
-     */
-    public static boolean hasAnyScanners() {
-        return scanners.stream().anyMatch(ISubnetScanner::isAvailable);
-    }
-
-    /**
-     * Get all registered scanners.
-     */
-    public static List<ISubnetScanner> getScanners() {
-        return new ArrayList<>(scanners);
-    }
 }

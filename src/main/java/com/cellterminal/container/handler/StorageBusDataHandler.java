@@ -44,6 +44,7 @@ import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.integration.StorageDrawersIntegration;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 import com.cellterminal.network.PacketStorageBusPartitionAction;
+import com.cellterminal.network.PacketSubnetPartitionAction;
 import com.cellterminal.integration.storagebus.StorageBusScannerRegistry;
 
 
@@ -375,9 +376,8 @@ public class StorageBusDataHandler {
         int max = busData.hasKey("maxConfigSlots") ? busData.getInteger("maxConfigSlots") : StorageBusInfo.MAX_CONFIG_SLOTS;
 
         int raw = base + perUpg * Math.max(0, capacityUpgrades);
-        if (raw > max) return max;
+        return Math.min(raw, max);
 
-        return raw;
     }
 
     private static void addUpgradesData(NBTTagCompound busData, IItemHandler upgradesInv) {
@@ -418,6 +418,83 @@ public class StorageBusDataHandler {
         }
 
         return false;
+    }
+
+    /**
+     * Execute a subnet partition action on a storage bus.
+     * Converts the subnet action enum to storage bus action enum and delegates to the existing logic.
+     */
+    public static void executeSubnetPartitionAction(IItemHandler configInv, int slotsToUse,
+                                                     PacketSubnetPartitionAction.Action action,
+                                                     int partitionSlot, ItemStack itemStack,
+                                                     PartStorageBus bus) {
+        // Map subnet action to storage bus action (they have the same operations)
+        PacketStorageBusPartitionAction.Action mappedAction;
+        switch (action) {
+            case ADD_ITEM:
+                mappedAction = PacketStorageBusPartitionAction.Action.ADD_ITEM;
+                break;
+            case REMOVE_ITEM:
+                mappedAction = PacketStorageBusPartitionAction.Action.REMOVE_ITEM;
+                break;
+            case TOGGLE_ITEM:
+                mappedAction = PacketStorageBusPartitionAction.Action.TOGGLE_ITEM;
+                break;
+            case SET_ALL_FROM_CONTENTS:
+                mappedAction = PacketStorageBusPartitionAction.Action.SET_ALL_FROM_CONTENTS;
+                break;
+            case CLEAR_ALL:
+                mappedAction = PacketStorageBusPartitionAction.Action.CLEAR_ALL;
+                break;
+            default:
+                return;
+        }
+
+        executeItemPartitionAction(configInv, slotsToUse, mappedAction, partitionSlot, itemStack, bus);
+    }
+
+    /**
+     * Execute a subnet partition action on a fluid storage bus.
+     * Converts the subnet action enum to storage bus action enum and delegates to fluid partition logic.
+     *
+     * @return true if the partition was modified
+     */
+    public static boolean executeSubnetFluidPartitionAction(PartFluidStorageBus bus,
+                                                             PacketSubnetPartitionAction.Action action,
+                                                             int partitionSlot, ItemStack itemStack) {
+        IFluidHandler configInv = bus.getFluidInventoryByName("config");
+        if (configInv == null) return false;
+
+        int slotsToUse = StorageBusInfo.calculateAvailableSlots(bus.getInstalledUpgrades(Upgrades.CAPACITY));
+        FluidStack fluid = extractFluidFromItem(itemStack);
+
+        PacketStorageBusPartitionAction.Action mappedAction;
+        switch (action) {
+            case ADD_ITEM:
+                mappedAction = PacketStorageBusPartitionAction.Action.ADD_ITEM;
+                break;
+            case REMOVE_ITEM:
+                mappedAction = PacketStorageBusPartitionAction.Action.REMOVE_ITEM;
+                break;
+            case TOGGLE_ITEM:
+                mappedAction = PacketStorageBusPartitionAction.Action.TOGGLE_ITEM;
+                break;
+            case SET_ALL_FROM_CONTENTS:
+                mappedAction = PacketStorageBusPartitionAction.Action.SET_ALL_FROM_CONTENTS;
+                break;
+            case CLEAR_ALL:
+                mappedAction = PacketStorageBusPartitionAction.Action.CLEAR_ALL;
+                break;
+            default:
+                return false;
+        }
+
+        executeFluidPartitionAction(configInv, slotsToUse, mappedAction, partitionSlot, fluid, bus);
+
+        TileEntity hostTile = bus.getHost().getTile();
+        if (hostTile != null) hostTile.markDirty();
+
+        return true;
     }
 
     private static boolean handleItemBusPartition(PartStorageBus bus,
@@ -719,10 +796,10 @@ public class StorageBusDataHandler {
     }
 
     private static ItemStack getBlockAsItemStack(IBlockState state, World world, BlockPos pos) {
-        if (state == null || state.getBlock() == null) return ItemStack.EMPTY;
+        if (state == null) return ItemStack.EMPTY;
 
         Item item = Item.getItemFromBlock(state.getBlock());
-        if (item != null && item != Items.AIR) {
+        if (item != Items.AIR) {
             int meta = state.getBlock().damageDropped(state);
 
             return new ItemStack(item, 1, meta);

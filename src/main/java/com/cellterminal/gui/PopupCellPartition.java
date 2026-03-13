@@ -1,6 +1,6 @@
 package com.cellterminal.gui;
 
-import java.awt.*;
+import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -10,11 +10,11 @@ import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.enchantment.EnchantmentData;
 import net.minecraft.item.ItemEnchantedBook;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidUtil;
 
@@ -27,7 +27,10 @@ import mezz.jei.api.gui.IGhostIngredientHandler;
 
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.gui.overlay.MessageHelper;
+import com.cellterminal.gui.widget.AbstractWidget;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
+import com.cellterminal.network.CellTerminalNetwork;
+import com.cellterminal.network.PacketPartitionAction;
 
 
 /**
@@ -36,13 +39,16 @@ import com.cellterminal.integration.ThaumicEnergisticsIntegration;
  */
 public class PopupCellPartition extends Gui {
 
-    private static final int SLOTS_PER_ROW = 9;
-    private static final int MAX_ROWS = 7;
-    private static final int SLOT_SIZE = 18;
-    private static final int PADDING = 8;
-    private static final int HEADER_HEIGHT = 20;
-    private static final int FOOTER_HEIGHT = 16;
-    private static final int MAX_PARTITION_SLOTS = 63;
+    private static final int SLOTS_PER_ROW = GuiConstants.POPUP_SLOTS_PER_ROW;
+    private static final int MAX_ROWS = GuiConstants.POPUP_MAX_ROWS;
+    private static final int SLOT_SIZE = GuiConstants.SLOT_SIZE;
+    private static final int PADDING = GuiConstants.PADDING;
+    private static final int HEADER_HEIGHT = GuiConstants.POPUP_HEADER_HEIGHT;
+    private static final int FOOTER_HEIGHT = GuiConstants.POPUP_FOOTER_HEIGHT;
+    private static final int MAX_PARTITION_SLOTS = SLOTS_PER_ROW * MAX_ROWS;
+
+    private static final ResourceLocation TEXTURE =
+        new ResourceLocation("cellterminal", "textures/guis/atlas.png");
 
     private final GuiScreen parent;
     private final CellInfo cell;
@@ -125,28 +131,16 @@ public class PopupCellPartition extends Gui {
 
             ItemStack stack = i < editablePartition.size() ? editablePartition.get(i) : ItemStack.EMPTY;
 
-            // Draw slot background
-            int slotBgColor = 0xFF8B8B8B;
-            boolean hovered = mouseX >= slotX && mouseX < slotX + SLOT_SIZE - 1
-                && mouseY >= slotY && mouseY < slotY + SLOT_SIZE - 1;
-            if (hovered && !stack.isEmpty()) slotBgColor = 0xFF996666;
+            // Draw textured slot background (partition variant with amber tint)
+            drawPartitionSlotBackground(slotX, slotY);
 
-            drawRect(slotX, slotY, slotX + SLOT_SIZE - 1, slotY + SLOT_SIZE - 1, slotBgColor);
-
-            // Draw slot border (3D effect)
-            drawRect(slotX, slotY, slotX + SLOT_SIZE - 1, slotY + 1, 0xFF373737);
-            drawRect(slotX, slotY, slotX + 1, slotY + SLOT_SIZE - 1, 0xFF373737);
-            drawRect(slotX, slotY + SLOT_SIZE - 2, slotX + SLOT_SIZE - 1, slotY + SLOT_SIZE - 1, 0xFFFFFFFF);
-            drawRect(slotX + SLOT_SIZE - 2, slotY, slotX + SLOT_SIZE - 1, slotY + SLOT_SIZE - 1, 0xFFFFFFFF);
+            // Check hover
+            boolean hovered = mouseX >= slotX && mouseX < slotX + SLOT_SIZE
+                && mouseY >= slotY && mouseY < slotY + SLOT_SIZE;
 
             // Draw item
             if (!stack.isEmpty()) {
-                GlStateManager.enableDepth();
-                RenderHelper.enableGUIStandardItemLighting();
-                mc.getRenderItem().renderItemAndEffectIntoGUI(stack, slotX, slotY);
-                RenderHelper.disableStandardItemLighting();
-                GlStateManager.disableDepth();
-                GlStateManager.disableLighting();
+                AbstractWidget.renderItemStack(mc.getRenderItem(), stack, slotX + 1, slotY + 1);
 
                 // Track hovered item for tooltip
                 if (hovered) {
@@ -155,6 +149,9 @@ public class PopupCellPartition extends Gui {
                     hoveredY = mouseY;
                 }
             }
+
+            // Draw hover highlight
+            if (hovered) drawSlotHoverHighlight(slotX, slotY);
         }
 
         // Draw hint at bottom
@@ -172,12 +169,8 @@ public class PopupCellPartition extends Gui {
      * Draw tooltip for hovered item. Must be called after draw() in a separate pass.
      */
     public void drawTooltip(int mouseX, int mouseY) {
-        if (!hoveredStack.isEmpty() && parent instanceof GuiScreen) {
-            ((GuiScreen) parent).drawHoveringText(
-                parent.getItemToolTip(hoveredStack),
-                hoveredX,
-                hoveredY
-            );
+        if (!hoveredStack.isEmpty() && parent != null) {
+            parent.drawHoveringText(parent.getItemToolTip(hoveredStack), hoveredX, hoveredY);
         }
     }
 
@@ -199,9 +192,12 @@ public class PopupCellPartition extends Gui {
                 if (!removed.isEmpty()) {
                     editablePartition.set(slotIndex, ItemStack.EMPTY);
 
-                    if (parent instanceof GuiCellTerminalBase) {
-                        ((GuiCellTerminalBase) parent).onRemovePartitionItem(cell, slotIndex);
-                    }
+                    CellTerminalNetwork.INSTANCE.sendToServer(new PacketPartitionAction(
+                        cell.getParentStorageId(),
+                        cell.getSlot(),
+                        PacketPartitionAction.Action.REMOVE_ITEM,
+                        slotIndex
+                    ));
                 }
 
                 return true;
@@ -320,9 +316,13 @@ public class PopupCellPartition extends Gui {
 
         editablePartition.set(targetSlot, stack.copy());
 
-        if (parent instanceof GuiCellTerminalBase) {
-            ((GuiCellTerminalBase) parent).onAddPartitionItem(cell, targetSlot, stack);
-        }
+        CellTerminalNetwork.INSTANCE.sendToServer(new PacketPartitionAction(
+            cell.getParentStorageId(),
+            cell.getSlot(),
+            PacketPartitionAction.Action.ADD_ITEM,
+            targetSlot,
+            stack
+        ));
 
         return true;
     }
@@ -381,9 +381,13 @@ public class PopupCellPartition extends Gui {
 
         editablePartition.set(targetSlot, stack.copy());
 
-        if (parent instanceof GuiCellTerminalBase) {
-            ((GuiCellTerminalBase) parent).onAddPartitionItem(cell, targetSlot, stack);
-        }
+        CellTerminalNetwork.INSTANCE.sendToServer(new PacketPartitionAction(
+            cell.getParentStorageId(),
+            cell.getSlot(),
+            PacketPartitionAction.Action.ADD_ITEM,
+            targetSlot,
+            stack
+        ));
 
         return true;
     }
@@ -470,5 +474,25 @@ public class PopupCellPartition extends Gui {
 
     public int getY() {
         return y;
+    }
+
+    // ---- Drawing helpers (consistent with SlotsLine) ----
+
+    private void drawPartitionSlotBackground(int slotX, int slotY) {
+        Minecraft.getMinecraft().getTextureManager().bindTexture(TEXTURE);
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.enableBlend();
+
+        // Use partition variant (right half of slot texture with amber tint)
+        int texX = GuiConstants.SLOT_BACKGROUND_X + SLOT_SIZE;
+        int texY = GuiConstants.SLOT_BACKGROUND_Y;
+        Gui.drawScaledCustomSizeModalRect(
+            slotX, slotY, texX, texY, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE,
+            GuiConstants.ATLAS_WIDTH, GuiConstants.ATLAS_HEIGHT);
+    }
+
+    private void drawSlotHoverHighlight(int slotX, int slotY) {
+        Gui.drawRect(slotX + 1, slotY + 1, slotX + SLOT_SIZE - 1, slotY + SLOT_SIZE - 1,
+            GuiConstants.COLOR_HOVER_HIGHLIGHT);
     }
 }

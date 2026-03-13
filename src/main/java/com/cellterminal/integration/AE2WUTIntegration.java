@@ -127,7 +127,7 @@ public class AE2WUTIntegration {
     private static void registerRecipeIngredientInternal() {
         // Add to the ingredient list so WUT recognizes our terminal in crafting
         ItemStack ingredient = new ItemStack(ItemRegistry.WIRELESS_CELL_TERMINAL);
-        AllWUTRecipe.itemList.put((int) getCellTerminalMode(), ingredient);
+        AllWUTRecipe.itemList.put(getCellTerminalMode(), ingredient);
     }
 
     /**
@@ -186,23 +186,6 @@ public class AE2WUTIntegration {
     }
 
     /**
-     * Get the current mode of a WUT item.
-     */
-    public static byte getWUTCurrentMode(ItemStack stack) {
-        if (!isModLoaded()) return 0;
-
-        return getWUTCurrentModeInternal(stack);
-    }
-
-    @Optional.Method(modid = MODID)
-    private static byte getWUTCurrentModeInternal(ItemStack stack) {
-        if (!(stack.getItem() instanceof ItemWirelessUniversalTerminal)) return 0;
-        if (!stack.hasTagCompound()) return 0;
-
-        return stack.getTagCompound().getByte("mode");
-    }
-
-    /**
      * Open a different terminal mode in the WUT.
      * Called when the user clicks a mode switching button.
      */
@@ -233,7 +216,7 @@ public class AE2WUTIntegration {
     @Optional.Method(modid = MODID)
     private static ItemStack getWUTModeIconInternal(byte mode) {
         // Use AllWUTRecipe.itemList which has the actual terminal ItemStacks for all modes
-        ItemStack icon = AllWUTRecipe.itemList.get((int) mode);
+        ItemStack icon = AllWUTRecipe.itemList.get(mode);
 
         return icon != null ? icon : ItemStack.EMPTY;
     }

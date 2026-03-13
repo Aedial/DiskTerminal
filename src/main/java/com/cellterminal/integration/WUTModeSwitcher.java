@@ -4,13 +4,14 @@ import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.cellterminal.gui.GuiConstants;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -33,9 +34,6 @@ public class WUTModeSwitcher {
     private WUTModeButton toggleButton;
     private boolean expanded = false;
     private Rectangle exclusionArea = new Rectangle();
-    private int baseX;
-    private int baseY;
-    private int maxY;  // Maximum Y before we'd go off-screen
 
     public WUTModeSwitcher(WirelessTerminalGuiObject wth) {
         this.wirelessTerminalGuiObject = wth;
@@ -57,9 +55,10 @@ public class WUTModeSwitcher {
         if (modes == null || modes.length == 0) return startButtonId;
 
         // Position toggle button on the right side, below the title/search bar area
-        this.baseX = guiLeft + 208 + 2;  // Just to the right of the main GUI
-        this.baseY = guiTop + 18;  // Below the title/search bar area
-        this.maxY = Math.max(baseY + 100, screenHeight - BUTTON_SIZE - 4);  // Leave margin at bottom
+        int baseX = guiLeft + GuiConstants.GUI_WIDTH + 2;  // Just to the right of the main GUI
+        int baseY = guiTop + 18;  // Below the title/search bar area
+        // Maximum Y before we'd go off-screen
+        int maxY = Math.max(baseY + 100, screenHeight - BUTTON_SIZE - 4);  // Leave margin at bottom
 
         // Create toggle button (shows arrows to indicate expandable)
         toggleButton = new WUTModeButton(startButtonId++, baseX, baseY, (byte) -1, true);
@@ -93,14 +92,6 @@ public class WUTModeSwitcher {
         updateExclusionArea();
 
         return startButtonId;
-    }
-
-    /**
-     * Backwards compatible version without style parameters.
-     */
-    public int initButtons(List<GuiButton> buttonList, int startButtonId, int guiLeft, int guiTop, int guiHeight) {
-        // Default to screen height = guiTop + guiHeight + some margin
-        return initButtons(buttonList, startButtonId, guiLeft, guiTop, guiHeight, guiTop + guiHeight + 50, false);
     }
 
     /**
@@ -201,13 +192,13 @@ public class WUTModeSwitcher {
 
     /**
      * Custom button for WUT mode switching.
-     * Uses AE2's states.png texture for consistent styling with other terminal buttons.
      * Toggle button shows 2x scaled black arrows; mode buttons show terminal icons.
+     * <p>
+     * TODO: Once atlas textures are added for WUT mode buttons, convert this to
+     * extend GuiAtlasButton instead of GuiButton (see GuiTerminalStyleButton for reference).
      */
     @SideOnly(Side.CLIENT)
     private static class WUTModeButton extends GuiButton {
-
-        private static final ResourceLocation STATES_TEXTURE = new ResourceLocation("appliedenergistics2", "textures/guis/states.png");
 
         private final byte mode;
         private final boolean isToggle;
@@ -227,6 +218,8 @@ public class WUTModeSwitcher {
             if (!this.visible) return;
 
             this.hovered = mouseX >= this.x && mouseY >= this.y && mouseX < this.x + this.width && mouseY < this.y + this.height;
+
+            // TODO: add a proper texture for the buttons, under the red one in atlas.png
 
             GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
             GlStateManager.enableBlend();

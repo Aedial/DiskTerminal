@@ -328,9 +328,9 @@ public class AdvancedSearchParser {
     }
 
     private static boolean isOperator(String s) {
-        return "=".equals(s) || "!=".equals(s) || "<".equals(s) || ">".equals(s)
+        return s.startsWith("=") || "!=".equals(s) || s.startsWith("<") || s.startsWith(">")
             || "<=".equals(s) || ">=".equals(s) || "~".equals(s)
-            || s.startsWith("=") || s.startsWith("!") || s.startsWith("<") || s.startsWith(">") || s.startsWith("~");
+            || s.startsWith("!") || s.startsWith("~");
     }
 
     private static String normalizeOperator(String s) {

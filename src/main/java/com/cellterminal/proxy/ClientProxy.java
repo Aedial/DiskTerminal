@@ -11,6 +11,7 @@ import com.cellterminal.client.BlockHighlightRenderer;
 import com.cellterminal.client.KeyBindings;
 import com.cellterminal.client.KeyInputHandler;
 import com.cellterminal.client.UpgradeTooltipHandler;
+import com.cellterminal.client.WUTTooltipHandler;
 import com.cellterminal.integration.AE2WUTIntegration;
 
 
@@ -41,6 +42,9 @@ public class ClientProxy extends CommonProxy {
 
         // Register upgrade tooltip handler
         MinecraftForge.EVENT_BUS.register(new UpgradeTooltipHandler());
+
+        // Register WUT tooltip handler (shows temp cell count on WUT items)
+        MinecraftForge.EVENT_BUS.register(new WUTTooltipHandler());
 
         // Register key input handler for world-context keybinds (wireless terminal)
         MinecraftForge.EVENT_BUS.register(new KeyInputHandler());

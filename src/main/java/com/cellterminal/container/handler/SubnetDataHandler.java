@@ -5,20 +5,39 @@ import java.util.List;
 import java.util.Map;
 
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
+import net.minecraft.util.math.BlockPos;
 
+import net.minecraftforge.items.IItemHandler;
+
+import appeng.api.AEApi;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
+import appeng.api.networking.storage.IStorageGrid;
+import appeng.api.parts.IPart;
+import appeng.api.parts.IPartHost;
+import appeng.api.storage.IMEMonitor;
+import appeng.api.storage.channels.IFluidStorageChannel;
+import appeng.api.storage.channels.IItemStorageChannel;
+import appeng.api.storage.data.IAEFluidStack;
+import appeng.api.storage.data.IAEItemStack;
+import appeng.api.storage.data.IItemList;
+import appeng.api.util.AEPartLocation;
 import appeng.api.util.DimensionalCoord;
 import appeng.helpers.ICustomNameObject;
 import appeng.helpers.IInterfaceHost;
 import appeng.parts.misc.PartInterface;
+import appeng.fluids.parts.PartFluidStorageBus;
+import appeng.parts.misc.PartStorageBus;
 import appeng.tile.misc.TileInterface;
+import appeng.util.helpers.ItemHandlerUtil;
 
 import com.cellterminal.integration.subnet.SubnetScannerRegistry;
+import com.cellterminal.network.PacketSubnetPartitionAction;
 
 
 /**
@@ -57,7 +76,7 @@ public class SubnetDataHandler {
          */
         public void addConnection(Object part, TileEntity hostTile) {
             connectionParts.add(part);
-            if (!hostTiles.contains(hostTile)) hostTiles.add(hostTile);
+            hostTiles.add(hostTile);  // Must stay parallel with connectionParts
             isOutbound.add(true);
             connectionSides.add(null);  // Side is derived from the part
         }
@@ -67,7 +86,7 @@ public class SubnetDataHandler {
          */
         public void addInboundConnection(Object part, TileEntity hostTile, EnumFacing side) {
             connectionParts.add(part);
-            if (!hostTiles.contains(hostTile)) hostTiles.add(hostTile);
+            hostTiles.add(hostTile);  // Must stay parallel with connectionParts
             isOutbound.add(false);
             connectionSides.add(side);
         }
@@ -79,15 +98,16 @@ public class SubnetDataHandler {
      * @param grid The main ME network grid to scan
      * @param trackerMap Map to populate with subnet trackers (keyed by subnet ID)
      * @param playerId The player ID for security permission checks
+     * @param slotLimit Maximum number of inventory item types to include per subnet
      * @return NBTTagList containing all subnet data
      */
-    public static NBTTagList collectSubnets(IGrid grid, Map<Long, SubnetTracker> trackerMap, int playerId) {
+    public static NBTTagList collectSubnets(IGrid grid, Map<Long, SubnetTracker> trackerMap, int playerId, int slotLimit) {
         NBTTagList subnetList = new NBTTagList();
 
         if (grid == null) return subnetList;
 
         // Delegate to registered scanners
-        SubnetScannerRegistry.scanAll(grid, subnetList, trackerMap, playerId);
+        SubnetScannerRegistry.scanAll(grid, subnetList, trackerMap, playerId, slotLimit);
 
         return subnetList;
     }
@@ -233,6 +253,220 @@ public class SubnetDataHandler {
         for (IGridNode node : grid.getMachines(PartInterface.class)) {
             if (node.getMachine() instanceof PartInterface) {
                 return (IInterfaceHost) node.getMachine();
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Handle subnet connection partition modification.
+     * Finds the storage bus at (pos, side) within the subnet and modifies its config.
+     *
+     * @param trackerMap Current subnet trackers
+     * @param subnetId The subnet ID containing the connection
+     * @param pos The packed block position of the connection host tile
+     * @param side The side ordinal of the storage bus
+     * @param action The partition action to perform
+     * @param partitionSlot The target slot index (-1 for bulk actions)
+     * @param itemStack The item for ADD/TOGGLE actions
+     * @return true if the partition was modified
+     */
+    public static boolean handleSubnetPartitionAction(Map<Long, SubnetTracker> trackerMap,
+                                                       long subnetId, long pos, int side,
+                                                       PacketSubnetPartitionAction.Action action,
+                                                       int partitionSlot, ItemStack itemStack) {
+        SubnetTracker tracker = trackerMap.get(subnetId);
+        if (tracker == null) return false;
+
+        // SET_ALL_FROM_SUBNET_INVENTORY requires special handling:
+        // query the subnet's ME storage and fill the bus config from it
+        if (action == PacketSubnetPartitionAction.Action.SET_ALL_FROM_SUBNET_INVENTORY) {
+            return handleSetAllFromSubnetInventory(tracker, pos, side);
+        }
+
+        Object busPart = findBusForConnection(tracker, pos, side);
+        if (busPart == null) return false;
+
+        // Delegate to the appropriate handler based on bus type
+        if (busPart instanceof PartStorageBus) {
+            return handleItemBusSubnetPartition((PartStorageBus) busPart, action, partitionSlot, itemStack);
+        } else if (busPart instanceof PartFluidStorageBus) {
+            return StorageBusDataHandler.executeSubnetFluidPartitionAction(
+                (PartFluidStorageBus) busPart, action, partitionSlot, itemStack);
+        }
+
+        return false;
+    }
+
+    private static boolean handleItemBusSubnetPartition(PartStorageBus bus,
+                                                        PacketSubnetPartitionAction.Action action,
+                                                        int partitionSlot, ItemStack itemStack) {
+        IItemHandler configInv = bus.getInventoryByName("config");
+        if (configInv == null) return false;
+
+        StorageBusDataHandler.executeSubnetPartitionAction(configInv, configInv.getSlots(), action,
+            partitionSlot, itemStack, bus);
+
+        TileEntity hostTile = bus.getHost().getTile();
+        if (hostTile != null) hostTile.markDirty();
+
+        return true;
+    }
+
+    /**
+     * Handle SET_ALL_FROM_SUBNET_INVENTORY: query the subnet's ME storage grid
+     * and fill the storage bus config with item types found in the subnet's inventory.
+     */
+    private static boolean handleSetAllFromSubnetInventory(SubnetTracker tracker, long pos, int side) {
+        Object busPart = findBusForConnection(tracker, pos, side);
+        if (busPart == null) return false;
+
+        IGrid subnetGrid = tracker.targetGrid;
+        IStorageGrid storageGrid = subnetGrid.getCache(IStorageGrid.class);
+        if (storageGrid == null) return false;
+
+        if (busPart instanceof PartStorageBus) {
+            return fillItemBusFromSubnetInventory((PartStorageBus) busPart, storageGrid);
+        } else if (busPart instanceof PartFluidStorageBus) {
+            return fillFluidBusFromSubnetInventory((PartFluidStorageBus) busPart, storageGrid);
+        }
+
+        return false;
+    }
+
+    /**
+     * Fill an item storage bus config from the subnet's ME item inventory.
+     */
+    private static boolean fillItemBusFromSubnetInventory(PartStorageBus bus, IStorageGrid storageGrid) {
+        IItemHandler configInv = bus.getInventoryByName("config");
+        if (configInv == null) return false;
+
+        int slotsToUse = configInv.getSlots();
+
+        // Clear existing config
+        for (int i = 0; i < slotsToUse; i++) {
+            ItemHandlerUtil.setStackInSlot(configInv, i, ItemStack.EMPTY);
+        }
+
+        // Query the subnet's item inventory
+        IItemStorageChannel itemChannel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
+        IMEMonitor<IAEItemStack> itemMonitor = storageGrid.getInventory(itemChannel);
+        IItemList<IAEItemStack> items = itemMonitor.getStorageList();
+
+        int slot = 0;
+        for (IAEItemStack aeStack : items) {
+            if (slot >= slotsToUse) break;
+            if (aeStack.getStackSize() <= 0) continue;
+
+            ItemStack configStack = aeStack.createItemStack();
+            configStack.setCount(1);
+            ItemHandlerUtil.setStackInSlot(configInv, slot++, configStack);
+        }
+
+        TileEntity hostTile = bus.getHost().getTile();
+        if (hostTile != null) hostTile.markDirty();
+
+        return true;
+    }
+
+    /**
+     * Fill a fluid storage bus config from the subnet's ME fluid inventory.
+     */
+    private static boolean fillFluidBusFromSubnetInventory(PartFluidStorageBus bus, IStorageGrid storageGrid) {
+        // TODO: Implement fluid bus partition from subnet inventory.
+        // This requires accessing the fluid config via IAEFluidTank and
+        // IFluidStorageChannel, similar to executeFluidPartitionAction logic.
+        return false;
+    }
+
+    /**
+     * Find the storage bus (item or fluid) for a connection described by (pos, side).
+     * For outbound connections, the storage bus is the connection part itself.
+     * For inbound connections, the storage bus is on the subnet side (offset from the interface).
+     *
+     * @return PartStorageBus or PartFluidStorageBus, or null if not found
+     */
+    private static Object findBusForConnection(SubnetTracker tracker, long pos, int side) {
+        BlockPos targetPos = BlockPos.fromLong(pos);
+
+        for (int i = 0; i < tracker.connectionParts.size(); i++) {
+            Object part = tracker.connectionParts.get(i);
+            boolean outbound = i < tracker.isOutbound.size() && tracker.isOutbound.get(i);
+
+            if (outbound && part instanceof PartStorageBus) {
+                PartStorageBus bus = (PartStorageBus) part;
+                TileEntity hostTile = bus.getHost().getTile();
+
+                if (hostTile != null && hostTile.getPos().equals(targetPos)
+                    && bus.getSide().ordinal() == side) {
+                    return bus;
+                }
+            } else if (outbound && part instanceof PartFluidStorageBus) {
+                PartFluidStorageBus bus = (PartFluidStorageBus) part;
+                TileEntity hostTile = bus.getHost().getTile();
+
+                if (hostTile != null && hostTile.getPos().equals(targetPos)
+                    && bus.getSide().ordinal() == side) {
+                    return bus;
+                }
+            } else if (!outbound && part instanceof TileInterface) {
+                // Inbound: full-block interface on the main network, storage bus is on subnet side
+                TileInterface iface = (TileInterface) part;
+                EnumFacing connSide = i < tracker.connectionSides.size()
+                    ? tracker.connectionSides.get(i) : null;
+
+                // The pos/side sent by the client match the interface tile + connection side
+                if (!iface.getPos().equals(targetPos) || connSide == null) continue;
+                if (connSide.ordinal() != side) continue;
+
+                // Find the storage bus on the subnet side
+                BlockPos remoteTilePos = iface.getPos().offset(connSide);
+                TileEntity remoteTile = iface.getWorld().getTileEntity(remoteTilePos);
+                if (!(remoteTile instanceof IPartHost)) continue;
+
+                IPartHost partHost = (IPartHost) remoteTile;
+                EnumFacing oppositeDir = connSide.getOpposite();
+
+                for (AEPartLocation loc : AEPartLocation.SIDE_LOCATIONS) {
+                    if (loc.getFacing() != oppositeDir) continue;
+
+                    IPart remotePart = partHost.getPart(loc);
+
+                    // Return whichever bus type is found on the remote side
+                    if (remotePart instanceof PartStorageBus
+                        || remotePart instanceof PartFluidStorageBus) {
+                        return remotePart;
+                    }
+                }
+            } else if (!outbound && part instanceof PartInterface) {
+                // Inbound: cable-attached interface on the main network, storage bus is on subnet side
+                PartInterface iface = (PartInterface) part;
+                TileEntity ifaceTile = iface.getTileEntity();
+                EnumFacing connSide = i < tracker.connectionSides.size()
+                    ? tracker.connectionSides.get(i) : null;
+
+                if (ifaceTile == null || !ifaceTile.getPos().equals(targetPos) || connSide == null) continue;
+                if (connSide.ordinal() != side) continue;
+
+                // Find the storage bus on the subnet side
+                BlockPos remoteTilePos = ifaceTile.getPos().offset(connSide);
+                TileEntity remoteTile = ifaceTile.getWorld().getTileEntity(remoteTilePos);
+                if (!(remoteTile instanceof IPartHost)) continue;
+
+                IPartHost partHost = (IPartHost) remoteTile;
+                EnumFacing oppositeDir = connSide.getOpposite();
+
+                for (AEPartLocation loc : AEPartLocation.SIDE_LOCATIONS) {
+                    if (loc.getFacing() != oppositeDir) continue;
+
+                    IPart remotePart = partHost.getPart(loc);
+
+                    if (remotePart instanceof PartStorageBus
+                        || remotePart instanceof PartFluidStorageBus) {
+                        return remotePart;
+                    }
+                }
             }
         }
 

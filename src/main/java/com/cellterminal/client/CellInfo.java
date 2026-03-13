@@ -9,7 +9,6 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraftforge.common.util.Constants;
 
-import appeng.api.config.Upgrades;
 import appeng.api.implementations.items.IUpgradeModule;
 
 import com.cellterminal.gui.rename.Renameable;
@@ -138,10 +137,6 @@ public class CellInfo implements Renameable {
         return slot;
     }
 
-    public int getStatus() {
-        return status;
-    }
-
     public boolean isFluid() {
         return isFluid;
     }
@@ -166,16 +161,8 @@ public class CellInfo implements Renameable {
         return totalBytes;
     }
 
-    public long getUsedTypes() {
-        return usedTypes;
-    }
-
     public long getTotalTypes() {
         return totalTypes;
-    }
-
-    public long getStoredItemCount() {
-        return storedItemCount;
     }
 
     public List<ItemStack> getPartition() {
@@ -198,29 +185,10 @@ public class CellInfo implements Renameable {
         return (float) usedBytes / totalBytes;
     }
 
-    public float getTypeUsagePercent() {
-        if (totalTypes == 0) return 0;
-
-        return (float) usedTypes / totalTypes;
-    }
-
     public String getDisplayName() {
         if (!cellItem.isEmpty()) return cellItem.getDisplayName();
 
         return I18n.format("gui.cellterminal.cell_empty");
-    }
-
-    // TODO: replace with the ItemStack to avoid Type Squatting
-    public boolean hasSticky() {
-        return getInstalledUpgrades(Upgrades.STICKY) > 0;
-    }
-
-    public boolean hasFuzzy() {
-        return getInstalledUpgrades(Upgrades.FUZZY) > 0;
-    }
-
-    public boolean hasInverter() {
-        return getInstalledUpgrades(Upgrades.INVERTER) > 0;
     }
 
     public List<ItemStack> getUpgrades() {
@@ -238,37 +206,16 @@ public class CellInfo implements Renameable {
         return upgradeSlotIndices.get(index);
     }
 
+    // TODO: does it make sense to have client-side upgrades checks when we moved all validation server-side?
+
     public int getUpgradeSlotCount() {
         // Standard AE2 cells have 2 upgrade slots
         // TODO: adjust if supporting cells with different upgrade slot counts
         return 2;
     }
 
-    public int getInstalledUpgradeCount() {
-        return upgrades.size();
-    }
-
     public boolean hasUpgradeSpace() {
         return upgrades.size() < getUpgradeSlotCount();
-    }
-
-    /**
-     * Check how many of a specific upgrade type are currently installed.
-     * @param upgradeType The upgrade type to count
-     * @return The number of this upgrade currently installed
-     */
-    public int getInstalledUpgrades(Upgrades upgradeType) {
-        if (upgradeType == null) return 0;
-
-        int count = 0;
-        for (ItemStack upgrade : upgrades) {
-            if (upgrade.getItem() instanceof IUpgradeModule) {
-                Upgrades type = ((IUpgradeModule) upgrade.getItem()).getType(upgrade);
-                if (type == upgradeType) count++;
-            }
-        }
-
-        return count;
     }
 
     /**
@@ -281,6 +228,10 @@ public class CellInfo implements Renameable {
     public boolean canAcceptUpgrade(ItemStack upgradeStack) {
         if (upgradeStack.isEmpty()) return false;
         if (!(upgradeStack.getItem() instanceof IUpgradeModule)) return false;
+
+        // Distinguish real upgrades from storage components that also implement IUpgradeModule
+        // Real upgrades (speed card, capacity card, etc.) return a non-null Upgrades type
+        if (((IUpgradeModule) upgradeStack.getItem()).getType(upgradeStack) == null) return false;
 
         return hasUpgradeSpace();
     }

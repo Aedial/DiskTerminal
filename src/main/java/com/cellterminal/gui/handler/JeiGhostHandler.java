@@ -1,9 +1,5 @@
 package com.cellterminal.gui.handler;
 
-import java.awt.Rectangle;
-import java.util.ArrayList;
-import java.util.List;
-
 import net.minecraft.enchantment.EnchantmentData;
 import net.minecraft.item.ItemEnchantedBook;
 import net.minecraft.item.ItemStack;
@@ -15,14 +11,8 @@ import appeng.api.storage.IStorageChannel;
 import appeng.api.storage.channels.IFluidStorageChannel;
 import appeng.api.storage.data.IAEFluidStack;
 
-import mezz.jei.api.gui.IGhostIngredientHandler;
-
 import com.cellterminal.CellTerminal;
-import com.cellterminal.client.CellInfo;
-import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.gui.overlay.MessageHelper;
-import com.cellterminal.gui.PopupCellPartition;
-import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 
 
@@ -30,84 +20,6 @@ import com.cellterminal.integration.ThaumicEnergisticsIntegration;
  * Handles JEI Ghost Ingredient support for Cell Terminal GUI.
  */
 public class JeiGhostHandler {
-
-    /**
-     * Target for a partition slot that can receive JEI ghost ingredients.
-     */
-    public static class PartitionSlotTarget {
-        public final CellInfo cell;
-        public final int slotIndex;
-        public final int x;
-        public final int y;
-        public final int width;
-        public final int height;
-
-        public PartitionSlotTarget(CellInfo cell, int slotIndex, int x, int y, int width, int height) {
-            this.cell = cell;
-            this.slotIndex = slotIndex;
-            this.x = x;
-            this.y = y;
-            this.width = width;
-            this.height = height;
-        }
-    }
-
-    public interface PartitionCallback {
-        void onAddPartitionItem(CellInfo cell, int slotIndex, ItemStack stack);
-    }
-
-    /**
-     * Target for a storage bus partition slot that can receive JEI ghost ingredients.
-     */
-    public static class StorageBusPartitionSlotTarget {
-        public final StorageBusInfo storageBus;
-        public final int slotIndex;
-        public final int x;
-        public final int y;
-        public final int width;
-        public final int height;
-
-        public StorageBusPartitionSlotTarget(StorageBusInfo storageBus, int slotIndex, int x, int y, int width, int height) {
-            this.storageBus = storageBus;
-            this.slotIndex = slotIndex;
-            this.x = x;
-            this.y = y;
-            this.width = width;
-            this.height = height;
-        }
-    }
-
-    public interface StorageBusPartitionCallback {
-        void onAddStorageBusPartitionItem(StorageBusInfo storageBus, int slotIndex, ItemStack stack);
-    }
-
-    /**
-     * Target for a temp cell partition slot that can receive JEI ghost ingredients.
-     * Similar to PartitionSlotTarget but uses temp slot index instead of parent storage ID.
-     */
-    public static class TempCellPartitionSlotTarget {
-        public final CellInfo cell;
-        public final int tempSlotIndex;
-        public final int partitionSlotIndex;
-        public final int x;
-        public final int y;
-        public final int width;
-        public final int height;
-
-        public TempCellPartitionSlotTarget(CellInfo cell, int tempSlotIndex, int partitionSlotIndex, int x, int y, int width, int height) {
-            this.cell = cell;
-            this.tempSlotIndex = tempSlotIndex;
-            this.partitionSlotIndex = partitionSlotIndex;
-            this.x = x;
-            this.y = y;
-            this.width = width;
-            this.height = height;
-        }
-    }
-
-    public interface TempCellPartitionCallback {
-        void onAddTempCellPartitionItem(int tempSlotIndex, int partitionSlotIndex, ItemStack stack);
-    }
 
     /**
      * Convert any JEI ingredient to an ItemStack for use with AE2 cells.
@@ -257,85 +169,5 @@ public class JeiGhostHandler {
         CellTerminal.LOGGER.warn("Unsupported JEI ingredient type for storage bus partition: {}", ingredient.getClass().getName());
 
         return ItemStack.EMPTY;
-    }
-
-    public static List<IGhostIngredientHandler.Target<?>> getPhantomTargets(
-            int currentTab, PopupCellPartition partitionPopup,
-            List<PartitionSlotTarget> partitionSlotTargets,
-            List<StorageBusPartitionSlotTarget> storageBusPartitionSlotTargets,
-            List<TempCellPartitionSlotTarget> tempCellPartitionSlotTargets,
-            PartitionCallback callback, StorageBusPartitionCallback storageBusCallback,
-            TempCellPartitionCallback tempCellCallback) {
-
-        if (partitionPopup != null) return partitionPopup.getGhostTargets();
-
-        List<IGhostIngredientHandler.Target<?>> targets = new ArrayList<>();
-
-        // Cell partition tab
-        if (currentTab == GuiConstants.TAB_PARTITION) {
-            for (PartitionSlotTarget slot : partitionSlotTargets) {
-                targets.add(new IGhostIngredientHandler.Target<Object>() {
-                    @Override
-                    public Rectangle getArea() {
-                        return new Rectangle(slot.x, slot.y, slot.width, slot.height);
-                    }
-
-                    @Override
-                    public void accept(Object ing) {
-                        ItemStack stack = convertJeiIngredientToItemStack(ing, slot.cell.isFluid(), slot.cell.isEssentia());
-
-                        if (stack.isEmpty()) return;
-
-                        callback.onAddPartitionItem(slot.cell, slot.slotIndex, stack);
-                    }
-                });
-            }
-        }
-
-        // Temp area tab - partition slots
-        if (currentTab == GuiConstants.TAB_TEMP_AREA) {
-            for (TempCellPartitionSlotTarget slot : tempCellPartitionSlotTargets) {
-                targets.add(new IGhostIngredientHandler.Target<Object>() {
-                    @Override
-                    public Rectangle getArea() {
-                        return new Rectangle(slot.x, slot.y, slot.width, slot.height);
-                    }
-
-                    @Override
-                    public void accept(Object ing) {
-                        ItemStack stack = convertJeiIngredientToItemStack(ing, slot.cell.isFluid(), slot.cell.isEssentia());
-
-                        if (stack.isEmpty()) return;
-
-                        tempCellCallback.onAddTempCellPartitionItem(slot.tempSlotIndex, slot.partitionSlotIndex, stack);
-                    }
-                });
-            }
-        }
-
-        // Storage bus partition tab
-        if (currentTab == GuiConstants.TAB_STORAGE_BUS_PARTITION) {
-            for (StorageBusPartitionSlotTarget slot : storageBusPartitionSlotTargets) {
-                targets.add(new IGhostIngredientHandler.Target<Object>() {
-                    @Override
-                    public Rectangle getArea() {
-                        return new Rectangle(slot.x, slot.y, slot.width, slot.height);
-                    }
-
-                    @Override
-                    public void accept(Object ing) {
-                        // Use storage bus-specific conversion with correct bus type flags
-                        ItemStack stack = convertJeiIngredientForStorageBus(
-                            ing, slot.storageBus.isFluid(), slot.storageBus.isEssentia());
-
-                        if (stack.isEmpty()) return;
-
-                        storageBusCallback.onAddStorageBusPartitionItem(slot.storageBus, slot.slotIndex, stack);
-                    }
-                });
-            }
-        }
-
-        return targets;
     }
 }

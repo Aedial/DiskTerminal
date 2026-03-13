@@ -28,7 +28,6 @@ import appeng.api.config.SortOrder;
 import appeng.api.config.ViewItems;
 import appeng.api.features.ILocatable;
 import appeng.api.features.IWirelessTermHandler;
-import appeng.api.storage.ICellWorkbenchItem;
 import appeng.api.util.IConfigManager;
 import appeng.core.AEConfig;
 import appeng.core.localization.GuiText;
@@ -113,6 +112,12 @@ public class ItemWirelessCellTerminal extends AEBasePoweredItem implements IWire
 
         lines.add(I18n.format("item.cellterminal.cell_terminal.tooltip"));
 
+        // Show temp cell count if any are stored
+        int tempCellCount = getTempCellCount(stack);
+        if (tempCellCount > 0) {
+            lines.add(I18n.format("item.cellterminal.wireless_cell_terminal.temp_cells", tempCellCount));
+        }
+
         if (stack.hasTagCompound()) {
             NBTTagCompound tag = Platform.openNbtData(stack);
             String encKey = tag.getString("encryptionKey");
@@ -182,22 +187,17 @@ public class ItemWirelessCellTerminal extends AEBasePoweredItem implements IWire
     // TEMP CELL STORAGE
     // ========================================
 
-    private static final String NBT_TEMP_CELLS = "tempCells";
-    private static final int MAX_TEMP_CELLS = 16;
+    /**
+     * NBT key for temp cell storage. Used by both Wireless Cell Terminal and WUT integration.
+     */
+    public static final String NBT_TEMP_CELLS = "cellTerminalTempCells";
+    public static final int MAX_TEMP_CELLS = 16;
 
     /**
-     * Check if a stack is a valid storage cell.
+     * Get the number of temp cells stored in a terminal ItemStack.
+     * Works with both Wireless Cell Terminal and Wireless Universal Terminal.
      */
-    public static boolean isValidTempCellItem(ItemStack stack) {
-        if (stack.isEmpty()) return true;
-
-        return stack.getItem() instanceof ICellWorkbenchItem;
-    }
-
-    /**
-     * Get the number of temp cells stored in this terminal.
-     */
-    public int getTempCellCount(ItemStack terminal) {
+    public static int getTempCellCount(ItemStack terminal) {
         NBTTagCompound nbt = Platform.openNbtData(terminal);
         if (!nbt.hasKey(NBT_TEMP_CELLS)) return 0;
 
@@ -213,8 +213,9 @@ public class ItemWirelessCellTerminal extends AEBasePoweredItem implements IWire
 
     /**
      * Get a temp cell at the given slot index.
+     * Works with both Wireless Cell Terminal and Wireless Universal Terminal.
      */
-    public ItemStack getTempCell(ItemStack terminal, int slot) {
+    public static ItemStack getTempCell(ItemStack terminal, int slot) {
         if (slot < 0 || slot >= MAX_TEMP_CELLS) return ItemStack.EMPTY;
 
         NBTTagCompound nbt = Platform.openNbtData(terminal);
@@ -228,8 +229,9 @@ public class ItemWirelessCellTerminal extends AEBasePoweredItem implements IWire
 
     /**
      * Set a temp cell at the given slot index.
+     * Works with both Wireless Cell Terminal and Wireless Universal Terminal.
      */
-    public void setTempCell(ItemStack terminal, int slot, ItemStack cell) {
+    public static void setTempCell(ItemStack terminal, int slot, ItemStack cell) {
         if (slot < 0 || slot >= MAX_TEMP_CELLS) return;
 
         NBTTagCompound nbt = Platform.openNbtData(terminal);
@@ -253,45 +255,9 @@ public class ItemWirelessCellTerminal extends AEBasePoweredItem implements IWire
     }
 
     /**
-     * Get the first empty temp cell slot, or -1 if full.
-     */
-    public int getFirstEmptyTempSlot(ItemStack terminal) {
-        NBTTagCompound nbt = Platform.openNbtData(terminal);
-        NBTTagList cellList = nbt.getTagList(NBT_TEMP_CELLS, Constants.NBT.TAG_COMPOUND);
-
-        for (int i = 0; i < MAX_TEMP_CELLS; i++) {
-            if (i >= cellList.tagCount()) return i;
-
-            ItemStack cell = new ItemStack(cellList.getCompoundTagAt(i));
-            if (cell.isEmpty()) return i;
-        }
-
-        return -1;
-    }
-
-    /**
-     * Clear all temp cells and return them as a list (for dropping).
-     */
-    public List<ItemStack> clearAllTempCells(ItemStack terminal) {
-        List<ItemStack> dropped = new java.util.ArrayList<>();
-        NBTTagCompound nbt = Platform.openNbtData(terminal);
-
-        if (nbt.hasKey(NBT_TEMP_CELLS)) {
-            NBTTagList cellList = nbt.getTagList(NBT_TEMP_CELLS, Constants.NBT.TAG_COMPOUND);
-            for (int i = 0; i < cellList.tagCount(); i++) {
-                ItemStack cell = new ItemStack(cellList.getCompoundTagAt(i));
-                if (!cell.isEmpty()) dropped.add(cell);
-            }
-            nbt.removeTag(NBT_TEMP_CELLS);
-        }
-
-        return dropped;
-    }
-
-    /**
      * Get maximum temp cell slots.
      */
-    public int getMaxTempCells() {
+    public static int getMaxTempCells() {
         return MAX_TEMP_CELLS;
     }
 
