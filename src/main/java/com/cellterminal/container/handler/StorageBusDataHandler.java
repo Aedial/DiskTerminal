@@ -383,6 +383,8 @@ public class StorageBusDataHandler {
     private static void addUpgradesData(NBTTagCompound busData, IItemHandler upgradesInv) {
         if (upgradesInv == null) return;
 
+        busData.setInteger("upgradeSlotCount", upgradesInv.getSlots());
+
         NBTTagList upgradeList = new NBTTagList();
         for (int i = 0; i < upgradesInv.getSlots(); i++) {
             ItemStack upgrade = upgradesInv.getStackInSlot(i);
@@ -768,31 +770,6 @@ public class StorageBusDataHandler {
         tracker.hostTile.markDirty();
 
         return true;
-    }
-
-    /**
-     * Insert an upgrade into a storage bus.
-     * @return true if upgrade was inserted
-     */
-    public static boolean insertUpgrade(StorageBusTracker tracker, ItemStack upgradeStack) {
-        if (!(tracker.storageBus instanceof PartUpgradeable)) return false;
-
-        IItemHandler upgradesInv = ((PartUpgradeable) tracker.storageBus).getInventoryByName("upgrades");
-        if (upgradesInv == null) return false;
-
-        ItemStack toInsert = upgradeStack.copy();
-        toInsert.setCount(1);
-
-        for (int slot = 0; slot < upgradesInv.getSlots(); slot++) {
-            ItemStack remainder = upgradesInv.insertItem(slot, toInsert, false);
-            if (remainder.isEmpty()) {
-                upgradeStack.shrink(1);
-
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private static ItemStack getBlockAsItemStack(IBlockState state, World world, BlockPos pos) {

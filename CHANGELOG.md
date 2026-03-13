@@ -9,8 +9,15 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 
 ## [1.5.1] - 2026-03-14
+### Added
+- Finish moving text placeholders to proper textures.
+- Add proper UX for Inbound/Outbound subnet connections.
+
 ### Fixed
 - Fix Subnets Overview not handling Fluids.
+- Fix inline rename field not working in Subnet Overview.
+- Fix upgrade slots count being hardcoded to 2 (Cells) and 5 (Storage Buses) instead of retrieved from the server, which could cause issues with mods adding more upgrade slots.
+- Fix crash introduced in 1.5.0 when inserting a cell into a free slot.
 
 
 ## [1.5.0] - 2026-03-13

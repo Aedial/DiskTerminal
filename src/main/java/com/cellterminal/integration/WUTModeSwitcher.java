@@ -2,14 +2,15 @@ package com.cellterminal.integration;
 
 import java.awt.Rectangle;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import com.cellterminal.gui.GuiConstants;
+import com.cellterminal.gui.buttons.GuiAtlasButton;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
-import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fml.relauncher.Side;
@@ -192,19 +193,19 @@ public class WUTModeSwitcher {
 
     /**
      * Custom button for WUT mode switching.
-     * Toggle button shows 2x scaled black arrows; mode buttons show terminal icons.
-     * <p>
-     * TODO: Once atlas textures are added for WUT mode buttons, convert this to
-     * extend GuiAtlasButton instead of GuiButton (see GuiTerminalStyleButton for reference).
+     * Uses atlas.png for background; toggle button icon is baked into the atlas,
+     * mode buttons render terminal ItemStack icons on top.
      */
     @SideOnly(Side.CLIENT)
-    private static class WUTModeButton extends GuiButton {
+    private static class WUTModeButton extends GuiAtlasButton {
+
+        private static final int SIZE = GuiConstants.WUT_SWITCH_BUTTON_SIZE;
 
         private final byte mode;
         private final boolean isToggle;
 
         public WUTModeButton(int buttonId, int x, int y, byte mode, boolean isToggle) {
-            super(buttonId, x, y, BUTTON_SIZE, BUTTON_SIZE, "");
+            super(buttonId, x, y, SIZE);
             this.mode = mode;
             this.isToggle = isToggle;
         }
@@ -214,58 +215,33 @@ public class WUTModeSwitcher {
         }
 
         @Override
-        public void drawButton(Minecraft mc, int mouseX, int mouseY, float partialTicks) {
-            if (!this.visible) return;
+        protected int getBackgroundTexX() {
+            // Toggle has arrows based-in, mode buttons are blank background            
+            return GuiConstants.WUT_SWITCH_BUTTON_X + (isToggle ? 0 : SIZE);
+        }
 
-            this.hovered = mouseX >= this.x && mouseY >= this.y && mouseX < this.x + this.width && mouseY < this.y + this.height;
+        @Override
+        protected int getBackgroundTexY() {
+            return GuiConstants.WUT_SWITCH_BUTTON_Y + (this.hovered ? SIZE : 0);
+        }
 
-            // TODO: add a proper texture for the buttons, under the red one in atlas.png
+        @Override
+        protected void drawForeground(Minecraft mc) {
+            if (isToggle) return;  // Toggle icon is baked into the atlas sprite
 
-            GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
-            GlStateManager.enableBlend();
-
-            // Draw button background with 3D border like filter buttons
-            int bgColor = this.hovered ? 0xFF9E9E9E : 0xFF8B8B8B;
-            drawRect(this.x, this.y, this.x + this.width, this.y + this.height, bgColor);
-
-            // 3D border - light top/left, dark bottom/right
-            int lightColor = this.hovered ? 0xFFBDBDBD : 0xFFB0B0B0;
-            int darkColor = this.hovered ? 0xFF6E6E6E : 0xFF5E5E5E;
-            drawRect(this.x, this.y, this.x + this.width, this.y + 1, lightColor);
-            drawRect(this.x, this.y, this.x + 1, this.y + this.height, lightColor);
-            drawRect(this.x, this.y + this.height - 1, this.x + this.width, this.y + this.height, darkColor);
-            drawRect(this.x + this.width - 1, this.y, this.x + this.width, this.y + this.height, darkColor);
-
-            if (isToggle) {
-                // Draw ⇄ arrow scaled 2x in black
-                GlStateManager.pushMatrix();
-
-                float centerX = this.x + this.width / 2.0f;
-                float centerY = this.y + this.height / 2.0f;
-
-                // Scale 2x and center
-                GlStateManager.translate(centerX, centerY, 0);
-                GlStateManager.scale(2.0f, 2.0f, 1.0f);
-
-                String arrow = "⇄";
-                int arrowWidth = mc.fontRenderer.getStringWidth(arrow);
-
-                // Black color (slightly softer on hover)
-                int color = this.hovered ? 0x202020 : 0x000000;
-                mc.fontRenderer.drawString(arrow, -arrowWidth / 2, -4, color);
-
-                GlStateManager.popMatrix();
-            } else {
-                // Draw terminal icon for mode buttons
-                ItemStack icon = AE2WUTIntegration.getWUTModeIcon(mode);
-                if (!icon.isEmpty()) {
-                    RenderHelper.enableGUIStandardItemLighting();
-                    mc.getRenderItem().renderItemAndEffectIntoGUI(icon, this.x, this.y);
-                    RenderHelper.disableStandardItemLighting();
-                }
+            // Mode buttons: render terminal ItemStack icon on top of atlas background
+            ItemStack icon = AE2WUTIntegration.getWUTModeIcon(mode);
+            if (!icon.isEmpty()) {
+                RenderHelper.enableGUIStandardItemLighting();
+                mc.getRenderItem().renderItemAndEffectIntoGUI(icon, this.x, this.y);
+                RenderHelper.disableStandardItemLighting();
             }
+        }
 
-            GlStateManager.disableBlend();
+        @Override
+        public List<String> getTooltip() {
+            // Tooltips handled externally by WUTModeSwitcher.drawTooltips()
+            return Collections.emptyList();
         }
     }
 }

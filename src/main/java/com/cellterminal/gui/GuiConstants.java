@@ -1,5 +1,10 @@
 package com.cellterminal.gui;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Gui;
+import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.util.ResourceLocation;
+
 
 /**
  * Central location for all GUI layout constants used in the Cell Terminal.
@@ -19,6 +24,47 @@ package com.cellterminal.gui;
 public final class GuiConstants {
 
     private GuiConstants() {}
+
+    /** Atlas texture resource location, shared across all GUI components. */
+    public static final ResourceLocation ATLAS_TEXTURE =
+        new ResourceLocation("cellterminal", "textures/guis/atlas.png");
+
+    /**
+     * Bind the atlas texture and draw a sprite from it.
+     * Combines bindTexture + color reset + enableBlend + drawScaledCustomSizeModalRect.
+     *
+     * @param x     Screen X position to draw at
+     * @param y     Screen Y position to draw at
+     * @param texX  Atlas U coordinate (source X)
+     * @param texY  Atlas V coordinate (source Y)
+     * @param w     Width of the sprite (both draw and source size)
+     * @param h     Height of the sprite (both draw and source size)
+     */
+    public static void drawAtlasSprite(int x, int y, int texX, int texY, int w, int h) {
+        Minecraft.getMinecraft().getTextureManager().bindTexture(ATLAS_TEXTURE);
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.enableBlend();
+        Gui.drawScaledCustomSizeModalRect(x, y, texX, texY, w, h, w, h, ATLAS_WIDTH, ATLAS_HEIGHT);
+    }
+
+    /** Similar to {@link #drawAtlasSprite(int, int, int, int, int, int)}, but scales the sprite by the given factor. */
+    public static void drawAtlasSpriteScaled(int x, int y, int texX, int texY, int w, int h, float scale) {
+        int scaledW = (int) (w * scale);
+        int scaledH = (int) (h * scale);
+
+        Minecraft.getMinecraft().getTextureManager().bindTexture(ATLAS_TEXTURE);
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.enableBlend();
+        Gui.drawScaledCustomSizeModalRect(x, y, texX, texY, w, h, scaledW, scaledH, ATLAS_WIDTH, ATLAS_HEIGHT);
+    }
+
+    public static void drawAtlasSprite(int x, int y, int texX, int texY, int size) {
+        drawAtlasSprite(x, y, texX, texY, size, size);
+    }
+
+    public static void drawAtlasSprite(int x, int y, int texX, int texY) {
+        drawAtlasSprite(x, y, texX, texY, 16, 16);
+    }
 
     // ========================================
     // GENERAL LAYOUT
@@ -64,6 +110,7 @@ public final class GuiConstants {
 
     /** Tab indices */
     // TODO: ideally, we shouldn't need them at all
+    public static final int TAB_SUBNETS = -1;
     public static final int TAB_TERMINAL = 0;
     public static final int TAB_INVENTORY = 1;
     public static final int TAB_PARTITION = 2;
@@ -88,13 +135,16 @@ public final class GuiConstants {
     // ========================================
 
     /** Texture atlas width (for buttons, slots, etc.) */
-    public static final int ATLAS_WIDTH = 64;
+    public static final int ATLAS_WIDTH = 128;
 
     /** Texture atlas height (for buttons, slots, etc.) */
     public static final int ATLAS_HEIGHT = 128;
 
     /** Small button size (e.g., partition-all, clear) */
     public static final int SMALL_BUTTON_SIZE = 8;
+
+    /** WUT switch button size */
+    public static final int WUT_SWITCH_BUTTON_SIZE = 16;
 
     /** Tab 1 button size */
     public static final int TAB1_BUTTON_SIZE = 12;
@@ -104,6 +154,12 @@ public final class GuiConstants {
 
     /** Search Mode button size */
     public static final int SEARCH_MODE_BUTTON_SIZE = 10;
+
+    /** Subnet Overview's Main Network icon size */
+    public static final int MAIN_NET_ICON_SIZE = 10;
+
+    /** Subnet Overview's direction arrow size */
+    public static final int SUBNET_ARROWS_SIZE = 10;
 
     /** Size of a standard slot (16x16 item + 2px border) */
     public static final int SLOT_SIZE = 18;
@@ -118,7 +174,10 @@ public final class GuiConstants {
     public static final int TERMINAL_SIDE_BUTTON_SIZE = 16;
 
     /** Size of the ? tooltip pseudo-button for Search Bar and Network Tools */
-    public static final int TOOLTIP_BUTTON_SIZE = 10;
+    public static final int SEARCH_HELP_TOOLTIP_BUTTON_SIZE = 10;
+
+    /** Size of the star icon for favorite subnets */
+    public static final int FAVORITE_STAR_SIZE = 16;
 
     // 5x2 * 8x8 for small buttons
 
@@ -144,6 +203,9 @@ public final class GuiConstants {
     public static final int SUBNET_BUTTON_Y = TAB1_BUTTON_Y;
 
     // 3x2 * 10x10 for search mode buttons
+    // + 1x1 * 10x10 for Main Network icon in subnet overview
+    // + 1x2 * 10x10 for direction arrows in subnet overview
+    // + 1x2 * 10x10 for search help tooltip button
 
     /** Search Mode Buttons: Texture X positions in the atlas */
     public static final int SEARCH_MODE_BUTTON_X = 0;
@@ -151,10 +213,28 @@ public final class GuiConstants {
     /** Search Mode Buttons: Texture Y positions in the atlas */
     public static final int SEARCH_MODE_BUTTON_Y = TAB1_BUTTON_Y + 2 * TAB1_BUTTON_SIZE;
 
+    /** Main Network Icon: Texture X position in the atlas */
+    public static final int MAIN_NET_ICON_X = 3 * SEARCH_MODE_BUTTON_SIZE;
+
+    /** Main Network Icon: Texture Y position in the atlas */
+    public static final int MAIN_NET_ICON_Y = SEARCH_MODE_BUTTON_Y;
+
+    /** Subnet Overview Arrows: Texture X positions in the atlas */
+    public static final int SUBNET_ARROWS_X = MAIN_NET_ICON_X + MAIN_NET_ICON_SIZE;
+
+    /** Subnet Overview Arrows: Texture Y positions in the atlas */
+    public static final int SUBNET_ARROWS_Y = SEARCH_MODE_BUTTON_Y;
+
+    /** Search Help Tooltip Button: Texture X position in the atlas */
+    public static final int SEARCH_HELP_TOOLTIP_BUTTON_X = SUBNET_ARROWS_X + SUBNET_ARROWS_SIZE;
+
+    /** Search Help Tooltip Button: Texture Y position in the atlas */
+    public static final int SEARCH_HELP_TOOLTIP_BUTTON_Y = SEARCH_MODE_BUTTON_Y;
+
     // 1x3 * 16x16 for network tool buttons
-    // + 1x2 * 16x16 for terminal style buttons
-    // + 1x2 * 16x16 for red terminal buttons
-    // + 1x2 * 16x16 for green terminal buttons
+    // + 3x2 * 16x16 for terminal style buttons
+    // + 2x2 * 16x16 for WUT switch button
+    // + 2x2 * 16x16 for favorite star icon
 
     /** Network Tool Run Button: Texture X position */
     public static final int NETWORK_TOOL_RUN_BUTTON_X = 0;
@@ -168,17 +248,17 @@ public final class GuiConstants {
     /** Terminal Style Button: Texture Y position */
     public static final int TERMINAL_STYLE_BUTTON_Y = NETWORK_TOOL_RUN_BUTTON_Y;
 
-    /** Terminal Red Button: Texture X position */
-    public static final int TERMINAL_RED_BUTTON_X = TERMINAL_STYLE_BUTTON_X + TERMINAL_SIDE_BUTTON_SIZE;
+    /** WUT Switch Button: Texture X position */
+    public static final int WUT_SWITCH_BUTTON_X = TERMINAL_STYLE_BUTTON_X + 3 * TERMINAL_SIDE_BUTTON_SIZE;
 
-    /** Terminal Red Button: Texture Y position */
-    public static final int TERMINAL_RED_BUTTON_Y = TERMINAL_STYLE_BUTTON_Y;
+    /** WUT Switch Button: Texture Y position */
+    public static final int WUT_SWITCH_BUTTON_Y = TERMINAL_STYLE_BUTTON_Y;
 
-    /** Terminal Green Button: Texture X position */
-    public static final int TERMINAL_GREEN_BUTTON_X = TERMINAL_RED_BUTTON_X + TERMINAL_SIDE_BUTTON_SIZE;
+    /** Favorite Star Icon: Texture X position */
+    public static final int FAVORITE_STAR_X = WUT_SWITCH_BUTTON_X + 2 * WUT_SWITCH_BUTTON_SIZE;
 
-    /** Terminal Green Button: Texture Y position */
-    public static final int TERMINAL_GREEN_BUTTON_Y = TERMINAL_STYLE_BUTTON_Y;
+    /** Favorite Star Icon: Texture Y position */
+    public static final int FAVORITE_STAR_Y = TERMINAL_STYLE_BUTTON_Y;
 
     // 2x1 * 16x16 for mini slots
 
@@ -188,20 +268,13 @@ public final class GuiConstants {
     /** Mini slot background: Texture Y position */
     public static final int MINI_SLOT_Y = NETWORK_TOOL_RUN_BUTTON_Y + 2 * NETWORK_TOOL_RUN_BUTTON_SIZE;
 
-    // 1x2 * 10x10 for tooltip buttons
-    // + 2x1 * 18x18 for slot backgrounds
-
-    /** Tooltip Button: Texture X position */
-    public static final int TOOLTIP_BUTTON_X = 0;
-
-    /** Tooltip Button: Texture Y position */
-    public static final int TOOLTIP_BUTTON_Y = NETWORK_TOOL_RUN_BUTTON_Y + 3 * NETWORK_TOOL_RUN_BUTTON_SIZE;
+    // 2x1 * 18x18 for slot backgrounds
 
     /** Slot background: Texture X position */
-    public static final int SLOT_BACKGROUND_X = TOOLTIP_BUTTON_X + TOOLTIP_BUTTON_SIZE;
+    public static final int SLOT_BACKGROUND_X = 0;
 
     /** Slot background: Texture Y position */
-    public static final int SLOT_BACKGROUND_Y = TOOLTIP_BUTTON_Y;
+    public static final int SLOT_BACKGROUND_Y = MINI_SLOT_Y + MINI_SLOT_SIZE;
 
     // ========================================
     // SLOT CONFIGURATION
@@ -212,9 +285,6 @@ public final class GuiConstants {
 
     /** Number of content slots per row for storage buses */
     public static final int STORAGE_BUS_SLOTS_PER_ROW = 9;
-
-    /** Maximum partition slots for cells */
-    public static final int MAX_CELL_PARTITION_SLOTS = 63;
 
     /** Maximum partition slots for storage buses */
     public static final int MAX_STORAGE_BUS_PARTITION_SLOTS = 63;

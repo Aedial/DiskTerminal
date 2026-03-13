@@ -5,12 +5,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
-import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderItem;
-import net.minecraft.util.ResourceLocation;
 
 import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.networktools.INetworkTool;
@@ -44,11 +41,9 @@ public class NetworkToolRowWidget extends AbstractWidget {
 
     private static final int PADDING = 4;
     private static final int ICON_SIZE = 16;
-    private static final int HELP_BUTTON_SIZE = GuiConstants.TOOLTIP_BUTTON_SIZE;
+    private static final int HELP_BUTTON_SIZE = GuiConstants.SEARCH_HELP_TOOLTIP_BUTTON_SIZE;
     private static final int HELP_BUTTON_Y_OFFSET = 3;
     private static final int RUN_SIZE = GuiConstants.NETWORK_TOOL_RUN_BUTTON_SIZE;
-    private static final ResourceLocation ATLAS_TEXTURE =
-        new ResourceLocation("cellterminal", "textures/guis/atlas.png");
 
     private final INetworkTool tool;
     private final FontRenderer fontRenderer;
@@ -128,16 +123,10 @@ public class NetworkToolRowWidget extends AbstractWidget {
 
     private void drawHelpButton() {
         // Background from atlas (same texture as GuiSearchHelpButton)
-        Minecraft.getMinecraft().getTextureManager().bindTexture(ATLAS_TEXTURE);
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        GlStateManager.enableBlend();
-
-        int texX = GuiConstants.TOOLTIP_BUTTON_X;
-        int texY = GuiConstants.TOOLTIP_BUTTON_Y + (helpHovered ? HELP_BUTTON_SIZE : 0);
-        Gui.drawScaledCustomSizeModalRect(
-            helpBtnX, helpBtnY, texX, texY,
-            HELP_BUTTON_SIZE, HELP_BUTTON_SIZE, HELP_BUTTON_SIZE, HELP_BUTTON_SIZE,
-            GuiConstants.ATLAS_WIDTH, GuiConstants.ATLAS_HEIGHT);
+        int texX = GuiConstants.SEARCH_HELP_TOOLTIP_BUTTON_X;
+        int texY = GuiConstants.SEARCH_HELP_TOOLTIP_BUTTON_Y + (helpHovered ? HELP_BUTTON_SIZE : 0);
+        GuiConstants.drawAtlasSprite(
+            helpBtnX, helpBtnY, texX, texY, HELP_BUTTON_SIZE, HELP_BUTTON_SIZE);
     }
 
     private void drawToolIcon(ToolPreviewInfo preview) {
@@ -160,10 +149,6 @@ public class NetworkToolRowWidget extends AbstractWidget {
     }
 
     private void drawRunButton() {
-        Minecraft.getMinecraft().getTextureManager().bindTexture(ATLAS_TEXTURE);
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        GlStateManager.enableBlend();
-
         int texX = GuiConstants.NETWORK_TOOL_RUN_BUTTON_X;
         int texY;
         if (!canExecute) {
@@ -174,10 +159,8 @@ public class NetworkToolRowWidget extends AbstractWidget {
             texY = GuiConstants.NETWORK_TOOL_RUN_BUTTON_Y;  // Normal state
         }
 
-        Gui.drawScaledCustomSizeModalRect(
-            runBtnX, runBtnY, texX, texY,
-            RUN_SIZE, RUN_SIZE, RUN_SIZE, RUN_SIZE,
-            GuiConstants.ATLAS_WIDTH, GuiConstants.ATLAS_HEIGHT);
+        GuiConstants.drawAtlasSprite(
+            runBtnX, runBtnY, texX, texY, RUN_SIZE, RUN_SIZE);
     }
 
     private void drawToolName() {

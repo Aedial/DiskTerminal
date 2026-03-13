@@ -4,10 +4,7 @@ import io.netty.buffer.ByteBuf;
 
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.inventory.Container;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
 
-import net.minecraftforge.fml.common.network.ByteBufUtils;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
@@ -36,11 +33,9 @@ public class PacketTempCellAction implements IMessage {
     private Action action;
     private int tempSlotIndex;
     private int playerSlotIndex;  // Used for INSERT
-    private ItemStack itemStack;  // Used for INSERT when dragging from JEI ghost
     private boolean toInventory;  // Used for EXTRACT - true to send directly to inventory (shift-click)
 
     public PacketTempCellAction() {
-        this.itemStack = ItemStack.EMPTY;
     }
 
     /**
@@ -58,7 +53,6 @@ public class PacketTempCellAction implements IMessage {
         this.action = action;
         this.tempSlotIndex = tempSlotIndex;
         this.playerSlotIndex = -1;
-        this.itemStack = ItemStack.EMPTY;
         this.toInventory = toInventory;
     }
 
@@ -69,18 +63,6 @@ public class PacketTempCellAction implements IMessage {
         this.action = action;
         this.tempSlotIndex = tempSlotIndex;
         this.playerSlotIndex = playerSlotIndex;
-        this.itemStack = ItemStack.EMPTY;
-        this.toInventory = false;
-    }
-
-    /**
-     * Create a packet for INSERT action with specific ItemStack (e.g., from dragging).
-     */
-    public PacketTempCellAction(Action action, int tempSlotIndex, ItemStack itemStack) {
-        this.action = action;
-        this.tempSlotIndex = tempSlotIndex;
-        this.playerSlotIndex = -1;
-        this.itemStack = itemStack != null ? itemStack : ItemStack.EMPTY;
         this.toInventory = false;
     }
 
@@ -90,13 +72,6 @@ public class PacketTempCellAction implements IMessage {
         this.tempSlotIndex = buf.readInt();
         this.playerSlotIndex = buf.readInt();
         this.toInventory = buf.readBoolean();
-
-        if (buf.readBoolean()) {
-            NBTTagCompound nbt = ByteBufUtils.readTag(buf);
-            this.itemStack = new ItemStack(nbt);
-        } else {
-            this.itemStack = ItemStack.EMPTY;
-        }
     }
 
     @Override
@@ -105,15 +80,6 @@ public class PacketTempCellAction implements IMessage {
         buf.writeInt(tempSlotIndex);
         buf.writeInt(playerSlotIndex);
         buf.writeBoolean(toInventory);
-
-        if (!itemStack.isEmpty()) {
-            buf.writeBoolean(true);
-            NBTTagCompound nbt = new NBTTagCompound();
-            itemStack.writeToNBT(nbt);
-            ByteBufUtils.writeTag(buf, nbt);
-        } else {
-            buf.writeBoolean(false);
-        }
     }
 
     public static class Handler implements IMessageHandler<PacketTempCellAction, IMessage> {
@@ -128,7 +94,7 @@ public class PacketTempCellAction implements IMessage {
 
                 ContainerCellTerminalBase cellContainer = (ContainerCellTerminalBase) container;
                 cellContainer.handleTempCellAction(message.action, message.tempSlotIndex,
-                    message.playerSlotIndex, message.itemStack, message.toInventory);
+                    message.playerSlotIndex, message.toInventory);
             });
 
             return null;

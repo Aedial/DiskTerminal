@@ -7,7 +7,6 @@ import java.util.function.Supplier;
 
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
-import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderItem;
 import net.minecraft.client.resources.I18n;
 
@@ -19,8 +18,8 @@ import com.cellterminal.gui.GuiConstants;
  * <p>
  * Displays:
  * <ul>
- *   <li>Favorite star (★ at 2x scale on left sidebar)</li>
- *   <li>Icon (connection icon for subnets, ⌂ for main network)</li>
+ *   <li>Favorite star</li>
+ *   <li>Icon (connection icon for subnets, custom icon for main network)</li>
  *   <li>Name (custom name in green, main network in cyan, inaccessible in gray)</li>
  *   <li>Location text (coordinates, below name. Skipped for main network)</li>
  *   <li>Load button (blue button at right edge)</li>
@@ -34,22 +33,21 @@ import com.cellterminal.gui.GuiConstants;
  */
 public class SubnetHeader extends AbstractHeader {
 
-    private static final int STAR_X = 6;
-    private static final int STAR_WIDTH = 18;
+    private static final int STAR_X = 2;
+    private static final float STAR_SCALING = 0.5f;
+    private static final int STAR_SIZE = GuiConstants.FAVORITE_STAR_SIZE;
+    private static final int STAR_SCALED_SIZE = (int) (STAR_SIZE * STAR_SCALING);
     private static final int LOAD_BUTTON_MARGIN = 4;
 
     // Colors
     private static final int COLOR_MAIN_NETWORK = 0xFF00838F;
     private static final int COLOR_NAME_INACCESSIBLE = 0xFF909090;
-    private static final int COLOR_FAVORITE_ON = 0xFFCC9900;
-    private static final int COLOR_FAVORITE_OFF = 0xFF505050;
-    private static final int COLOR_OUTBOUND = 0xFF4CAF50;
-    private static final int COLOR_INBOUND = 0xFF42A5F5;
 
     // Direction arrow config (null = no arrow, true = outbound →, false = inbound ←)
     private Supplier<Boolean> directionSupplier;
-    private static final int ARROW_X = GuiConstants.GUI_INDENT + 18;
-    private static final int ARROW_WIDTH = 10;
+    private static final int ARROW_X = GuiConstants.GUI_INDENT + 18 - 2;
+    private static final int ARROW_WIDTH = GuiConstants.SUBNET_ARROWS_SIZE;
+    private static final int ARROW_NAME_MARGIN = 2;
 
     private boolean isMain = false;
 
@@ -65,6 +63,7 @@ public class SubnetHeader extends AbstractHeader {
     // Hover state
     private boolean starHovered = false;
     private boolean loadButtonHovered = false;
+    private boolean arrowHovered = false;
 
     // Cached Load button layout (computed during draw)
     private int loadButtonX;
@@ -117,6 +116,7 @@ public class SubnetHeader extends AbstractHeader {
     protected int drawHeaderContent(int mouseX, int mouseY) {
         starHovered = false;
         loadButtonHovered = false;
+        arrowHovered = false;
 
         boolean canLoad = canLoadSupplier != null && canLoadSupplier.get();
 
@@ -128,8 +128,15 @@ public class SubnetHeader extends AbstractHeader {
 
         // Draw direction arrow between icon and name (when connection-level header)
         boolean hasArrow = directionSupplier != null;
-        int nameStartX = hasArrow ? (ARROW_X + ARROW_WIDTH) : GuiConstants.HEADER_NAME_X;
-        if (hasArrow) drawDirectionArrow();
+        int nameStartX = hasArrow ? (ARROW_X + ARROW_WIDTH + ARROW_NAME_MARGIN) : GuiConstants.HEADER_NAME_X;
+        if (hasArrow) {
+            drawDirectionArrow();
+
+            int arrowSize = GuiConstants.SUBNET_ARROWS_SIZE;
+            int arrowY = y + (height - arrowSize) / 2;
+            arrowHovered = mouseX >= ARROW_X && mouseX < ARROW_X + arrowSize
+                && mouseY >= arrowY && mouseY < arrowY + arrowSize;
+        }
 
         // Adjust name max width to stop before Load button
         this.nameMaxWidth = loadButtonX - nameStartX - 4;
@@ -151,35 +158,37 @@ public class SubnetHeader extends AbstractHeader {
     }
 
     /**
-     * Draw the favorite star on the left sidebar at 2x scale.
+     * Draw the favorite star using atlas texture.
+     * Atlas layout: ux = 0 for on, ux = SIZE for off; uy = 0 for normal, uy = SIZE for hovered.
      */
     private void drawStar(int mouseX, int mouseY) {
-        // TODO: replace with a proper icon
         boolean isFav = isFavoriteSupplier != null && isFavoriteSupplier.get();
 
+        int offset = (GuiConstants.ROW_HEIGHT - STAR_SCALED_SIZE) / 2;
+
         // Check star hover
-        starHovered = mouseX >= STAR_X && mouseX < STAR_X + STAR_WIDTH
+        starHovered = mouseX >= STAR_X + offset && mouseX < STAR_X + STAR_SCALED_SIZE + offset
             && mouseY >= y && mouseY < y + GuiConstants.ROW_HEIGHT;
 
-        int starColor = isFav ? COLOR_FAVORITE_ON : COLOR_FAVORITE_OFF;
-        if (starHovered) starColor = isFav ? 0xFFDDB000 : 0xFF707070;
+        int size = STAR_SIZE;
+        int texX = GuiConstants.FAVORITE_STAR_X + (isFav ? 0 : size);
+        int texY = GuiConstants.FAVORITE_STAR_Y + (starHovered ? size : 0);
 
-        GlStateManager.pushMatrix();
-        GlStateManager.scale(2.0F, 2.0F, 1.0F);
-        fontRenderer.drawString("★", STAR_X / 2, y / 2, starColor);
-        GlStateManager.popMatrix();
+        GuiConstants.drawAtlasSpriteScaled(STAR_X + offset, y + offset, texX, texY, size, size, STAR_SCALING);
     }
 
     /**
-     * Draw the colored direction arrow (→ or ←) between icon and name.
+     * Draw the direction arrow using atlas texture.
+     * Atlas layout: uy = 0 for → outbound, uy = SIZE for ← inbound.
      */
     private void drawDirectionArrow() {
-        // TODO: replace with a proper icon
         boolean outbound = directionSupplier.get();
-        String arrow = outbound ? "→" : "←";
-        int color = outbound ? COLOR_OUTBOUND : COLOR_INBOUND;
 
-        fontRenderer.drawString(arrow, ARROW_X, y + 5, color);
+        int size = GuiConstants.SUBNET_ARROWS_SIZE;
+        int texX = GuiConstants.SUBNET_ARROWS_X;
+        int texY = GuiConstants.SUBNET_ARROWS_Y + (outbound ? 0 : size);
+
+        GuiConstants.drawAtlasSprite(ARROW_X, y + (height - size) / 2, texX, texY, size);
     }
 
     /**
@@ -190,7 +199,7 @@ public class SubnetHeader extends AbstractHeader {
         if (location.isEmpty()) return;
 
         // Location starts at the same X as the name (adjusted for arrow presence)
-        int locationX = directionSupplier != null ? (ARROW_X + ARROW_WIDTH) : GuiConstants.HEADER_NAME_X;
+        int locationX = directionSupplier != null ? (ARROW_X + ARROW_WIDTH + ARROW_NAME_MARGIN) : GuiConstants.HEADER_NAME_X;
         int locationMaxWidth = GuiConstants.CONTENT_RIGHT_EDGE - locationX - 4;
         String displayLocation = trimTextToWidth(location, locationMaxWidth);
         fontRenderer.drawString(displayLocation, locationX, y + 9, GuiConstants.COLOR_TEXT_SECONDARY);
@@ -229,16 +238,16 @@ public class SubnetHeader extends AbstractHeader {
     }
 
     /**
-     * Override icon drawing: main network gets a ⌂ symbol, subnets get normal item icon.
+     * Override icon drawing: main network gets an atlas icon, subnets get normal item icon.
      */
     @Override
     protected void drawIcon() {
         if (isMain) {
-            // TODO: replace with a proper icon
-            GlStateManager.pushMatrix();
-            GlStateManager.scale(2.0F, 2.0F, 1.0F);
-            fontRenderer.drawString("⌂", (GuiConstants.GUI_INDENT + 5) / 2, (y - 1) / 2, COLOR_MAIN_NETWORK);
-            GlStateManager.popMatrix();
+            int size = GuiConstants.MAIN_NET_ICON_SIZE;
+            GuiConstants.drawAtlasSprite(
+                GuiConstants.GUI_INDENT + (ICON_SIZE - GuiConstants.MAIN_NET_ICON_SIZE) / 2,
+                y + (ICON_SIZE - GuiConstants.MAIN_NET_ICON_SIZE) / 2,
+                GuiConstants.MAIN_NET_ICON_X, GuiConstants.MAIN_NET_ICON_Y, size);
         } else {
             super.drawIcon();
         }
@@ -274,13 +283,12 @@ public class SubnetHeader extends AbstractHeader {
         }
 
         // Main network has no location line, so center the name vertically
-        int nameX = directionSupplier != null ? (ARROW_X + ARROW_WIDTH) : GuiConstants.HEADER_NAME_X;
+        int nameX = directionSupplier != null ? (ARROW_X + ARROW_WIDTH + ARROW_NAME_MARGIN) : GuiConstants.HEADER_NAME_X;
         int nameY = isMain ? (y + 5) : (y + 1);
         fontRenderer.drawString(displayName, nameX, nameY, nameColor);
 
         // Check name hover for rename interaction
-        int nameWidth = fontRenderer.getStringWidth(displayName);
-        if (mouseX >= nameX && mouseX < nameX + nameWidth
+        if (mouseX >= nameX && mouseX < nameX + nameMaxWidth
             && mouseY >= nameY && mouseY < nameY + 9) {
             nameHovered = true;
         }
@@ -317,6 +325,11 @@ public class SubnetHeader extends AbstractHeader {
     public List<String> getTooltip(int mouseX, int mouseY) {
         if (!visible || !isHovered(mouseX, mouseY)) return Collections.emptyList();
 
+        // Star tooltip
+        if (starHovered) {
+            return Collections.singletonList(I18n.format("cellterminal.subnet.controls.star"));
+        }
+
         // Main network tooltip
         if (isMain) {
             List<String> lines = new ArrayList<>();
@@ -325,13 +338,21 @@ public class SubnetHeader extends AbstractHeader {
             return lines;
         }
 
-        // Star tooltip
-        if (starHovered) {
-            return Collections.singletonList(I18n.format("cellterminal.subnet.controls.star"));
-        }
-
         // Load button tooltip
         if (loadButtonHovered) return getLoadButtonTooltip();
+
+        // Direction arrow tooltip
+        if (arrowHovered && directionSupplier != null) {
+            boolean outbound = directionSupplier.get();
+            String directionKey = "cellterminal.subnet.direction." + (outbound ? "outbound" : "inbound");
+
+            List<String> lines = new ArrayList<>();
+            lines.add(I18n.format(directionKey));
+            lines.add("");
+            lines.add("§7" + I18n.format(directionKey + ".desc"));
+
+            return lines;
+        }
 
         // Default tooltip (if any)
         return super.getTooltip(mouseX, mouseY);

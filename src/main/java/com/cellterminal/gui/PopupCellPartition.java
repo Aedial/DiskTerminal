@@ -14,7 +14,6 @@ import net.minecraft.client.resources.I18n;
 import net.minecraft.enchantment.EnchantmentData;
 import net.minecraft.item.ItemEnchantedBook;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidUtil;
 
@@ -46,9 +45,6 @@ public class PopupCellPartition extends Gui {
     private static final int HEADER_HEIGHT = GuiConstants.POPUP_HEADER_HEIGHT;
     private static final int FOOTER_HEIGHT = GuiConstants.POPUP_FOOTER_HEIGHT;
     private static final int MAX_PARTITION_SLOTS = SLOTS_PER_ROW * MAX_ROWS;
-
-    private static final ResourceLocation TEXTURE =
-        new ResourceLocation("cellterminal", "textures/guis/atlas.png");
 
     private final GuiScreen parent;
     private final CellInfo cell;
@@ -437,27 +433,8 @@ public class PopupCellPartition extends Gui {
         return targets;
     }
 
-    public int getSlotAtPosition(int mouseX, int mouseY) {
-        int slotStartY = y + HEADER_HEIGHT;
-        int relX = mouseX - x - slotOffsetX;
-        int relY = mouseY - slotStartY;
-
-        if (relX >= 0 && relX < SLOTS_PER_ROW * SLOT_SIZE && relY >= 0 && relY < MAX_ROWS * SLOT_SIZE) {
-            int slotCol = relX / SLOT_SIZE;
-            int slotRow = relY / SLOT_SIZE;
-
-            return slotRow * SLOTS_PER_ROW + slotCol;
-        }
-
-        return -1;
-    }
-
     public CellInfo getCell() {
         return cell;
-    }
-
-    public List<ItemStack> getEditablePartition() {
-        return editablePartition;
     }
 
     public int getWidth() {
@@ -479,16 +456,10 @@ public class PopupCellPartition extends Gui {
     // ---- Drawing helpers (consistent with SlotsLine) ----
 
     private void drawPartitionSlotBackground(int slotX, int slotY) {
-        Minecraft.getMinecraft().getTextureManager().bindTexture(TEXTURE);
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        GlStateManager.enableBlend();
-
         // Use partition variant (right half of slot texture with amber tint)
         int texX = GuiConstants.SLOT_BACKGROUND_X + SLOT_SIZE;
         int texY = GuiConstants.SLOT_BACKGROUND_Y;
-        Gui.drawScaledCustomSizeModalRect(
-            slotX, slotY, texX, texY, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE,
-            GuiConstants.ATLAS_WIDTH, GuiConstants.ATLAS_HEIGHT);
+        GuiConstants.drawAtlasSprite(slotX, slotY, texX, texY, SLOT_SIZE);
     }
 
     private void drawSlotHoverHighlight(int slotX, int slotY) {

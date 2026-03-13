@@ -12,6 +12,9 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 
+import net.minecraftforge.fluids.Fluid;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.AEApi;
@@ -28,6 +31,7 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IItemList;
 import appeng.api.util.AEPartLocation;
 import appeng.api.util.DimensionalCoord;
+import appeng.fluids.util.IAEFluidTank;
 import appeng.helpers.ICustomNameObject;
 import appeng.helpers.IInterfaceHost;
 import appeng.parts.misc.PartInterface;
@@ -374,10 +378,35 @@ public class SubnetDataHandler {
      * Fill a fluid storage bus config from the subnet's ME fluid inventory.
      */
     private static boolean fillFluidBusFromSubnetInventory(PartFluidStorageBus bus, IStorageGrid storageGrid) {
-        // TODO: Implement fluid bus partition from subnet inventory.
-        // This requires accessing the fluid config via IAEFluidTank and
-        // IFluidStorageChannel, similar to executeFluidPartitionAction logic.
-        return false;
+        IFluidHandler configInv = bus.getFluidInventoryByName("config");
+        if (!(configInv instanceof IAEFluidTank)) return false;
+
+        IAEFluidTank aeConfig = (IAEFluidTank) configInv;
+        int slotsToUse = aeConfig.getSlots();
+
+        // Clear existing config
+        for (int i = 0; i < slotsToUse; i++) aeConfig.setFluidInSlot(i, null);
+
+        // Query the subnet's fluid inventory
+        IFluidStorageChannel fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
+        IMEMonitor<IAEFluidStack> fluidMonitor = storageGrid.getInventory(fluidChannel);
+        IItemList<IAEFluidStack> fluids = fluidMonitor.getStorageList();
+
+        int slot = 0;
+        for (IAEFluidStack aeFluid : fluids) {
+            if (slot >= slotsToUse) break;
+            if (aeFluid.getStackSize() <= 0) continue;
+
+            // Normalize to a standard bucket-volume FluidStack for the config
+            FluidStack configFluid = new FluidStack(aeFluid.getFluid(), Fluid.BUCKET_VOLUME);
+            IAEFluidStack aeConfigFluid = fluidChannel.createStack(configFluid);
+            aeConfig.setFluidInSlot(slot++, aeConfigFluid);
+        }
+
+        TileEntity hostTile = bus.getHost().getTile();
+        if (hostTile != null) hostTile.markDirty();
+
+        return true;
     }
 
     /**

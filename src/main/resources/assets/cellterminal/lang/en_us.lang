@@ -206,9 +206,6 @@ cellterminal.error.essentia_bus_item=Cannot add items to an essentia storage bus
 cellterminal.error.essentia_bus_fluid=Cannot add fluids to an essentia storage bus filter.
 cellterminal.error.mixed_bus_selection=Cannot select storage buses of different types together.
 
-# Storage bus IO mode tooltip
-gui.cellterminal.storagebus.iomode.unsupported=IO Mode (no effect on this bus type)
-
 # Keybindings
 key.cellterminal.category=Cell Terminal
 key.cellterminal.subnet_overview_toggle.desc=Toggle Subnet Overview
@@ -236,11 +233,6 @@ cellterminal.storage_bus.invalid_item=Invalid item for this storage bus type
 
 # Storage bus button tooltips
 gui.cellterminal.storagebus.clear=Clear Filters
-gui.cellterminal.storagebus.iomode.current=IO Mode: %s
-gui.cellterminal.storagebus.iomode.none=No Access
-gui.cellterminal.storagebus.iomode.read=Extract Only
-gui.cellterminal.storagebus.iomode.write=Insert Only
-gui.cellterminal.storagebus.iomode.readwrite=Extract/Insert
 gui.cellterminal.storagebus.partitionall=Set Contents to Filter
 gui.cellterminal.storage_bus.name=Storage Bus
 gui.cellterminal.storage_bus.air=Air
@@ -395,6 +387,10 @@ cellterminal.subnet.controls.dblclick=Double-click: Highlight in world
 cellterminal.subnet.controls.star=Star: Toggle favorite
 cellterminal.subnet.controls.rename=Name (R-click): Rename
 cellterminal.subnet.controls.esc=ESC: Return to view
+cellterminal.subnet.direction.outbound=§lOutbound
+cellterminal.subnet.direction.outbound.desc=Items flow from this network into the subnet
+cellterminal.subnet.direction.inbound=§lInbound
+cellterminal.subnet.direction.inbound.desc=Items flow from the subnet into this network
 
 # Subnet Visibility Button
 gui.cellterminal.subnet_visibility=Subnet Content Visibility

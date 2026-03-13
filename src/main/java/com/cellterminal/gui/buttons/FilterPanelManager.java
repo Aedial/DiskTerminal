@@ -72,10 +72,9 @@ public class FilterPanelManager {
         int buttonId = startButtonId;
 
         // Create slot limit button for tabs that show content (inventory, storage bus inventory, subnet overview)
-        // FIXME: use GuiConstants
         if (currentTab == GuiConstants.TAB_INVENTORY
                 || currentTab == GuiConstants.TAB_STORAGE_BUS_INVENTORY
-                || currentTab < 0) {
+                || currentTab == GuiConstants.TAB_SUBNETS) {
             SlotLimit limit = config.getSlotLimitForTab(currentTab);
             slotLimitButton = new GuiSlotLimitButton(buttonId++, 0, 0, limit);
             buttonList.add(slotLimitButton);

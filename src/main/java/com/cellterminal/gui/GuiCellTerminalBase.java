@@ -346,7 +346,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
         // Subnet visibility button: positioned next to search mode button
         // if (this.subnetVisibilityButton != null) this.buttonList.remove(this.subnetVisibilityButton);
-        // FIXME: enable when it's working
+        // TODO: enable when it's working
         // this.subnetVisibilityButton = new GuiSubnetVisibilityButton(4, this.guiLeft + 189 - 14, this.guiTop + 4, currentSubnetVisibility);
         // this.buttonList.add(this.subnetVisibilityButton);
 
@@ -496,10 +496,6 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
                 GuiCellTerminalBase.this.drawHoveringText(lines, x, y);
             }
 
-            @Override
-            public List<String> getItemToolTip(ItemStack stack) {
-                return GuiCellTerminalBase.this.getItemToolTip(stack);
-            }
         }, mouseX, mouseY);
     }
 
@@ -541,7 +537,8 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             activeTab.draw(relMouseX, relMouseY);
         }
 
-        // Priority fields and inline rename are only relevant for real tabs, not subnet overview
+        // FIXME: is the guard necessary? They won't trigger unless we call them from headers
+        // Priority fields are only relevant for real tabs, not subnet overview
         if (!isSubnetTab) {
             // Draw priority fields (positioned by headers during their draw pass, rendered in absolute coords)
             PriorityFieldManager pfm = PriorityFieldManager.getInstance();
@@ -551,10 +548,10 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             Set<Long> activeIds = new HashSet<>(dataManager.getStorageMap().keySet());
             activeIds.addAll(dataManager.getStorageBusMap().keySet());
             pfm.cleanupStaleFields(activeIds);
-
-            // Draw inline rename field overlay on top of everything else
-            InlineRenameManager.getInstance().drawRenameField(this.fontRenderer);
         }
+
+        // Draw inline rename field overlay on top of everything else (applies to all tabs)
+        InlineRenameManager.getInstance().drawRenameField(this.fontRenderer);
 
         // Draw controls help - delegate to tab controller
         drawControlsHelpForCurrentTab();
@@ -1028,7 +1025,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
      * Check if currently in subnet overview mode.
      */
     public boolean isInSubnetOverviewMode() {
-        return TabStateManager.isSubnetTab(tabManager.getCurrentTab());
+        return tabManager.getCurrentTab() == GuiConstants.TAB_SUBNETS;
     }
 
     /**
@@ -1041,7 +1038,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             switchToNetwork(currentNetworkId);
         } else {
             // Entering subnet overview
-            tabManager.switchToTab(TabStateManager.TabType.SUBNET_OVERVIEW.getIndex());
+            tabManager.switchToTab(GuiConstants.TAB_SUBNETS);
         }
     }
 

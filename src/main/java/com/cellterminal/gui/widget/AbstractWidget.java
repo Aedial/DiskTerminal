@@ -20,6 +20,8 @@ import net.minecraft.item.ItemStack;
  */
 public abstract class AbstractWidget implements IWidget {
 
+    static protected int ICON_SIZE = 16;
+
     protected int x;
     protected int y;
     protected int width;
@@ -66,18 +68,9 @@ public abstract class AbstractWidget implements IWidget {
         return visible;
     }
 
-    public void setVisible(boolean visible) {
-        this.visible = visible;
-    }
-
     public void setPosition(int x, int y) {
         this.x = x;
         this.y = y;
-    }
-
-    public void setSize(int width, int height) {
-        this.width = width;
-        this.height = height;
     }
 
     // ---- Shared utilities ----

@@ -17,7 +17,9 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.text.translation.I18n;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
@@ -92,7 +94,6 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
     // Tick counter for storage bus polling (only poll every N ticks when on storage bus tab)
     protected int storageBusPollCounter = 0;
-    protected boolean hasPolledOnce = false;  // Track if initial poll has been done for storage bus tab
 
     // Current network context (0 = main network, >0 = subnet ID)
     protected long currentNetworkId = 0;
@@ -247,7 +248,6 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
             regenStorageBusList();
             storageBusPollCounter = 0;
             needsStorageBusRefresh = false;
-            hasPolledOnce = true;
 
             return;
         }
@@ -275,7 +275,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
         // If switching to a storage bus tab (or initial opening on storage bus tab), immediately refresh
         if (isOnStorageBusTab) {
-            needsStorageBusRefresh = true;
+            requestStorageBusRefresh();
             storageBusPollCounter = 0;
         }
     }
@@ -294,8 +294,8 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         this.subnetSlotLimit = subnetLimit < 0 ? Integer.MAX_VALUE : subnetLimit;
 
         // Trigger refresh to apply new limits
-        this.needsFullRefresh = true;
-        this.needsSubnetRefresh = true;
+        requestFullRefresh();
+        requestSubnetRefresh();
     }
 
     /**
@@ -459,7 +459,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         if (tracker == null) return;
 
         if (CellActionHandler.handlePartitionAction(tracker.storage, tracker.tile, cellSlot, action, partitionSlot, itemStack)) {
-            this.needsFullRefresh = true;
+            requestFullRefresh();
         }
     }
 
@@ -482,7 +482,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         if (tracker == null) return;
 
         if (StorageBusDataHandler.handlePartitionAction(tracker, action, partitionSlot, itemStack)) {
-            this.needsStorageBusRefresh = true;
+            requestStorageBusRefresh();
         }
     }
 
@@ -494,7 +494,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         StorageBusTracker tracker = this.storageBusById.get(storageBusId);
         if (tracker == null) return;
 
-        if (StorageBusDataHandler.toggleIOMode(tracker)) this.needsStorageBusRefresh = true;
+        if (StorageBusDataHandler.toggleIOMode(tracker)) requestStorageBusRefresh();
     }
 
     /**
@@ -512,7 +512,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         StorageTracker tracker = this.byId.get(storageId);
         if (tracker == null) return;
 
-        if (CellActionHandler.ejectCell(tracker.storage, cellSlot, player)) this.needsFullRefresh = true;
+        if (CellActionHandler.ejectCell(tracker.storage, cellSlot, player)) requestFullRefresh();
     }
 
     /**
@@ -534,7 +534,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
                 IPriorityHost priorityHost = (IPriorityHost) tracker.tile;
                 priorityHost.setPriority(priority);
                 tracker.tile.markDirty();
-                this.needsFullRefresh = true;
+                requestFullRefresh();
             }
 
             return;
@@ -544,7 +544,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         StorageBusTracker busTracker = this.storageBusById.get(storageId);
         if (busTracker != null && busTracker.storageBus instanceof IPriorityHost) {
             ((IPriorityHost) busTracker.storageBus).setPriority(priority);
-            this.needsStorageBusRefresh = true;
+            requestStorageBusRefresh();
         }
     }
 
@@ -578,7 +578,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
                 if (cellInventory != null) {
                     for (int slot = 0; slot < cellInventory.getSlots(); slot++) {
                         if (CellActionHandler.upgradeCell(targetTracker.storage, targetTracker.tile, slot, upgradeStack, player, fromSlot)) {
-                            this.needsFullRefresh = true;
+                            requestFullRefresh();
 
                             return;
                         }
@@ -599,7 +599,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
                 for (int slot = 0; slot < cellInventory.getSlots(); slot++) {
                     if (CellActionHandler.upgradeCell(tracker.storage, tracker.tile, slot, upgradeStack, player, fromSlot)) {
-                        this.needsFullRefresh = true;
+                        requestFullRefresh();
 
                         return;
                     }
@@ -614,7 +614,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         if (tracker == null) return;
 
         if (CellActionHandler.upgradeCell(tracker.storage, tracker.tile, cellSlot, upgradeStack, player, fromSlot)) {
-            this.needsFullRefresh = true;
+            requestFullRefresh();
         }
     }
 
@@ -654,7 +654,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
             for (StorageBusTracker tracker : sortedTrackers) {
                 if (tryInsertUpgradeIntoStorageBus(tracker, upgradeStack, player, fromSlot)) {
-                    this.needsStorageBusRefresh = true;
+                    requestStorageBusRefresh();
 
                     return;
                 }
@@ -668,7 +668,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         if (tracker == null) return;
 
         if (tryInsertUpgradeIntoStorageBus(tracker, upgradeStack, player, fromSlot)) {
-            this.needsStorageBusRefresh = true;
+            requestStorageBusRefresh();
         }
     }
 
@@ -806,7 +806,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         if (tile != null) tile.markDirty();
 
         if (targetType == PacketExtractUpgrade.TargetType.CELL) {
-            this.needsFullRefresh = true;
+            requestFullRefresh();
         } else if (targetType == PacketExtractUpgrade.TargetType.TEMP_CELL) {
             // Temp cell upgrade extraction: update the cell in temp inventory
             // (NBT was modified when the upgrade was extracted via IItemHandler)
@@ -819,9 +819,9 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
                 }
             }
 
-            this.needsFullRefresh = true;
+            requestFullRefresh();
         } else {
-            this.needsStorageBusRefresh = true;
+            requestStorageBusRefresh();
         }
     }
 
@@ -873,7 +873,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         }
 
         if (CellActionHandler.pickupCell(tracker.storage, cellSlot, player, toInventory)) {
-            this.needsFullRefresh = true;
+            requestFullRefresh();
         }
     }
 
@@ -893,7 +893,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         if (tracker == null) return;
 
         if (CellActionHandler.insertCell(tracker.storage, targetSlot, player)) {
-            this.needsFullRefresh = true;
+            requestFullRefresh();
         }
     }
 
@@ -924,7 +924,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
                         if (stack.isEmpty()) slot.putStack(ItemStack.EMPTY);
 
                         slot.onSlotChanged();
-                        this.needsFullRefresh = true;
+                        requestFullRefresh();
                         this.detectAndSendChanges();
 
                         return ItemStack.EMPTY;
@@ -965,7 +965,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
                 // Something was inserted
                 slot.putStack(remainder);
                 slot.onSlotChanged();
-                this.needsFullRefresh = true;
+                requestFullRefresh();
                 this.detectAndSendChanges();
 
                 return ItemStack.EMPTY;
@@ -1037,8 +1037,8 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         NetworkToolActionHandler.handleAction(toolId, activeFilters, byId, storageBusById, grid, player);
 
         // Trigger refresh after tool execution
-        this.needsFullRefresh = true;
-        this.needsStorageBusRefresh = true;
+        requestFullRefresh();
+        requestStorageBusRefresh();
     }
 
     // ===== Temp Cell Management Methods =====
@@ -1047,7 +1047,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
      * Handle temp cell actions from client (insert, extract, send).
      */
     public void handleTempCellAction(PacketTempCellAction.Action action, int tempSlotIndex,
-                                      int playerSlotIndex, ItemStack itemStack, boolean toInventory) {
+                                      int playerSlotIndex, boolean toInventory) {
         // Check if temp area is enabled in server config
         if (!CellTerminalServerConfig.getInstance().isTabTempAreaEnabled()) {
             PlayerMessageHelper.error(this.getPlayerInv().player, "cellterminal.error.temp_area_disabled");
@@ -1056,7 +1056,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         }
 
         EntityPlayer player = this.getPlayerInv().player;
-        TempCellActionHandler.handleAction(this, action, tempSlotIndex, playerSlotIndex, itemStack, player, toInventory);
+        TempCellActionHandler.handleAction(this, action, tempSlotIndex, playerSlotIndex, player, toInventory);
     }
 
     /**
@@ -1127,7 +1127,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
         if (SubnetDataHandler.handleSubnetAction(this.subnetById, subnetId, action, data, player)) {
             // Trigger refresh to update client with new data
-            this.needsSubnetRefresh = true;
+            requestSubnetRefresh();
         }
     }
 
@@ -1188,8 +1188,8 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         }
 
         // Trigger full refresh with new network context
-        this.needsFullRefresh = true;
-        this.needsStorageBusRefresh = true;
+        requestFullRefresh();
+        requestStorageBusRefresh();
     }
 
     /**
@@ -1199,15 +1199,15 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
      * For subnet: Returns the primary interface's custom name if set, otherwise
      * position-based name.
      * 
-     * @return The display name of the current network
+     * @return The display name of the current network as an ITextComponent
      */
-    public String getGridName() {
+    public ITextComponent getGridName() {
         // Main network always uses the localized key
-        if (currentNetworkId == 0) return I18n.translateToLocal("cellterminal.subnet.main_network");
+        if (currentNetworkId == 0) return new TextComponentTranslation("cellterminal.subnet.main_network");
 
         // For subnet, get the subnet's display name from the primary interface
         IGrid effectiveGrid = getEffectiveGrid();
-        if (effectiveGrid == null) return "Unknown Network";
+        if (effectiveGrid == null) return new TextComponentString("Unknown Network");
 
         return getSubnetName(effectiveGrid);
     }
@@ -1216,13 +1216,13 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
      * Get the display name for a subnet.
      * Returns the primary interface's custom name if set, otherwise position-based name.
      */
-    private String getSubnetName(IGrid grid) {
+    private ITextComponent getSubnetName(IGrid grid) {
         // Find the primary interface host (same logic as SubnetDataHandler)
         IInterfaceHost interfaceHost = SubnetDataHandler.findPrimaryInterfaceHost(grid);
 
         if (interfaceHost instanceof ICustomNameObject) {
             ICustomNameObject nameable = (ICustomNameObject) interfaceHost;
-            if (nameable.hasCustomInventoryName()) return nameable.getCustomInventoryName();
+            if (nameable.hasCustomInventoryName()) return new TextComponentString(nameable.getCustomInventoryName());
         }
 
         // No custom name - generate position-based name from the interface's location
@@ -1232,14 +1232,13 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
             if (tile != null) {
                 BlockPos pos = tile.getPos();
 
-                // Return a formatted position string - will be displayed as-is
-                // since there's no custom name to show
-                return I18n.translateToLocalFormatted("gui.cellterminal.subnet.default_name", pos.getX(), pos.getY(), pos.getZ());
+                // Return a localized position string
+                return new TextComponentTranslation("gui.cellterminal.subnet.default_name", pos.getX(), pos.getY(), pos.getZ());
             }
         }
 
         // Fallback - should not normally happen
-        return "Unknown Network";
+        return new TextComponentString("Unknown Network");
     }
 
     /**

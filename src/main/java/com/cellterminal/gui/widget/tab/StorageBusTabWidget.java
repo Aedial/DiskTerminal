@@ -112,11 +112,6 @@ public class StorageBusTabWidget extends AbstractTabWidget {
     }
 
     @Override
-    public boolean requiresServerPolling() {
-        return true;
-    }
-
-    @Override
     public List<String> getHelpLines() {
         List<String> lines = new ArrayList<>();
 

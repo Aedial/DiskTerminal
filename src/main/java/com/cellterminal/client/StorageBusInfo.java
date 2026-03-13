@@ -70,6 +70,7 @@ public class StorageBusInfo implements Renameable, Prioritizable {
     private final List<Integer> upgradeSlotIndices = new ArrayList<>();
     private final boolean supportsPriorityFlag;
     private final boolean supportsIOModeFlag;
+    private final int upgradeSlotCount;
 
     public StorageBusInfo(NBTTagCompound nbt) {
         this.id = nbt.getLong("id");
@@ -91,6 +92,9 @@ public class StorageBusInfo implements Renameable, Prioritizable {
         // Capability flags provided by scanners
         this.supportsPriorityFlag = nbt.getBoolean("supportsPriority");
         this.supportsIOModeFlag = nbt.getBoolean("supportsIOMode");
+
+        // Upgrade slot count from server; fallback to 5 if not provided
+        this.upgradeSlotCount = nbt.hasKey("upgradeSlotCount") ? nbt.getInteger("upgradeSlotCount") : 5;
 
         // Storage bus custom name (takes priority over connected block name)
         this.customName = nbt.hasKey("customName") ? nbt.getString("customName") : null;
@@ -232,19 +236,6 @@ public class StorageBusInfo implements Renameable, Prioritizable {
         return accessRestriction;
     }
 
-    /**
-     * Get the localized display name for the current IO mode (for tooltips).
-     */
-    public String getIOModeDisplayName() {
-        switch (accessRestriction) {
-            case 0: return I18n.format("gui.cellterminal.storagebus.iomode.none");
-            case 1: return I18n.format("gui.cellterminal.storagebus.iomode.read");
-            case 2: return I18n.format("gui.cellterminal.storagebus.iomode.write");
-            case 3: return I18n.format("gui.cellterminal.storagebus.iomode.readwrite");
-            default: return "?";
-        }
-    }
-
     public List<ItemStack> getPartition() {
         return partition;
     }
@@ -365,9 +356,7 @@ public class StorageBusInfo implements Renameable, Prioritizable {
      * @return The total upgrade slot count
      */
     public int getUpgradeSlotCount() {
-        // Standard AE2 storage buses have 5 upgrade slots
-        // TODO: adjust if supporting buses with different upgrade slot counts
-        return 5;
+        return upgradeSlotCount;
     }
 
     /**

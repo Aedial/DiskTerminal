@@ -39,6 +39,7 @@ public class CellInfo implements Renameable {
     // Upgrade tracking
     private final List<ItemStack> upgrades = new ArrayList<>();
     private final List<Integer> upgradeSlotIndices = new ArrayList<>();
+    private final int upgradeSlotCount;
 
     public CellInfo(NBTTagCompound nbt) {
         this.slot = nbt.getInteger("slot");
@@ -68,6 +69,9 @@ public class CellInfo implements Renameable {
                 }
             }
         }
+
+        // Upgrade slot count from server; fallback to 2 when not provided
+        this.upgradeSlotCount = nbt.hasKey("upgradeSlotCount") ? nbt.getInteger("upgradeSlotCount") : 2;
 
         if (nbt.hasKey("partition")) {
             NBTTagList partList = nbt.getTagList("partition", Constants.NBT.TAG_COMPOUND);
@@ -206,12 +210,8 @@ public class CellInfo implements Renameable {
         return upgradeSlotIndices.get(index);
     }
 
-    // TODO: does it make sense to have client-side upgrades checks when we moved all validation server-side?
-
     public int getUpgradeSlotCount() {
-        // Standard AE2 cells have 2 upgrade slots
-        // TODO: adjust if supporting cells with different upgrade slot counts
-        return 2;
+        return upgradeSlotCount;
     }
 
     public boolean hasUpgradeSpace() {

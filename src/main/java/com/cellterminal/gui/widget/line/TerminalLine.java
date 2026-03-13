@@ -4,13 +4,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
-import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderItem;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.ResourceLocation;
 
 import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.rename.InlineRenameManager;
@@ -45,8 +42,6 @@ public class TerminalLine extends AbstractLine {
     public static final int HOVER_EJECT = 3;
 
     private static final int SIZE = GuiConstants.TAB1_BUTTON_SIZE;
-    private static final ResourceLocation TEXTURE =
-        new ResourceLocation("cellterminal", "textures/guis/atlas.png");
 
     // Texture column indices for each button type
     private static final int TAB1_COL_EJECT = 0;
@@ -343,15 +338,9 @@ public class TerminalLine extends AbstractLine {
      * Draw a textured button from atlas.png.
      */
     private void drawTexturedButton(int drawX, int drawY, int column, boolean hovered) {
-        Minecraft.getMinecraft().getTextureManager().bindTexture(TEXTURE);
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        GlStateManager.enableBlend();
-
         int texX = GuiConstants.TAB1_BUTTON_X + column * SIZE;
         int texY = GuiConstants.TAB1_BUTTON_Y + (hovered ? SIZE : 0);
-        Gui.drawScaledCustomSizeModalRect(
-            drawX, drawY, texX, texY, SIZE, SIZE, SIZE, SIZE,
-            GuiConstants.ATLAS_WIDTH, GuiConstants.ATLAS_HEIGHT);
+        GuiConstants.drawAtlasSprite(drawX, drawY, texX, texY, SIZE, SIZE);
     }
 
     private int getUsageColor(float percent) {

@@ -12,9 +12,8 @@ import java.util.Set;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentTranslation;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.translation.I18n;
 
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.items.IItemHandler;
@@ -290,7 +289,7 @@ public final class NetworkToolActionHandler {
         int totalPartiallyMoved = 0;
         int totalConsolidated = 0;
         int totalFailed = 0;
-        List<String> warnings = new ArrayList<>();
+        List<ITextComponent> warnings = new ArrayList<>();
 
         // Execute redistribution for each cell type with proper simulation
         for (CellType type : CellType.values()) {
@@ -321,7 +320,7 @@ public final class NetworkToolActionHandler {
             }
 
             // Send warnings about incompatible or capacity issues
-            for (String warning : warnings) player.sendMessage(new TextComponentString(warning));
+            for (ITextComponent warning : warnings) player.sendMessage(warning);
         } else if (totalConsolidated > 0) {
             // Success but some items were consolidated (not unique)
             sendSuccess(player, "cellterminal.networktools.attribute_unique.success_with_consolidated",
@@ -341,7 +340,7 @@ public final class NetworkToolActionHandler {
         int failed = 0;           // Number of item types that couldn't be moved at all
         int consolidated = 0;     // Number of item types consolidated into cells with other types (not unique)
         int cellsAffected = 0;    // Total cells modified
-        List<String> warnings = new ArrayList<>();
+        List<ITextComponent> warnings = new ArrayList<>();
     }
 
     /**
@@ -647,14 +646,14 @@ public final class NetworkToolActionHandler {
                 result.fullyMoved++;
             } else if (anyAssigned) {
                 result.partiallyMoved++;
-                result.warnings.add(I18n.translateToLocalFormatted(
+                result.warnings.add(new TextComponentTranslation(
                     "cellterminal.networktools.warning.partial",
                     getStackDisplayName(trackerEntry.getTemplate(), type),
                     totalCount.subtract(remainingToAssign).toString(),
                     totalCount.toString()));
             } else {
                 result.failed++;
-                result.warnings.add(I18n.translateToLocalFormatted(
+                result.warnings.add(new TextComponentTranslation(
                     "cellterminal.networktools.warning.failed",
                     getStackDisplayName(trackerEntry.getTemplate(), type)));
             }
@@ -674,9 +673,9 @@ public final class NetworkToolActionHandler {
             if (extractedEntry == null || extractedEntry.getCount().compareTo(BigInteger.ZERO) <= 0) {
                 CellTerminal.LOGGER.warn("[AttributeUnique]   No extracted items for {} to inject into '{}'",
                     itemName, cellName);
-                result.warnings.add(I18n.translateToLocalFormatted(
+                result.warnings.add(new TextComponentTranslation(
                     "cellterminal.networktools.warning.missing_extracted",
-                    assignment.key));
+                    assignment.key.toString()));
                 continue;
             }
 
@@ -768,7 +767,7 @@ public final class NetworkToolActionHandler {
             if (remainingCount.compareTo(BigInteger.ZERO) > 0) {
                 CellTerminal.LOGGER.error("[AttributeUnique] CRITICAL: Could not put back {} x{} - ITEMS LOST!",
                     itemName, remainingCount);
-                result.warnings.add(I18n.translateToLocalFormatted(
+                result.warnings.add(new TextComponentTranslation(
                     "cellterminal.networktools.warning.lost",
                     remainingCount.toString(), getStackDisplayName(entry.getTemplate(), type)));
             }

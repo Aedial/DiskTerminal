@@ -4,10 +4,7 @@ import java.util.List;
 
 import com.cellterminal.gui.GuiConstants;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiButton;
-import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.util.ResourceLocation;
 
 
 /**
@@ -30,9 +27,6 @@ import net.minecraft.util.ResourceLocation;
  * </ul>
  */
 public abstract class GuiAtlasButton extends GuiButton {
-
-    protected static final ResourceLocation ATLAS_TEXTURE =
-        new ResourceLocation("cellterminal", "textures/guis/atlas.png");
 
     protected GuiAtlasButton(int buttonId, int x, int y, int size) {
         super(buttonId, x, y, size, size, "");
@@ -71,15 +65,8 @@ public abstract class GuiAtlasButton extends GuiButton {
         this.hovered = mouseX >= this.x && mouseY >= this.y
             && mouseX < this.x + this.width && mouseY < this.y + this.height;
 
-        mc.getTextureManager().bindTexture(ATLAS_TEXTURE);
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        GlStateManager.enableBlend();
-
-        Gui.drawScaledCustomSizeModalRect(
-                this.x, this.y,
-                getBackgroundTexX(), getBackgroundTexY(),
-                this.width, this.height, this.width, this.height,
-                GuiConstants.ATLAS_WIDTH, GuiConstants.ATLAS_HEIGHT);
+        GuiConstants.drawAtlasSprite(this.x, this.y,
+            getBackgroundTexX(), getBackgroundTexY(), this.width, this.height);
 
         drawForeground(mc);
     }

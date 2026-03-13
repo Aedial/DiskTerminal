@@ -309,6 +309,8 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
             if (subnetContext != null) subnetContext.switchToNetwork(0);
         });
 
+        // FIXME: does not supply the star onClick lambda
+
         return header;
     }
 
@@ -533,23 +535,6 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
                         }
                     }
                 });
-            }
-        }
-
-        return targets;
-    }
-
-    /**
-     * Get phantom targets for JEI ghost ingredient support on partition slots.
-     * Returns SlotsLine.PartitionSlotTarget instances for all visible partition rows.
-     */
-    public List<SlotsLine.PartitionSlotTarget> getPartitionTargets() {
-        List<SlotsLine.PartitionSlotTarget> targets = new ArrayList<>();
-
-        for (IWidget widget : visibleRows) {
-            if (widget instanceof SlotsLine) {
-                SlotsLine slotsLine = (SlotsLine) widget;
-                targets.addAll(slotsLine.getPartitionTargets());
             }
         }
 

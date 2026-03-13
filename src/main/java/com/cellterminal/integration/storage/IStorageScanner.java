@@ -33,18 +33,6 @@ public interface IStorageScanner {
 
     /**
      * Scan the grid for storage devices of this scanner's type and append their data
-     * to the provided NBTTagList.
-     *
-     * @param grid the ME network grid to scan
-     * @param storageList the list to append storage data to
-     * @param callback callback to register storage trackers for server-side operations
-     */
-    default void scanStorages(IGrid grid, NBTTagList storageList, CellDataHandler.StorageTrackerCallback callback) {
-        scanStorages(grid, storageList, callback, Integer.MAX_VALUE);
-    }
-
-    /**
-     * Scan the grid for storage devices of this scanner's type and append their data
      * to the provided NBTTagList, with a limit on the number of types per cell.
      *
      * @param grid the ME network grid to scan

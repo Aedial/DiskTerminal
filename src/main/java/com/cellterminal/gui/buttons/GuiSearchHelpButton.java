@@ -12,7 +12,7 @@ import net.minecraft.client.resources.I18n;
  */
 public class GuiSearchHelpButton extends GuiAtlasButton {
 
-    public static final int SIZE = GuiConstants.TOOLTIP_BUTTON_SIZE;
+    public static final int SIZE = GuiConstants.SEARCH_HELP_TOOLTIP_BUTTON_SIZE;
 
     public GuiSearchHelpButton(int buttonId, int x, int y) {
         super(buttonId, x, y, SIZE);
@@ -20,12 +20,12 @@ public class GuiSearchHelpButton extends GuiAtlasButton {
 
     @Override
     protected int getBackgroundTexX() {
-        return GuiConstants.TOOLTIP_BUTTON_X;
+        return GuiConstants.SEARCH_HELP_TOOLTIP_BUTTON_X;
     }
 
     @Override
     protected int getBackgroundTexY() {
-        return GuiConstants.TOOLTIP_BUTTON_Y + (this.hovered ? SIZE : 0);
+        return GuiConstants.SEARCH_HELP_TOOLTIP_BUTTON_Y + (this.hovered ? SIZE : 0);
     }
 
     /**
