@@ -54,6 +54,7 @@ public class CellTerminalClientConfig {
     private final Property searchModeProperty;
     private final Property cellSlotLimitProperty;
     private final Property busSlotLimitProperty;
+    private final Property subnetSlotLimitProperty;
     private final Property lastViewedNetworkIdProperty;
     private final Property subnetVisibilityProperty;
     private int selectedTab = GuiConstants.TAB_TERMINAL;
@@ -62,6 +63,7 @@ public class CellTerminalClientConfig {
     private SearchFilterMode searchMode = SearchFilterMode.MIXED;
     private SlotLimit cellSlotLimit = SlotLimit.UNLIMITED;
     private SlotLimit busSlotLimit = SlotLimit.UNLIMITED;
+    private SlotLimit subnetSlotLimit = SlotLimit.LIMIT_64;
     private long lastViewedNetworkId = 0;  // 0 = main network
     private SubnetVisibility subnetVisibility = SubnetVisibility.DONT_SHOW;
 
@@ -148,6 +150,11 @@ public class CellTerminalClientConfig {
             "Slot limit for storage bus content display: LIMIT_8, LIMIT_32, LIMIT_64, or UNLIMITED");
         this.busSlotLimitProperty.setLanguageKey("config.cellterminal.gui.busSlotLimit");
         this.busSlotLimit = SlotLimit.fromName(this.busSlotLimitProperty.getString());
+
+        this.subnetSlotLimitProperty = config.get(CATEGORY_GUI, "subnetSlotLimit", SlotLimit.LIMIT_64.name(),
+            "Slot limit for subnet inventory content display: LIMIT_8, LIMIT_32, LIMIT_64, or UNLIMITED");
+        this.subnetSlotLimitProperty.setLanguageKey("config.cellterminal.gui.subnetSlotLimit");
+        this.subnetSlotLimit = SlotLimit.fromName(this.subnetSlotLimitProperty.getString());
 
         this.lastViewedNetworkIdProperty = config.get(CATEGORY_GUI, "lastViewedNetworkId", "0",
             "The last viewed network ID (0 = main network, other = subnet ID). Stored as string to support long values.");
@@ -323,6 +330,35 @@ public class CellTerminalClientConfig {
     }
 
     /**
+     * Get the slot limit for subnet inventory display.
+     */
+    public SlotLimit getSubnetSlotLimit() {
+        return subnetSlotLimit;
+    }
+
+    /**
+     * Set the slot limit for subnet inventory display.
+     */
+    public void setSubnetSlotLimit(SlotLimit limit) {
+        if (this.subnetSlotLimit == limit) return;
+
+        this.subnetSlotLimit = limit;
+        this.subnetSlotLimitProperty.set(limit.name());
+        config.save();
+    }
+
+    /**
+     * Cycle to the next subnet slot limit.
+     * @return The new slot limit after cycling
+     */
+    public SlotLimit cycleSubnetSlotLimit() {
+        SlotLimit next = subnetSlotLimit.next();
+        setSubnetSlotLimit(next);
+
+        return next;
+    }
+
+    /**
      * Get the last viewed network ID (0 = main network).
      */
     public long getLastViewedNetworkId() {
@@ -375,6 +411,19 @@ public class CellTerminalClientConfig {
      */
     public SlotLimit getSlotLimit(boolean forStorageBus) {
         return forStorageBus ? busSlotLimit : cellSlotLimit;
+    }
+
+    /**
+     * Get the appropriate slot limit for the given tab index.
+     * Handles cell tabs, storage bus tabs, and subnet overview.
+     * @param tabIndex The tab index (-1 for subnet overview)
+     */
+    public SlotLimit getSlotLimitForTab(int tabIndex) {
+        // FIXME: use the indexes defined in GuiConstants
+        if (tabIndex < 0) return subnetSlotLimit;
+        if (tabIndex >= GuiConstants.TAB_TEMP_AREA) return busSlotLimit;
+
+        return cellSlotLimit;
     }
 
     /**

@@ -328,7 +328,7 @@ public class QuickPartitionHandler {
     private static CellSearchResult findFirstCellWithoutPartition(
             PartitionType type,
             List<Object> partitionLines,
-            java.util.Map<Long, StorageInfo> storageMap) {
+            Map<Long, StorageInfo> storageMap) {
 
         for (int i = 0; i < partitionLines.size(); i++) {
             Object line = partitionLines.get(i);

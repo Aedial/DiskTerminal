@@ -26,7 +26,11 @@ public class PacketTempCellAction implements IMessage {
         /** Extract cell from temp area back to player inventory */
         EXTRACT,
         /** Send cell from temp area to first available slot in ME network */
-        SEND
+        SEND,
+        /** Insert an upgrade card into a temp cell */
+        UPGRADE,
+        /** Swap cell in temp area with cell held on cursor */
+        SWAP
     }
 
     private Action action;

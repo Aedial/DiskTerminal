@@ -2,7 +2,6 @@ package com.cellterminal.client;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -83,10 +82,7 @@ public class BlockHighlightRenderer {
         long now = System.currentTimeMillis();
 
         // Remove expired standard highlights
-        Iterator<Map.Entry<BlockPos, Long>> iter = highlightedBlocks.entrySet().iterator();
-        while (iter.hasNext()) {
-            if (iter.next().getValue() < now) iter.remove();
-        }
+        highlightedBlocks.entrySet().removeIf(blockPosLongEntry -> blockPosLongEntry.getValue() < now);
 
         if (highlightedBlocks.isEmpty()) return;
 

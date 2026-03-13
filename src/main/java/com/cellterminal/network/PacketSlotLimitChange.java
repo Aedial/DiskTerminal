@@ -17,25 +17,29 @@ public class PacketSlotLimitChange implements IMessage {
 
     private int cellLimit;
     private int busLimit;
+    private int subnetLimit;
 
     public PacketSlotLimitChange() {
     }
 
-    public PacketSlotLimitChange(int cellLimit, int busLimit) {
+    public PacketSlotLimitChange(int cellLimit, int busLimit, int subnetLimit) {
         this.cellLimit = cellLimit;
         this.busLimit = busLimit;
+        this.subnetLimit = subnetLimit;
     }
 
     @Override
     public void fromBytes(ByteBuf buf) {
         this.cellLimit = buf.readInt();
         this.busLimit = buf.readInt();
+        this.subnetLimit = buf.readInt();
     }
 
     @Override
     public void toBytes(ByteBuf buf) {
         buf.writeInt(cellLimit);
         buf.writeInt(busLimit);
+        buf.writeInt(subnetLimit);
     }
 
     public static class Handler implements IMessageHandler<PacketSlotLimitChange, IMessage> {
@@ -45,7 +49,7 @@ public class PacketSlotLimitChange implements IMessage {
             ctx.getServerHandler().player.getServerWorld().addScheduledTask(() -> {
                 if (ctx.getServerHandler().player.openContainer instanceof ContainerCellTerminalBase) {
                     ContainerCellTerminalBase container = (ContainerCellTerminalBase) ctx.getServerHandler().player.openContainer;
-                    container.setSlotLimits(message.cellLimit, message.busLimit);
+                    container.setSlotLimits(message.cellLimit, message.busLimit, message.subnetLimit);
                 }
             });
 

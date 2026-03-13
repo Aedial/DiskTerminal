@@ -21,7 +21,8 @@ public class TabStateManager {
         INVENTORY(1),
         PARTITION(2),
         STORAGE_BUS_INVENTORY(3),
-        STORAGE_BUS_PARTITION(4);
+        STORAGE_BUS_PARTITION(4),
+        SUBNET_OVERVIEW(-1);
 
         private final int index;
 
@@ -59,6 +60,10 @@ public class TabStateManager {
 
     public static TabStateManager getInstance() {
         return INSTANCE;
+    }
+
+    public static boolean isSubnetTab(int tabIndex) {
+        return tabIndex == TabType.SUBNET_OVERVIEW.getIndex();
     }
 
     /**

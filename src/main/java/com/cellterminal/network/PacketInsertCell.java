@@ -19,9 +19,6 @@ public class PacketInsertCell implements IMessage {
     private long storageId;
     private int targetSlot; // -1 for first available
 
-    public PacketInsertCell() {
-    }
-
     public PacketInsertCell(long storageId, int targetSlot) {
         this.storageId = storageId;
         this.targetSlot = targetSlot;

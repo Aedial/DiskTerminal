@@ -8,13 +8,16 @@ import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.ResourceLocation;
 
 import appeng.util.ReadableNumberConverter;
 
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.StorageInfo;
+import com.cellterminal.gui.widget.AbstractWidget;
+import com.cellterminal.network.CellTerminalNetwork;
+import com.cellterminal.network.PacketPartitionAction;
 
 
 /**
@@ -23,13 +26,16 @@ import com.cellterminal.client.StorageInfo;
  */
 public class PopupCellInventory extends Gui {
 
-    private static final int SLOTS_PER_ROW = 9;
-    private static final int MAX_ROWS = 7;
-    private static final int SLOT_SIZE = 18;
-    private static final int PADDING = 8;
-    private static final int HEADER_HEIGHT = 20;
-    private static final int BUTTON_HEIGHT = 14;
-    private static final int FOOTER_HEIGHT = 12;
+    private static final int SLOTS_PER_ROW = GuiConstants.POPUP_SLOTS_PER_ROW;
+    private static final int MAX_ROWS = GuiConstants.POPUP_MAX_ROWS;
+    private static final int SLOT_SIZE = GuiConstants.SLOT_SIZE;
+    private static final int PADDING = GuiConstants.PADDING;
+    private static final int HEADER_HEIGHT = GuiConstants.POPUP_HEADER_HEIGHT;
+    private static final int BUTTON_HEIGHT = GuiConstants.POPUP_BUTTON_HEIGHT;
+    private static final int FOOTER_HEIGHT = GuiConstants.POPUP_FOOTER_HEIGHT;
+
+    private static final ResourceLocation TEXTURE =
+        new ResourceLocation("cellterminal", "textures/guis/atlas.png");
 
     private final GuiScreen parent;
     private final CellInfo cell;
@@ -42,9 +48,9 @@ public class PopupCellInventory extends Gui {
     private final int slotOffsetX;
 
     // Button for set/unset all partition
-    private int partitionButtonX;
-    private int partitionButtonY;
-    private int partitionButtonWidth;
+    private final int partitionButtonX;
+    private final int partitionButtonY;
+    private final int partitionButtonWidth;
     private boolean partitionAllHovered = false;
 
     // Hovered item for tooltip
@@ -141,45 +147,23 @@ public class PopupCellInventory extends Gui {
             // Check if item is in partition
             boolean inPartition = isInPartition(stack, partition);
 
-            // Draw slot background
-            int slotBgColor = 0xFF8B8B8B;
-            boolean slotHovered = mouseX >= slotX && mouseX < slotX + SLOT_SIZE - 1
-                && mouseY >= slotY && mouseY < slotY + SLOT_SIZE - 1;
+            // Draw textured slot background
+            drawSlotBackground(slotX, slotY);
 
-            drawRect(slotX, slotY, slotX + SLOT_SIZE - 1, slotY + SLOT_SIZE - 1, slotBgColor);
-
-            // Draw slot border (3D effect)
-            drawRect(slotX, slotY, slotX + SLOT_SIZE - 1, slotY + 1, 0xFF373737);
-            drawRect(slotX, slotY, slotX + 1, slotY + SLOT_SIZE - 1, 0xFF373737);
-            drawRect(slotX, slotY + SLOT_SIZE - 2, slotX + SLOT_SIZE - 1, slotY + SLOT_SIZE - 1, 0xFFFFFFFF);
-            drawRect(slotX + SLOT_SIZE - 2, slotY, slotX + SLOT_SIZE - 1, slotY + SLOT_SIZE - 1, 0xFFFFFFFF);
+            // Check hover
+            boolean slotHovered = mouseX >= slotX && mouseX < slotX + SLOT_SIZE
+                && mouseY >= slotY && mouseY < slotY + SLOT_SIZE;
 
             // Draw item
             if (!stack.isEmpty()) {
-                GlStateManager.enableDepth();
-                RenderHelper.enableGUIStandardItemLighting();
-                mc.getRenderItem().renderItemAndEffectIntoGUI(stack, slotX, slotY);
-                RenderHelper.disableStandardItemLighting();
+                AbstractWidget.renderItemStack(mc.getRenderItem(), stack, slotX + 1, slotY + 1);
 
                 // Draw count like AE2 terminal (use actual AE2 count, not ItemStack count)
-                String countStr = formatItemCount(cell.getContentCount(i));
-                GlStateManager.disableLighting();
-                GlStateManager.disableDepth();
-                int countWidth = fr.getStringWidth(countStr);
-
-                GlStateManager.pushMatrix();
-                GlStateManager.scale(0.5f, 0.5f, 0.5f);
-                // Right-align: for 18x18 slot, text right edge at slotX+17, bottom at slotY+15
-                fr.drawStringWithShadow(countStr, (slotX + 16) * 2 - countWidth, (slotY + 12) * 2, 0xFFFFFF);
-                GlStateManager.popMatrix();
+                drawItemCount(cell.getContentCount(i), slotX, slotY, fr);
 
                 // Draw partition indicator in top-left corner if in partition
                 if (inPartition) {
-                    String partitionIndicator = net.minecraft.client.resources.I18n.format("gui.cellterminal.partition_indicator");
-                    GlStateManager.pushMatrix();
-                    GlStateManager.scale(0.5f, 0.5f, 0.5f);
-                    fr.drawStringWithShadow(partitionIndicator, (slotX + 1) * 2, (slotY + 1) * 2, 0xFF55FF55);
-                    GlStateManager.popMatrix();
+                    drawPartitionIndicator(slotX, slotY, fr);
                 }
 
                 // Track hovered item for tooltip
@@ -189,6 +173,9 @@ public class PopupCellInventory extends Gui {
                     hoveredY = mouseY;
                 }
             }
+
+            // Draw hover highlight
+            if (slotHovered) drawSlotHoverHighlight(slotX, slotY);
         }
 
         // Draw empty message if no contents
@@ -208,12 +195,8 @@ public class PopupCellInventory extends Gui {
      * Draw tooltip for hovered item. Must be called after draw() in a separate pass.
      */
     public void drawTooltip(int mouseX, int mouseY) {
-        if (!hoveredStack.isEmpty() && parent instanceof GuiScreen) {
-            ((GuiScreen) parent).drawHoveringText(
-                parent.getItemToolTip(hoveredStack),
-                hoveredX,
-                hoveredY
-            );
+        if (!hoveredStack.isEmpty() && parent != null) {
+            parent.drawHoveringText(parent.getItemToolTip(hoveredStack), hoveredX, hoveredY);
         }
     }
 
@@ -231,9 +214,12 @@ public class PopupCellInventory extends Gui {
         if (!isInsidePopup(mouseX, mouseY)) return false;
 
         // Check partition all button click
-        if (mouseX >= partitionButtonX && mouseX < partitionButtonX + partitionButtonWidth
-                && mouseY >= partitionButtonY && mouseY < partitionButtonY + BUTTON_HEIGHT) {
-            if (parent instanceof GuiCellTerminalBase) ((GuiCellTerminalBase) parent).onPartitionAllClicked(cell);
+        if (partitionAllHovered) {
+            CellTerminalNetwork.INSTANCE.sendToServer(new PacketPartitionAction(
+                cell.getParentStorageId(),
+                cell.getSlot(),
+                PacketPartitionAction.Action.SET_ALL_FROM_CONTENTS
+            ));
 
             return true;
         }
@@ -251,8 +237,13 @@ public class PopupCellInventory extends Gui {
             if (slotIndex < cell.getContents().size()) {
                 ItemStack clickedStack = cell.getContents().get(slotIndex);
 
-                if (!clickedStack.isEmpty() && parent instanceof GuiCellTerminalBase) {
-                    ((GuiCellTerminalBase) parent).onTogglePartitionItem(cell, clickedStack);
+                if (!clickedStack.isEmpty()) {
+                    CellTerminalNetwork.INSTANCE.sendToServer(new PacketPartitionAction(
+                        cell.getParentStorageId(),
+                        cell.getSlot(),
+                        PacketPartitionAction.Action.TOGGLE_ITEM,
+                        clickedStack
+                    ));
                 }
 
                 return true;
@@ -299,5 +290,49 @@ public class PopupCellInventory extends Gui {
 
     public int getY() {
         return y;
+    }
+
+    // ---- Drawing helpers (consistent with SlotsLine) ----
+
+    private void drawSlotBackground(int slotX, int slotY) {
+        Minecraft.getMinecraft().getTextureManager().bindTexture(TEXTURE);
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.enableBlend();
+
+        int texX = GuiConstants.SLOT_BACKGROUND_X;
+        int texY = GuiConstants.SLOT_BACKGROUND_Y;
+        Gui.drawScaledCustomSizeModalRect(
+            slotX, slotY, texX, texY, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE,
+            GuiConstants.ATLAS_WIDTH, GuiConstants.ATLAS_HEIGHT);
+    }
+
+    private void drawSlotHoverHighlight(int slotX, int slotY) {
+        Gui.drawRect(slotX + 1, slotY + 1, slotX + SLOT_SIZE - 1, slotY + SLOT_SIZE - 1,
+            GuiConstants.COLOR_HOVER_HIGHLIGHT);
+    }
+
+    private void drawItemCount(long count, int slotX, int slotY, FontRenderer fr) {
+        String countStr = formatItemCount(count);
+        if (countStr.isEmpty()) return;
+
+        int countWidth = fr.getStringWidth(countStr);
+
+        GlStateManager.disableDepth();
+        GlStateManager.pushMatrix();
+        GlStateManager.scale(0.5f, 0.5f, 0.5f);
+        // Right-align: for 18x18 slot, text right edge at slotX+17, bottom at slotY+13
+        fr.drawStringWithShadow(countStr, (slotX + SLOT_SIZE - 1) * 2 - countWidth, (slotY + SLOT_SIZE - 5) * 2, 0xFFFFFF);
+        GlStateManager.popMatrix();
+        GlStateManager.enableDepth();
+    }
+
+    private void drawPartitionIndicator(int slotX, int slotY, FontRenderer fr) {
+        GlStateManager.disableLighting();
+        GlStateManager.disableDepth();
+        GlStateManager.pushMatrix();
+        GlStateManager.scale(0.5f, 0.5f, 0.5f);
+        fr.drawStringWithShadow("P", (slotX + 2) * 2, (slotY + 2) * 2, GuiConstants.COLOR_PARTITION_INDICATOR);
+        GlStateManager.popMatrix();
+        GlStateManager.enableDepth();
     }
 }

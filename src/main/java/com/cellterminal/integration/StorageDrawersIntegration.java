@@ -60,7 +60,7 @@ public class StorageDrawersIntegration {
         if (repo == null) return null;
 
         NonNullList<IItemRepository.ItemRecord> records = repo.getAllItems();
-        if (records == null || records.isEmpty()) return new ArrayList<>();
+        if (records.isEmpty()) return new ArrayList<>();
 
         List<ItemRecordData> result = new ArrayList<>();
         for (IItemRepository.ItemRecord record : records) {
@@ -70,22 +70,6 @@ public class StorageDrawersIntegration {
         }
 
         return result;
-    }
-
-    /**
-     * Check if a TileEntity supports IItemRepository.
-     *
-     * @param targetTile The tile entity to check
-     * @param side The side to check from (can be null)
-     * @return true if IItemRepository is supported
-     */
-    public static boolean hasItemRepository(TileEntity targetTile, EnumFacing side) {
-        if (!isModLoaded() || targetTile == null) return false;
-        if (ITEM_REPOSITORY_CAPABILITY == null) return false;
-
-        IItemRepository repo = targetTile.getCapability(ITEM_REPOSITORY_CAPABILITY, side);
-
-        return repo != null;
     }
 
     /**

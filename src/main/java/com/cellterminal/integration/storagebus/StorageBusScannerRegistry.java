@@ -40,11 +40,4 @@ public final class StorageBusScannerRegistry {
         }
     }
 
-    public static boolean hasAnyScanners() {
-        return scanners.stream().anyMatch(IStorageBusScanner::isAvailable);
-    }
-
-    public static List<IStorageBusScanner> getScanners() {
-        return new ArrayList<>(scanners);
-    }
 }

@@ -264,7 +264,6 @@ public interface INetworkTool {
      * Callback interface for network tool actions.
      */
     interface NetworkToolCallback {
-        void sendToolPacket(String toolId, byte[] data);
         void showError(String message);
         void showSuccess(String message);
     }

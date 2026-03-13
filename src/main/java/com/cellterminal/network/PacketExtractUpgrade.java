@@ -19,7 +19,8 @@ public class PacketExtractUpgrade implements IMessage {
 
     public enum TargetType {
         CELL,
-        STORAGE_BUS
+        STORAGE_BUS,
+        TEMP_CELL
     }
 
     private TargetType targetType;
@@ -66,9 +67,26 @@ public class PacketExtractUpgrade implements IMessage {
         return packet;
     }
 
+    /**
+     * Create an extract request for a temp cell upgrade.
+     * @param tempSlotIndex The temp area slot index containing the cell
+     * @param upgradeIndex The upgrade slot index to extract from
+     * @param toInventory If true, put in inventory; if false, put in hand
+     */
+    public static PacketExtractUpgrade forTempCell(int tempSlotIndex, int upgradeIndex, boolean toInventory) {
+        PacketExtractUpgrade packet = new PacketExtractUpgrade();
+        packet.targetType = TargetType.TEMP_CELL;
+        packet.targetId = tempSlotIndex;
+        packet.cellSlot = 0;
+        packet.upgradeIndex = upgradeIndex;
+        packet.toInventory = toInventory;
+
+        return packet;
+    }
+
     @Override
     public void fromBytes(ByteBuf buf) {
-        this.targetType = buf.readBoolean() ? TargetType.STORAGE_BUS : TargetType.CELL;
+        this.targetType = TargetType.values()[buf.readByte()];
         this.targetId = buf.readLong();
         this.cellSlot = buf.readInt();
         this.upgradeIndex = buf.readInt();
@@ -77,7 +95,7 @@ public class PacketExtractUpgrade implements IMessage {
 
     @Override
     public void toBytes(ByteBuf buf) {
-        buf.writeBoolean(targetType == TargetType.STORAGE_BUS);
+        buf.writeByte(targetType.ordinal());
         buf.writeLong(targetId);
         buf.writeInt(cellSlot);
         buf.writeInt(upgradeIndex);

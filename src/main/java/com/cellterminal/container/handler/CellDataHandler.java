@@ -38,18 +38,6 @@ public class CellDataHandler {
      * @param storage The storage device
      * @param defaultName The default localization key for the storage name
      * @param trackerCallback Callback to register the storage tracker
-     * @return NBT data for the storage
-     */
-    public static NBTTagCompound createStorageData(IChestOrDrive storage, String defaultName,
-                                                    StorageTrackerCallback trackerCallback) {
-        return createStorageData(storage, defaultName, trackerCallback, Integer.MAX_VALUE);
-    }
-
-    /**
-     * Create NBT data for a storage device (ME Drive or ME Chest).
-     * @param storage The storage device
-     * @param defaultName The default localization key for the storage name
-     * @param trackerCallback Callback to register the storage tracker
      * @param slotLimit Maximum number of item types to include per cell
      * @return NBT data for the storage
      */
@@ -97,13 +85,6 @@ public class CellDataHandler {
         storageData.setTag("cells", cellList);
 
         return storageData;
-    }
-
-    /**
-     * Create NBT data for a single cell.
-     */
-    public static NBTTagCompound createCellData(int slot, ItemStack cellStack, int status) {
-        return createCellData(slot, cellStack, status, Integer.MAX_VALUE);
     }
 
     /**
@@ -310,9 +291,7 @@ public class CellDataHandler {
         // to return only the cell inventory portion.
         if (storage instanceof TileChest) {
             TileChest chest = (TileChest) storage;
-            IItemHandler wrapper = new TileChestCellInventoryWrapper(chest);
-
-            return wrapper;
+            return new TileChestCellInventoryWrapper(chest);
         }
 
         // Modular handling of Storage Drive-like tiles via AENetworkInvTile
@@ -334,11 +313,9 @@ public class CellDataHandler {
      * This wrapper maps slot 0 to the cell slot (slot 1 of the internal inventory).
      */
     private static class TileChestCellInventoryWrapper implements IItemHandler {
-        private final TileChest chest;
         private final IItemHandler internalInv;
 
         public TileChestCellInventoryWrapper(TileChest chest) {
-            this.chest = chest;
             this.internalInv = chest.getInternalInventory();
         }
 

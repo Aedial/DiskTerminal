@@ -59,7 +59,10 @@ public abstract class AbstractSubnetScanner implements ISubnetScanner {
             TileInterface iface = (TileInterface) tile;
             IGridNode node = iface.getGridNode(AEPartLocation.INTERNAL);
 
-            if (node != null && node.getGrid() != null) return node.getGrid();
+            if (node != null) {
+                node.getGrid();
+                return node.getGrid();
+            }
         }
 
         // Handle part interfaces on cable buses (PartInterface attached to cables)

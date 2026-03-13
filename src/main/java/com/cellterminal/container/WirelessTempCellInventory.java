@@ -6,6 +6,7 @@ import net.minecraftforge.items.IItemHandlerModifiable;
 
 import appeng.api.storage.ICellWorkbenchItem;
 
+import com.cellterminal.integration.AE2WUTIntegration;
 import com.cellterminal.items.ItemWirelessCellTerminal;
 
 
@@ -16,6 +17,8 @@ import com.cellterminal.items.ItemWirelessCellTerminal;
  * <p>
  * Unlike the tile-based PartCellTerminal which has its own inventory,
  * this wrapper reads/writes directly to the wireless terminal ItemStack's NBT.
+ * <p>
+ * Works with both Wireless Cell Terminal and Wireless Universal Terminal (WUT).
  */
 public class WirelessTempCellInventory implements IItemHandlerModifiable {
 
@@ -46,13 +49,17 @@ public class WirelessTempCellInventory implements IItemHandlerModifiable {
     }
 
     /**
-     * Get the wireless terminal item instance.
+     * Check if the terminal stack is valid (Wireless Cell Terminal or WUT with Cell Terminal mode).
      */
-    private ItemWirelessCellTerminal getTerminalItem() {
+    private boolean isValidTerminal() {
         ItemStack stack = getTerminalStack();
-        if (stack.isEmpty() || !(stack.getItem() instanceof ItemWirelessCellTerminal)) return null;
+        if (stack.isEmpty()) return false;
 
-        return (ItemWirelessCellTerminal) stack.getItem();
+        // Check for Wireless Cell Terminal
+        if (stack.getItem() instanceof ItemWirelessCellTerminal) return true;
+
+        // Check for WUT with Cell Terminal mode
+        return AE2WUTIntegration.isWirelessUniversalTerminal(stack);
     }
 
     /**
@@ -69,30 +76,28 @@ public class WirelessTempCellInventory implements IItemHandlerModifiable {
 
     @Override
     public int getSlots() {
-        ItemWirelessCellTerminal item = getTerminalItem();
+        if (!isValidTerminal()) return 0;
 
-        return item != null ? item.getMaxTempCells() : 0;
+        return ItemWirelessCellTerminal.getMaxTempCells();
     }
 
     @Override
     public ItemStack getStackInSlot(int slot) {
-        ItemWirelessCellTerminal item = getTerminalItem();
-        if (item == null) return ItemStack.EMPTY;
+        if (!isValidTerminal()) return ItemStack.EMPTY;
 
-        return item.getTempCell(getTerminalStack(), slot);
+        return ItemWirelessCellTerminal.getTempCell(getTerminalStack(), slot);
     }
 
     @Override
     public void setStackInSlot(int slot, ItemStack stack) {
-        ItemWirelessCellTerminal item = getTerminalItem();
-        if (item == null) return;
+        if (!isValidTerminal()) return;
 
-        item.setTempCell(getTerminalStack(), slot, stack);
+        ItemWirelessCellTerminal.setTempCell(getTerminalStack(), slot, stack);
     }
 
     @Override
     public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
-        if (stack.isEmpty()) return ItemStack.EMPTY;
+        if (stack.isEmpty() || !isValidTerminal()) return stack;
 
         // Only accept valid cell items
         if (!(stack.getItem() instanceof ICellWorkbenchItem)) return stack;
@@ -107,6 +112,8 @@ public class WirelessTempCellInventory implements IItemHandlerModifiable {
 
     @Override
     public ItemStack extractItem(int slot, int amount, boolean simulate) {
+        if (!isValidTerminal()) return ItemStack.EMPTY;
+
         ItemStack existing = getStackInSlot(slot);
         if (existing.isEmpty() || amount <= 0) return ItemStack.EMPTY;
 

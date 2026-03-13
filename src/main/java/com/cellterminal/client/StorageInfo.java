@@ -17,7 +17,7 @@ import com.cellterminal.gui.rename.RenameTargetType;
 /**
  * Client-side data holder for drive/chest storage information received from server.
  */
-public class StorageInfo implements Renameable {
+public class StorageInfo implements Renameable, Prioritizable {
 
     private final long id;
     private final BlockPos pos;
@@ -28,7 +28,6 @@ public class StorageInfo implements Renameable {
     private final int priority;
     private final boolean supportsPriorityFlag;
     private final List<CellInfo> cells = new ArrayList<>();
-    private boolean expanded = true;
 
     public StorageInfo(NBTTagCompound nbt) {
         this.id = nbt.getLong("id");
@@ -85,18 +84,6 @@ public class StorageInfo implements Renameable {
 
     public List<CellInfo> getCells() {
         return cells;
-    }
-
-    public boolean isExpanded() {
-        return expanded;
-    }
-
-    public void setExpanded(boolean expanded) {
-        this.expanded = expanded;
-    }
-
-    public void toggleExpanded() {
-        this.expanded = !this.expanded;
     }
 
     public String getLocationString() {

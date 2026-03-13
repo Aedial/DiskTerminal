@@ -2,6 +2,7 @@
 item.cellterminal.cell_terminal.name=Cell Terminal
 item.cellterminal.wireless_cell_terminal.name=Wireless Cell Terminal
 item.cellterminal.cell_terminal.tooltip=§bFor all your partitioning needs!
+item.cellterminal.wireless_cell_terminal.temp_cells=§7Temporary Cells: §f%d
 
 # GUI
 gui.cellterminal.cell_terminal.title=Cell Terminal
@@ -279,6 +280,13 @@ gui.cellterminal.search_help.field_double_click=§bDouble-click the search box t
 gui.cellterminal.cell.partitionall=Set Contents to Partition
 gui.cellterminal.cell.clearpartition=Clear Partitions
 
+# Small widget button tooltips
+gui.cellterminal.button.do_partition=Add All to Partition
+gui.cellterminal.button.clear_partition=Clear Partition
+gui.cellterminal.button.read_only=Extract Only
+gui.cellterminal.button.write_only=Insert Only
+gui.cellterminal.button.read_write=Extract/Insert
+
 # Controls help (bottom left widget)
 gui.cellterminal.controls.jei_drag=Drag from JEI to add.
 gui.cellterminal.controls.click_to_remove=Click to remove from slot.
@@ -368,29 +376,17 @@ gui.cellterminal.networktools.mass_partition_bus.confirm=This will set filters o
 
 # Subnet View
 gui.cellterminal.subnet.default_name=%d, %d, %d
-cellterminal.subnet.none=No subnets connected
 cellterminal.subnet.double_click_highlight=Double-click to highlight in world
-cellterminal.subnet.right_click_rename=Right-click to rename
-cellterminal.subnet.outbound=%d outbound (Storage Bus → Subnet)
-cellterminal.subnet.inbound=%d inbound (Subnet → Interface)
-cellterminal.subnet.pos=Position: %d, %d, %d
-cellterminal.subnet.dim=Dimension: %d
-cellterminal.subnet.no_power=No Power
-cellterminal.subnet.no_access=Access Denied (Security)
+cellterminal.subnet.pos=%d, %d, %d [%d]
 cellterminal.subnet.back=Back
 cellterminal.subnet.back.desc=Return to previous network view
 cellterminal.subnet.overview=Subnet Overview
+cellterminal.subnet.overview.desc=Overview of all connected sub-networks
 cellterminal.subnet.main_network=Main Network
 cellterminal.subnet.load=Load
 cellterminal.subnet.load.tooltip=Load this subnet's storage view
+cellterminal.subnet.load.disabled=Cannot load subnet (no power or access denied)
 cellterminal.subnet.click_load_main=Click Load to return to main network
-
-# Connection Row
-cellterminal.subnet.direction.outbound=Outbound Connection (Storage Bus → Subnet)
-cellterminal.subnet.direction.inbound=Inbound Connection (Subnet → Interface)
-cellterminal.subnet.connection.pos=Connection at: %d, %d, %d
-cellterminal.subnet.filter_count=%d filter item(s)
-cellterminal.subnet.no_filter=No filter configured
 
 # Subnet Controls Help
 cellterminal.subnet.controls.title=§lSubnet Controls

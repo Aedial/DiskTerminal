@@ -12,7 +12,6 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.parts.IPartModel;
-import appeng.api.storage.ICellWorkbenchItem;
 import appeng.parts.PartModel;
 import appeng.parts.reporting.AbstractPartDisplay;
 import appeng.tile.inventory.AppEngInternalInventory;
@@ -90,38 +89,6 @@ public class PartCellTerminal extends AbstractPartDisplay implements IAEAppEngIn
      */
     public AppEngInternalInventory getTempCellInventory() {
         return this.tempCellInventory;
-    }
-
-    /**
-     * Check if a slot accepts the given item (must be a storage cell).
-     */
-    public boolean isValidTempCellItem(ItemStack stack) {
-        if (stack.isEmpty()) return true;
-
-        return stack.getItem() instanceof ICellWorkbenchItem;
-    }
-
-    /**
-     * Get the number of currently stored temp cells.
-     */
-    public int getTempCellCount() {
-        int count = 0;
-        for (int i = 0; i < tempCellInventory.getSlots(); i++) {
-            if (!tempCellInventory.getStackInSlot(i).isEmpty()) count++;
-        }
-
-        return count;
-    }
-
-    /**
-     * Get the first empty slot index, or -1 if full.
-     */
-    public int getFirstEmptyTempSlot() {
-        for (int i = 0; i < tempCellInventory.getSlots(); i++) {
-            if (tempCellInventory.getStackInSlot(i).isEmpty()) return i;
-        }
-
-        return -1;
     }
 
     @Override

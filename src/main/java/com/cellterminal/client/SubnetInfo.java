@@ -11,6 +11,9 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.common.util.Constants;
 
+import com.cellterminal.gui.rename.Renameable;
+import com.cellterminal.gui.rename.RenameTargetType;
+
 
 /**
  * Client-side data holder for subnet connection information received from server.
@@ -33,7 +36,7 @@ import net.minecraftforge.common.util.Constants;
  * <p>
  * Note: P2P Tunnels do NOT create subnets - they teleport channels within the same grid.
  */
-public class SubnetInfo {
+public class SubnetInfo implements Renameable {
 
     /**
      * Represents a single connection point between main network and subnet.
@@ -42,26 +45,49 @@ public class SubnetInfo {
     public static class ConnectionPoint {
 
         private final BlockPos pos;           // Position on main network
+        private final int dimension;          // Dimension of the connection (can differ from subnet primary dim via Quantum Bridge)
         private final EnumFacing side;        // Side of the part
         private final boolean isOutbound;     // true = Storage Bus on main, false = Interface on main
         private final ItemStack localIcon;    // Icon of the block on main network
         private final ItemStack remoteIcon;   // Icon of the block on subnet
-        private final List<ItemStack> filter; // Filter configuration (for Storage Bus connections)
+
+        // Content items (items flowing through the connection). Empty list if no content key in data.
+        private final List<ItemStack> content;
+        private final boolean hasContentKey;  // Whether the backend sent a "content" key at all
+
+        // Partition items (storage bus filter config). Empty list if no partition key in data.
+        private final List<ItemStack> partition;
+        private final boolean hasPartitionKey; // Whether the backend sent a "filter" key at all
+        private final int maxPartitionSlots;   // Maximum number of partition slots (e.g. 63 for storage bus)
 
         public ConnectionPoint(NBTTagCompound nbt) {
             this.pos = BlockPos.fromLong(nbt.getLong("pos"));
+            this.dimension = nbt.getInteger("dim");
             this.side = EnumFacing.byIndex(nbt.getInteger("side"));
             this.isOutbound = nbt.getBoolean("outbound");
             this.localIcon = nbt.hasKey("localIcon") ? new ItemStack(nbt.getCompoundTag("localIcon")) : ItemStack.EMPTY;
             this.remoteIcon = nbt.hasKey("remoteIcon") ? new ItemStack(nbt.getCompoundTag("remoteIcon")) : ItemStack.EMPTY;
-            this.filter = new ArrayList<>();
 
-            if (nbt.hasKey("filter")) {
-                NBTTagList filterList = nbt.getTagList("filter", Constants.NBT.TAG_COMPOUND);
-                for (int i = 0; i < filterList.tagCount(); i++) {
-                    filter.add(new ItemStack(filterList.getCompoundTagAt(i)));
+            // Content items (future: backend will send "content" key with subnet inventory)
+            this.hasContentKey = nbt.hasKey("content");
+            this.content = new ArrayList<>();
+            if (hasContentKey) {
+                NBTTagList contentList = nbt.getTagList("content", Constants.NBT.TAG_COMPOUND);
+                for (int i = 0; i < contentList.tagCount(); i++) {
+                    content.add(new ItemStack(contentList.getCompoundTagAt(i)));
                 }
             }
+
+            // Partition items (storage bus filter config, with empty slots preserved for position-aware editing)
+            this.hasPartitionKey = nbt.hasKey("filter");
+            this.partition = new ArrayList<>();
+            if (hasPartitionKey) {
+                NBTTagList filterList = nbt.getTagList("filter", Constants.NBT.TAG_COMPOUND);
+                for (int i = 0; i < filterList.tagCount(); i++) {
+                    partition.add(new ItemStack(filterList.getCompoundTagAt(i)));
+                }
+            }
+            this.maxPartitionSlots = nbt.hasKey("maxPartitionSlots") ? nbt.getInteger("maxPartitionSlots") : 63;
         }
 
         public BlockPos getPos() {
@@ -70,6 +96,14 @@ public class SubnetInfo {
 
         public EnumFacing getSide() {
             return side;
+        }
+
+        /**
+         * Dimension of this connection point.
+         * May differ from the subnet's primary dimension when Quantum Bridges are involved.
+         */
+        public int getDimension() {
+            return dimension;
         }
 
         /**
@@ -95,17 +129,49 @@ public class SubnetInfo {
         }
 
         /**
-         * Filter configuration (for Storage Bus connections only).
+         * Content items flowing through this connection.
+         * Empty if backend doesn't send content data yet.
          */
-        public List<ItemStack> getFilter() {
-            return filter;
+        public List<ItemStack> getContent() {
+            return content;
         }
 
         /**
-         * Check if this connection has a non-empty filter configured.
+         * Whether the backend sent a "content" key at all.
+         * When true, content rows should be shown (even if the list is empty).
+         */
+        public boolean hasContentKey() {
+            return hasContentKey;
+        }
+
+        /**
+         * Partition items (storage bus filter configuration).
+         * Includes empty slots to preserve slot positions for editing.
+         */
+        public List<ItemStack> getPartition() {
+            return partition;
+        }
+
+        /**
+         * Whether the backend sent a "filter" key at all.
+         * When true, partition rows should be shown (even if the list is empty).
+         */
+        public boolean hasPartitionKey() {
+            return hasPartitionKey;
+        }
+
+        /**
+         * Maximum number of partition slots (e.g. 63 for an AE2 storage bus).
+         */
+        public int getMaxPartitionSlots() {
+            return maxPartitionSlots;
+        }
+
+        /**
+         * Check if this connection has a non-empty filter/partition configured.
          */
         public boolean hasFilter() {
-            for (ItemStack stack : filter) {
+            for (ItemStack stack : partition) {
                 if (!stack.isEmpty()) return true;
             }
 
@@ -114,7 +180,7 @@ public class SubnetInfo {
     }
 
     private final long id;                    // Unique identifier for this subnet (based on grid hash or primary position)
-    private final int dimension;
+    private final int dimension;              // Primary dimension (from primary node, used for sorting)
     private final BlockPos primaryPos;        // Primary position for sorting/highlighting (first interface position)
     private final String defaultName;         // Auto-generated name (e.g., "Subnet @ X, Y, Z")
     private String customName;                // User-defined name
@@ -125,6 +191,10 @@ public class SubnetInfo {
 
     // All connection points between main network and this subnet
     private final List<ConnectionPoint> connections = new ArrayList<>();
+
+    // Subnet inventory: all items/fluids stored in the subnet's ME storage
+    private final List<ItemStack> inventory = new ArrayList<>();
+    private final List<Long> inventoryCounts = new ArrayList<>();
 
     // Whether this represents the main network (ID = 0)
     private final boolean isMainNetwork;
@@ -177,6 +247,18 @@ public class SubnetInfo {
             NBTTagList connList = nbt.getTagList("connections", Constants.NBT.TAG_COMPOUND);
             for (int i = 0; i < connList.tagCount(); i++) {
                 connections.add(new ConnectionPoint(connList.getCompoundTagAt(i)));
+            }
+        }
+
+        // Load subnet inventory (items/fluids in the subnet's ME storage)
+        if (nbt.hasKey("inventory")) {
+            NBTTagList invList = nbt.getTagList("inventory", Constants.NBT.TAG_COMPOUND);
+            for (int i = 0; i < invList.tagCount(); i++) {
+                NBTTagCompound stackNbt = invList.getCompoundTagAt(i);
+                ItemStack stack = new ItemStack(stackNbt);
+                long count = stackNbt.hasKey("Cnt") ? stackNbt.getLong("Cnt") : stack.getCount();
+                inventory.add(stack);
+                inventoryCounts.add(count);
             }
         }
     }
@@ -269,6 +351,29 @@ public class SubnetInfo {
     }
 
     /**
+     * Get the subnet's inventory items (all items/fluids stored in the subnet's ME storage).
+     */
+    public List<ItemStack> getInventory() {
+        return inventory;
+    }
+
+    /**
+     * Get the count for an inventory item at the given index.
+     */
+    public long getInventoryCount(int index) {
+        if (index < 0 || index >= inventoryCounts.size()) return 0;
+
+        return inventoryCounts.get(index);
+    }
+
+    /**
+     * Whether this subnet has any inventory data.
+     */
+    public boolean hasInventory() {
+        return !inventory.isEmpty();
+    }
+
+    /**
      * Get the number of outbound connections (Storage Bus on main → Interface on subnet).
      */
     public int getOutboundCount() {
@@ -300,7 +405,7 @@ public class SubnetInfo {
         List<ItemStack> items = new ArrayList<>();
 
         for (ConnectionPoint cp : connections) {
-            for (ItemStack stack : cp.getFilter()) {
+            for (ItemStack stack : cp.getPartition()) {
                 if (stack.isEmpty()) continue;
                 if (items.size() >= maxItems) return items;
 
@@ -344,32 +449,90 @@ public class SubnetInfo {
     }
 
     /**
-     * Build a list of connection rows for displaying filters under this subnet's header.
-     * Each connection with filters gets one or more rows (9 items per row).
-     * Connections without filters still get one row to show the connection info.
+     * Build content and partition rows for a single connection, following the same layout
+     * as Temp Area: content rows first, then partition rows.
+     * <p>
+     * Content rows are only emitted if the backend sent a "content" key (even if empty).
+     * Partition rows are only emitted if the backend sent a "filter" key (even if empty).
+     * When present, at least one row is always shown (even for empty data).
+     * <p>
+     * Partition display stops at the last non-empty slot, but adds one more row when
+     * the last column is occupied (so the user can add more items).
      *
-     * @param maxFilterItemsPerRow Maximum filter items shown per row (typically 9)
-     * @return List of connection rows for this subnet
+     * @param slotsPerRow Number of slots per row (typically 9)
+     * @return List of connection rows for this connection
      */
-    public List<SubnetConnectionRow> buildConnectionRows(int maxFilterItemsPerRow) {
+    public static List<SubnetConnectionRow> buildConnectionContentRows(
+            SubnetInfo subnet, ConnectionPoint conn, int connIdx, int slotsPerRow) {
         List<SubnetConnectionRow> rows = new ArrayList<>();
 
-        for (int connIdx = 0; connIdx < connections.size(); connIdx++) {
-            ConnectionPoint conn = connections.get(connIdx);
-            int filterCount = conn.getFilter().size();
+        // For outbound connections (Storage Bus on main → Interface on subnet),
+        // show the subnet's entire ME storage as "content" so the user can see
+        // what's available and use "Partition All" to set filters.
+        if (conn.isOutbound() && subnet.hasInventory()) {
+            int contentCount = subnet.getInventory().size();
+            int contentRows = Math.max(1, (contentCount + slotsPerRow - 1) / slotsPerRow);
+            for (int row = 0; row < contentRows; row++) {
+                rows.add(new SubnetConnectionRow(subnet, conn, connIdx,
+                    row * slotsPerRow, row == 0, false, true));
+            }
 
-            if (filterCount == 0) {
-                // Connection with no filter - show one row with connection info only
-                rows.add(new SubnetConnectionRow(this, conn, connIdx, 0, true));
-            } else {
-                // Connection with filters - create rows for each batch of items
-                for (int startIdx = 0; startIdx < filterCount; startIdx += maxFilterItemsPerRow) {
-                    boolean isFirst = (startIdx == 0);
-                    rows.add(new SubnetConnectionRow(this, conn, connIdx, startIdx, isFirst));
-                }
+        // For inbound connections, use per-connection content (if backend sends it)
+        } else if (conn.hasContentKey()) {
+            int contentCount = conn.getContent().size();
+            int contentRows = Math.max(1, (contentCount + slotsPerRow - 1) / slotsPerRow);
+            for (int row = 0; row < contentRows; row++) {
+                rows.add(new SubnetConnectionRow(subnet, conn, connIdx,
+                    row * slotsPerRow, row == 0, false, false));
+            }
+        }
+
+        // Partition rows (storage bus filter config)
+        if (conn.hasPartitionKey()) {
+            int highestSlot = getHighestNonEmptySlot(conn.getPartition());
+            int partitionRows = Math.max(1, (highestSlot + slotsPerRow) / slotsPerRow);
+
+            // If the last visible column is occupied and there's room for more,
+            // add one more row so the user can expand
+            if (highestSlot >= 0 && (highestSlot + 1) % slotsPerRow == 0
+                    && (highestSlot + 1) < conn.getMaxPartitionSlots()) {
+                partitionRows++;
+            }
+
+            for (int row = 0; row < partitionRows; row++) {
+                rows.add(new SubnetConnectionRow(subnet, conn, connIdx,
+                    row * slotsPerRow, row == 0, true, false));
             }
         }
 
         return rows;
+    }
+
+    /**
+     * Find the highest non-empty slot index in a list, or -1 if all empty.
+     */
+    private static int getHighestNonEmptySlot(List<ItemStack> items) {
+        for (int i = items.size() - 1; i >= 0; i--) {
+            if (!items.get(i).isEmpty()) return i;
+        }
+
+        return -1;
+    }
+
+    // ---- Renameable implementation ----
+
+    @Override
+    public boolean isRenameable() {
+        return !isMainNetwork;
+    }
+
+    @Override
+    public RenameTargetType getRenameTargetType() {
+        return RenameTargetType.SUBNET;
+    }
+
+    @Override
+    public long getRenameId() {
+        return id;
     }
 }

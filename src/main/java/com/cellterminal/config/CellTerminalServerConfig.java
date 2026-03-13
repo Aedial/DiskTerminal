@@ -297,6 +297,7 @@ public class CellTerminalServerConfig {
         this.tabTerminalEnabled = this.tabTerminalEnabledProperty.getBoolean();
         this.tabInventoryEnabled = this.tabInventoryEnabledProperty.getBoolean();
         this.tabPartitionEnabled = this.tabPartitionEnabledProperty.getBoolean();
+        this.tabTempAreaEnabled = this.tabTempAreaEnabledProperty.getBoolean();
         this.tabStorageBusInventoryEnabled = this.tabStorageBusInventoryEnabledProperty.getBoolean();
         this.tabStorageBusPartitionEnabled = this.tabStorageBusPartitionEnabledProperty.getBoolean();
         this.tabNetworkToolsEnabled = this.tabNetworkToolsEnabledProperty.getBoolean();
@@ -363,34 +364,11 @@ public class CellTerminalServerConfig {
 
     // Tab getters
 
-    public boolean isTabTerminalEnabled() {
-        return tabTerminalEnabled;
-    }
-
-    public boolean isTabInventoryEnabled() {
-        return tabInventoryEnabled;
-    }
-
-    public boolean isTabPartitionEnabled() {
-        return tabPartitionEnabled;
-    }
-
     public boolean isTabTempAreaEnabled() {
         return tabTempAreaEnabled;
     }
 
-    public boolean isTabStorageBusInventoryEnabled() {
-        return tabStorageBusInventoryEnabled;
-    }
-
-    public boolean isTabStorageBusPartitionEnabled() {
-        return tabStorageBusPartitionEnabled;
-    }
-
-    public boolean isTabNetworkToolsEnabled() {
-        return tabNetworkToolsEnabled;
-    }
-
+    // TODO: index is not really realiable
     /**
      * Check if a specific tab is enabled by its index.
      * @param tabIndex The tab index (0-6)

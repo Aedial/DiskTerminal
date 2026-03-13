@@ -26,8 +26,6 @@ public class GuiToolConfirmationModal {
     private final INetworkTool tool;
     private final INetworkTool.ToolContext context;
     private final FontRenderer fontRenderer;
-    private final int screenWidth;
-    private final int screenHeight;
     private final Runnable onConfirm;
     private final Runnable onCancel;
 
@@ -49,8 +47,6 @@ public class GuiToolConfirmationModal {
         this.tool = tool;
         this.context = context;
         this.fontRenderer = fontRenderer;
-        this.screenWidth = screenWidth;
-        this.screenHeight = screenHeight;
         this.onConfirm = onConfirm;
         this.onCancel = onCancel;
 
@@ -147,31 +143,30 @@ public class GuiToolConfirmationModal {
 
     private void drawButton(int x, int y, int width, int height, String text, boolean hovered, boolean isConfirm) {
         int bgColor;
-        int borderTop;
-        int borderLeft;
-        int borderRight;
-        int borderBottom;
+        int borderTopColor;
+        int borderLeftColor;
+        int borderRightColor;
+        int borderBottomColor;
 
         if (isConfirm) {
             bgColor = hovered ? 0xFF40A040 : 0xFF308030;
-            borderTop = hovered ? 0xFF60C060 : 0xFF50A050;
-            borderLeft = borderTop;
-            borderRight = hovered ? 0xFF206020 : 0xFF105010;
-            borderBottom = borderRight;
+            borderTopColor = hovered ? 0xFF60C060 : 0xFF50A050;
+            borderRightColor = hovered ? 0xFF206020 : 0xFF105010;
         } else {
             bgColor = hovered ? 0xFF606060 : 0xFF505050;
-            borderTop = hovered ? 0xFF808080 : 0xFF707070;
-            borderLeft = borderTop;
-            borderRight = hovered ? 0xFF303030 : 0xFF202020;
-            borderBottom = borderRight;
+            borderTopColor = hovered ? 0xFF808080 : 0xFF707070;
+            borderRightColor = hovered ? 0xFF303030 : 0xFF202020;
         }
+
+        borderLeftColor = borderTopColor;
+        borderBottomColor = borderRightColor;
 
         GlStateManager.disableTexture2D();
         Gui.drawRect(x, y, x + width, y + height, bgColor);
-        Gui.drawRect(x, y, x + width, y + 1, borderTop);
-        Gui.drawRect(x, y, x + 1, y + height, borderLeft);
-        Gui.drawRect(x + width - 1, y, x + width, y + height, borderRight);
-        Gui.drawRect(x, y + height - 1, x + width, y + height, borderBottom);
+        Gui.drawRect(x, y, x + width, y + 1, borderTopColor);
+        Gui.drawRect(x, y, x + 1, y + height, borderLeftColor);
+        Gui.drawRect(x + width - 1, y, x + width, y + height, borderRightColor);
+        Gui.drawRect(x, y + height - 1, x + width, y + height, borderBottomColor);
         GlStateManager.enableTexture2D();
 
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
@@ -191,17 +186,13 @@ public class GuiToolConfirmationModal {
     public boolean handleClick(int mouseX, int mouseY, int button) {
         if (button != 0) return false;
 
-        int buttonsY = modalY + modalHeight - BUTTON_HEIGHT - PADDING;
-        int confirmX = modalX + (modalWidth / 2) - BUTTON_WIDTH - (BUTTON_SPACING / 2);
-        int cancelX = modalX + (modalWidth / 2) + (BUTTON_SPACING / 2);
-
-        if (isMouseOver(mouseX, mouseY, confirmX, buttonsY, BUTTON_WIDTH, BUTTON_HEIGHT)) {
+        if (confirmHovered) {
             onConfirm.run();
 
             return true;
         }
 
-        if (isMouseOver(mouseX, mouseY, cancelX, buttonsY, BUTTON_WIDTH, BUTTON_HEIGHT)) {
+        if (cancelHovered) {
             onCancel.run();
 
             return true;

@@ -30,7 +30,6 @@ import com.cellterminal.client.StorageInfo;
 import com.cellterminal.client.TabStateManager;
 import com.cellterminal.client.TempCellInfo;
 import com.cellterminal.config.CellTerminalClientConfig;
-import com.cellterminal.gui.GuiConstants;
 
 
 /**
@@ -61,7 +60,7 @@ public class TerminalDataManager {
     // Current filter settings
     private String searchFilter = "";
     private SearchFilterMode searchMode = SearchFilterMode.MIXED;
-    private Map<CellFilter, State> activeFilters = new EnumMap<>(CellFilter.class);
+    private final Map<CellFilter, State> activeFilters = new EnumMap<>(CellFilter.class);
 
     // Advanced search matcher (cached for performance)
     private AdvancedSearchParser.SearchMatcher advancedMatcher = null;
@@ -109,14 +108,6 @@ public class TerminalDataManager {
 
     public List<Object> getTempAreaLines() {
         return tempAreaLines;
-    }
-
-    public BlockPos getTerminalPos() {
-        return terminalPos;
-    }
-
-    public int getTerminalDimension() {
-        return terminalDimension;
     }
 
     public void processUpdate(NBTTagCompound data) {
@@ -815,9 +806,14 @@ public class TerminalDataManager {
      */
     private int getHighestNonEmptyPartitionSlot(CellInfo cell, int slotsPerRow) {
         List<ItemStack> partition = cell.getPartition();
+
+        // Cap at cell's actual type limit (e.g. 8 for some custom cells) to avoid
+        // generating empty continuation rows beyond what the cell can hold.
+        int maxTypes = (int) cell.getTotalTypes();
+        int effectiveMax = Math.min(MAX_PARTITION_SLOTS, maxTypes);
         int highest = -1;
 
-        for (int i = 0; i < partition.size(); i++) {
+        for (int i = 0; i < Math.min(partition.size(), effectiveMax); i++) {
             if (!partition.get(i).isEmpty()) {
                 highest = i;
             }
@@ -827,8 +823,8 @@ public class TerminalDataManager {
             int currentRows = (highest / slotsPerRow) + 1;
             int lastSlotInLastRow = (currentRows * slotsPerRow) - 1;
 
-            if (highest == lastSlotInLastRow && highest < MAX_PARTITION_SLOTS - 1) {
-                highest = Math.min(highest + slotsPerRow, MAX_PARTITION_SLOTS - 1);
+            if (highest == lastSlotInLastRow && highest < effectiveMax - 1) {
+                highest = Math.min(highest + slotsPerRow, effectiveMax - 1);
             }
         }
 
@@ -851,21 +847,6 @@ public class TerminalDataManager {
         };
     }
 
-    public int getLineCount(int currentTab) {
-        switch (currentTab) {
-            case GuiConstants.TAB_INVENTORY:
-                return inventoryLines.size();
-            case GuiConstants.TAB_PARTITION:
-                return partitionLines.size();
-            case GuiConstants.TAB_STORAGE_BUS_INVENTORY:
-                return storageBusInventoryLines.size();
-            case GuiConstants.TAB_STORAGE_BUS_PARTITION:
-                return storageBusPartitionLines.size();
-            default:
-                return lines.size();
-        }
-    }
-
     /**
      * Reset the data manager for a network switch.
      * This clears the hasInitialData flag so the next update does a full rebuild
@@ -880,5 +861,19 @@ public class TerminalDataManager {
         this.visibleCellSnapshotPartition.clear();
         this.visibleBusSnapshotInventory.clear();
         this.visibleBusSnapshotPartition.clear();
+    }
+
+    /**
+     * Find the StorageInfo containing a given CellInfo.
+     * Searches through all storages to find the one with matching parent ID.
+     *
+     * @param cell The cell to find the parent storage for
+     * @return The StorageInfo containing this cell, or null if not found
+     */
+    public StorageInfo findStorageForCell(CellInfo cell) {
+        if (cell == null) return null;
+
+        long parentId = cell.getParentStorageId();
+        return storageMap.get(parentId);
     }
 }

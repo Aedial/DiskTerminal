@@ -1,6 +1,7 @@
 package com.cellterminal.integration.subnet;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import net.minecraft.item.ItemStack;
@@ -15,12 +16,20 @@ import net.minecraftforge.items.IItemHandler;
 import appeng.api.AEApi;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
+import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
+import appeng.api.storage.IMEMonitor;
+import appeng.api.storage.channels.IFluidStorageChannel;
+import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.IStorageMonitorableAccessor;
+import appeng.api.storage.data.IAEFluidStack;
+import appeng.api.storage.data.IAEItemStack;
+import appeng.api.storage.data.IItemList;
 import appeng.api.util.AEPartLocation;
 import appeng.capabilities.Capabilities;
 import appeng.fluids.parts.PartFluidStorageBus;
+import appeng.parts.misc.PartInterface;
 import appeng.parts.misc.PartStorageBus;
 import appeng.tile.misc.TileInterface;
 
@@ -54,7 +63,7 @@ public class AE2SubnetScanner extends AbstractSubnetScanner {
     }
 
     @Override
-    public void scanSubnets(IGrid grid, NBTTagList out, Map<Long, SubnetTracker> trackerMap, int playerId) {
+    public void scanSubnets(IGrid grid, NBTTagList out, Map<Long, SubnetTracker> trackerMap, int playerId, int slotLimit) {
         if (grid == null) return;
 
         // Temporary map to group connections by target subnet grid
@@ -65,7 +74,6 @@ public class AE2SubnetScanner extends AbstractSubnetScanner {
         scanFluidStorageBuses(grid, subnetsByGrid, playerId);
 
         // Scan inbound connections: Interface on main <- Storage Bus on subnet
-        // This is the MORE COMMON pattern where subnets pull from main network
         scanInboundConnections(grid, subnetsByGrid, playerId);
 
         // Convert to NBT and populate tracker map
@@ -73,7 +81,7 @@ public class AE2SubnetScanner extends AbstractSubnetScanner {
             IGrid subnetGrid = entry.getKey();
             SubnetTracker tracker = entry.getValue();
 
-            NBTTagCompound subnetNbt = createSubnetNBT(subnetGrid, tracker, playerId);
+            NBTTagCompound subnetNbt = createSubnetNBT(subnetGrid, tracker, playerId, slotLimit);
             out.appendTag(subnetNbt);
             trackerMap.put(tracker.id, tracker);
         }
@@ -81,13 +89,12 @@ public class AE2SubnetScanner extends AbstractSubnetScanner {
 
     /**
      * Scan for inbound connections where a subnet's Storage Bus points at our Interface.
-     * This is the common "subnet pulling from main" pattern.
      * <p>
      * We scan all TileInterfaces on the main grid, then check adjacent tiles for
      * Storage Buses from other grids.
      */
     private void scanInboundConnections(IGrid mainGrid, Map<IGrid, SubnetTracker> subnetsByGrid, int playerId) {
-        // Scan TileInterface blocks
+        // Scan full-block TileInterface
         for (IGridNode node : mainGrid.getMachines(TileInterface.class)) {
             if (!node.isActive()) continue;
 
@@ -114,6 +121,30 @@ public class AE2SubnetScanner extends AbstractSubnetScanner {
                 // Add this connection as inbound (isOutbound = false)
                 tracker.addInboundConnection(iface, ifaceTile, facing);
             }
+        }
+
+        // Scan cable-attached PartInterface (only check the one side the part faces)
+        for (IGridNode node : mainGrid.getMachines(PartInterface.class)) {
+            if (!node.isActive()) continue;
+
+            PartInterface iface = (PartInterface) node.getMachine();
+            TileEntity ifaceTile = iface.getTileEntity();
+            if (ifaceTile == null) continue;
+
+            // PartInterface faces one specific direction — only check that side
+            EnumFacing facing = iface.getSide().getFacing();
+            if (facing == null) continue;
+
+            World world = ifaceTile.getWorld();
+            BlockPos adjacentPos = ifaceTile.getPos().offset(facing);
+            TileEntity adjacentTile = world.getTileEntity(adjacentPos);
+            if (adjacentTile == null) continue;
+
+            IGrid remoteGrid = checkForRemoteStorageBus(adjacentTile, facing.getOpposite(), mainGrid);
+            if (remoteGrid == null) continue;
+
+            SubnetTracker tracker = getOrCreateTracker(subnetsByGrid, remoteGrid);
+            tracker.addInboundConnection(iface, ifaceTile, facing);
         }
     }
 
@@ -220,9 +251,13 @@ public class AE2SubnetScanner extends AbstractSubnetScanner {
     /**
      * Create NBT data for a subnet.
      */
-    private NBTTagCompound createSubnetNBT(IGrid subnetGrid, SubnetTracker tracker, int playerId) {
+    private NBTTagCompound createSubnetNBT(IGrid subnetGrid, SubnetTracker tracker, int playerId, int slotLimit) {
         // Use base class method for common fields
         NBTTagCompound nbt = createBaseSubnetNBT(subnetGrid, tracker, playerId);
+
+        // Subnet inventory contents (queried from the subnet's ME storage)
+        NBTTagList inventoryList = collectSubnetInventory(subnetGrid, slotLimit);
+        nbt.setTag("inventory", inventoryList);
 
         // Connection points
         NBTTagList connectionsList = new NBTTagList();
@@ -241,6 +276,78 @@ public class AE2SubnetScanner extends AbstractSubnetScanner {
     }
 
     /**
+     * Collect item and fluid inventories from a subnet's ME storage grid.
+     * This queries the subnet's IStorageGrid for all stored items and fluids,
+     * aggregated across all storage devices (drives, chests, etc.) on the subnet.
+     *
+     * @param subnetGrid The subnet's grid to query
+     * @param slotLimit Maximum number of item types to include
+     * @return NBTTagList of inventory contents with "Cnt" counts
+     */
+    private NBTTagList collectSubnetInventory(IGrid subnetGrid, int slotLimit) {
+        NBTTagList inventoryList = new NBTTagList();
+
+        IStorageGrid storageGrid;
+        try {
+            storageGrid = subnetGrid.getCache(IStorageGrid.class);
+        } catch (Exception e) {
+            return inventoryList;
+        }
+        if (storageGrid == null) return inventoryList;
+
+        int count = 0;
+
+        // Collect item storage
+        try {
+            IItemStorageChannel itemChannel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
+            IMEMonitor<IAEItemStack> itemMonitor = storageGrid.getInventory(itemChannel);
+            if (itemMonitor != null) {
+                IItemList<IAEItemStack> storageList = itemMonitor.getStorageList();
+                for (IAEItemStack aeStack : storageList) {
+                    if (count >= slotLimit) break;
+                    if (aeStack.getStackSize() <= 0) continue;
+
+                    ItemStack stack = aeStack.createItemStack();
+                    stack.setCount(1);
+                    NBTTagCompound stackNbt = new NBTTagCompound();
+                    stack.writeToNBT(stackNbt);
+                    stackNbt.setLong("Cnt", aeStack.getStackSize());
+                    inventoryList.appendTag(stackNbt);
+                    count++;
+                }
+            }
+        } catch (Exception e) {
+            // Silently continue - some grids may not have item storage
+        }
+
+        // Collect fluid storage
+        try {
+            IFluidStorageChannel fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
+            IMEMonitor<IAEFluidStack> fluidMonitor = storageGrid.getInventory(fluidChannel);
+            if (fluidMonitor != null) {
+                IItemList<IAEFluidStack> fluidList = fluidMonitor.getStorageList();
+                for (IAEFluidStack aeFluid : fluidList) {
+                    if (count >= slotLimit) break;
+                    if (aeFluid.getStackSize() <= 0) continue;
+
+                    ItemStack fluidRep = aeFluid.asItemStackRepresentation();
+                    if (fluidRep.isEmpty()) continue;
+
+                    NBTTagCompound stackNbt = new NBTTagCompound();
+                    fluidRep.writeToNBT(stackNbt);
+                    stackNbt.setLong("Cnt", aeFluid.getStackSize());
+                    inventoryList.appendTag(stackNbt);
+                    count++;
+                }
+            }
+        } catch (Exception e) {
+            // Silently continue - some grids may not have fluid storage
+        }
+
+        return inventoryList;
+    }
+
+    /**
      * Create NBT for a single connection point.
      */
     private NBTTagCompound createConnectionNBT(Object part, TileEntity hostTile, IGrid subnetGrid, boolean isOutbound, EnumFacing connectionSide) {
@@ -248,6 +355,7 @@ public class AE2SubnetScanner extends AbstractSubnetScanner {
 
         NBTTagCompound nbt = new NBTTagCompound();
         nbt.setLong("pos", hostTile.getPos().toLong());
+        nbt.setInteger("dim", hostTile.getWorld().provider.getDimension());
         nbt.setBoolean("outbound", isOutbound);
 
         if (part instanceof PartStorageBus) {
@@ -299,11 +407,37 @@ public class AE2SubnetScanner extends AbstractSubnetScanner {
 
         } else if (part instanceof TileInterface) {
             // Inbound connection: Interface on main <- Storage Bus on subnet
-            TileInterface iface = (TileInterface) part;
             nbt.setInteger("side", connectionSide != null ? connectionSide.ordinal() : 0);
 
             // Local icon (interface)
             ItemStack localIcon = AEApi.instance().definitions().blocks().iface().maybeStack(1).orElse(ItemStack.EMPTY);
+            if (!localIcon.isEmpty()) {
+                NBTTagCompound iconNbt = new NBTTagCompound();
+                localIcon.writeToNBT(iconNbt);
+                nbt.setTag("localIcon", iconNbt);
+            }
+
+            // Remote icon (the storage bus on subnet side)
+            if (connectionSide != null) {
+                BlockPos targetPos = hostTile.getPos().offset(connectionSide);
+                ItemStack remoteIcon = getBlockItemStack(hostTile.getWorld(), targetPos);
+                if (!remoteIcon.isEmpty()) {
+                    NBTTagCompound iconNbt = new NBTTagCompound();
+                    remoteIcon.writeToNBT(iconNbt);
+                    nbt.setTag("remoteIcon", iconNbt);
+                }
+            }
+
+            // For inbound, filter comes from the remote storage bus
+            addInboundFilter(nbt, hostTile, connectionSide, subnetGrid);
+
+        } else if (part instanceof PartInterface) {
+            // Inbound connection: PartInterface (cable-attached) on main <- Storage Bus on subnet
+            PartInterface iface = (PartInterface) part;
+            nbt.setInteger("side", connectionSide != null ? connectionSide.ordinal() : iface.getSide().ordinal());
+
+            // Local icon (interface part)
+            ItemStack localIcon = AEApi.instance().definitions().parts().iface().maybeStack(1).orElse(ItemStack.EMPTY);
             if (!localIcon.isEmpty()) {
                 NBTTagCompound iconNbt = new NBTTagCompound();
                 localIcon.writeToNBT(iconNbt);
@@ -330,30 +464,33 @@ public class AE2SubnetScanner extends AbstractSubnetScanner {
 
     /**
      * Add storage bus filter configuration to connection NBT.
+     * Sends ALL slots (including empty) to preserve slot positions for editing.
+     * The "filter" key is always sent for storage bus connections so the client shows partition rows.
      */
     private void addStorageBusFilter(NBTTagCompound nbt, PartStorageBus bus) {
         IItemHandler configInv = bus.getInventoryByName("config");
         if (configInv == null) return;
 
         NBTTagList filterList = new NBTTagList();
-        int slotsToUse = 9;  // Only 9 slots for now since we don't want to overload the UI with too many filter items
-        // TODO: increase?
+        int totalSlots = configInv.getSlots();
 
-        for (int i = 0; i < configInv.getSlots() && i < slotsToUse; i++) {
+        // Send all slots including empties to preserve positions for partition editing
+        for (int i = 0; i < totalSlots; i++) {
             ItemStack filterItem = configInv.getStackInSlot(i);
-            if (filterItem.isEmpty()) continue;
-
             NBTTagCompound itemNbt = new NBTTagCompound();
             filterItem.writeToNBT(itemNbt);
             filterList.appendTag(itemNbt);
         }
 
-        if (filterList.tagCount() > 0) nbt.setTag("filter", filterList);
+        // Always set the filter key so the client knows partition rows should be shown
+        nbt.setTag("filter", filterList);
+        nbt.setInteger("maxPartitionSlots", totalSlots);
     }
 
     /**
      * Add filter from the remote storage bus for inbound connections.
      * This finds the storage bus on the subnet that is pointing at our interface.
+     * For inbound connections, the filter key is always sent so partition rows are shown.
      */
     private void addInboundFilter(NBTTagCompound nbt, TileEntity hostTile, EnumFacing connectionSide, IGrid subnetGrid) {
         if (connectionSide == null || hostTile == null) return;
@@ -377,6 +514,10 @@ public class AE2SubnetScanner extends AbstractSubnetScanner {
                 addStorageBusFilter(nbt, (PartStorageBus) part);
                 return;
             }
+
+            // Fluid storage bus: no item partition editing supported yet
+            // FIXME: support fluid storage bus
+            if (part instanceof PartFluidStorageBus) return;
         }
     }
 
