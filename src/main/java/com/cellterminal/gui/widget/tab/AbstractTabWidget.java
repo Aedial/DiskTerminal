@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 
 import net.minecraft.client.gui.FontRenderer;
+import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.RenderItem;
 import net.minecraft.item.ItemStack;
 
@@ -18,15 +19,14 @@ import com.cellterminal.client.CellContentRow;
 import com.cellterminal.client.SearchFilterMode;
 import com.cellterminal.client.StorageInfo;
 import com.cellterminal.gui.GuiConstants;
-import com.cellterminal.gui.PriorityFieldManager;
 import com.cellterminal.gui.handler.TerminalDataManager;
-import com.cellterminal.gui.rename.Renameable;
 import com.cellterminal.gui.widget.AbstractWidget;
 import com.cellterminal.gui.widget.CardsDisplay;
 import com.cellterminal.gui.widget.IWidget;
 import com.cellterminal.gui.widget.line.AbstractLine;
 import com.cellterminal.gui.widget.line.SlotsLine;
 import com.cellterminal.gui.widget.header.AbstractHeader;
+import com.cellterminal.network.PacketUpgradeCell;
 
 
 /**
@@ -57,7 +57,7 @@ import com.cellterminal.gui.widget.header.AbstractHeader;
  * </ol>
  *
  * <h3>Scroll integration</h3>
- * The tab does not own the scroll position — that is managed by the parent GUI.
+ * The tab does not own the scroll position, it is managed by the parent GUI.
  * The tab receives the scroll offset and visible row count, and builds widgets
  * accordingly, positioned at CONTENT_START_Y + i * ROW_HEIGHT.
  *
@@ -81,6 +81,13 @@ public abstract class AbstractTabWidget extends AbstractWidget {
      * Rebuilt each frame by {@link #buildVisibleRows(List, int)}.
      */
     protected final List<IWidget> visibleRows = new ArrayList<>();
+
+    /**
+     * Y coordinate from which to draw a bottom continuation tree line,
+     * or -1 if there is no content below the visible area.
+     * Set by {@link #propagateTreeLines(List, int)} and drawn by {@link #draw(int, int)}.
+     */
+    protected int bottomContinuationFromY = -1;
 
     /**
      * Maps each visible row widget to its source data object (the lineData from buildVisibleRows).
@@ -199,6 +206,14 @@ public abstract class AbstractTabWidget extends AbstractWidget {
                 lastCutY = line.getTreeLineCutY();
             }
         }
+
+        // Draw a bottom continuation line if there is more content below the visible window
+        int lastVisibleIndex = scrollOffset + visibleRows.size() - 1;
+        if (lastVisibleIndex + 1 < allLines.size() && isContentLine(allLines, lastVisibleIndex + 1)) {
+            bottomContinuationFromY = lastCutY;
+        } else {
+            bottomContinuationFromY = -1;
+        }
     }
 
     /**
@@ -227,6 +242,14 @@ public abstract class AbstractTabWidget extends AbstractWidget {
         // All widgets in visibleRows are guaranteed non-null and visible
         for (IWidget widget : visibleRows) {
             widget.draw(mouseX, mouseY);
+        }
+
+        // Draw bottom tree continuation line when content exists below the visible window
+        if (bottomContinuationFromY >= 0) {
+            int treeLineX = GuiConstants.GUI_INDENT + 7;
+            int bottomY = GuiConstants.CONTENT_START_Y + rowsVisible * GuiConstants.ROW_HEIGHT;
+            Gui.drawRect(treeLineX, bottomContinuationFromY, treeLineX + 1, bottomY,
+                GuiConstants.COLOR_TREE_LINE);
         }
     }
 
@@ -303,12 +326,21 @@ public abstract class AbstractTabWidget extends AbstractWidget {
      */
     protected CardsDisplay createCellCardsDisplay(CellInfo cell, int rowY,
                                                    BiConsumer<CellInfo, Integer> cardClickCallback) {
+        int slotCount = cell.getUpgradeSlotCount();
+        if (slotCount <= 0) return null;
+
+        // Build a slot-indexed array so empty slots are visually present
+        ItemStack[] slotStacks = new ItemStack[slotCount];
+        java.util.Arrays.fill(slotStacks, ItemStack.EMPTY);
         List<ItemStack> upgrades = cell.getUpgrades();
-        if (upgrades.isEmpty()) return null;
+        for (int i = 0; i < upgrades.size(); i++) {
+            int slotIdx = cell.getUpgradeSlotIndex(i);
+            if (slotIdx >= 0 && slotIdx < slotCount) slotStacks[slotIdx] = upgrades.get(i);
+        }
 
         List<CardsDisplay.CardEntry> entries = new ArrayList<>();
-        for (int i = 0; i < upgrades.size(); i++) {
-            entries.add(new CardsDisplay.CardEntry(upgrades.get(i), cell.getUpgradeSlotIndex(i)));
+        for (int i = 0; i < slotCount; i++) {
+            entries.add(new CardsDisplay.CardEntry(slotStacks[i], i));
         }
 
         CardsDisplay cards = new CardsDisplay(GuiConstants.CARDS_X, rowY, () -> entries, itemRender);
@@ -341,14 +373,6 @@ public abstract class AbstractTabWidget extends AbstractWidget {
     }
 
     /**
-     * Get the list of visible row widgets. Useful for the parent GUI
-     * to iterate for priority field positioning and other tasks.
-     */
-    public List<IWidget> getVisibleRows() {
-        return Collections.unmodifiableList(visibleRows);
-    }
-
-    /**
      * Get the source data object for the widget under the mouse cursor.
      * Used by the parent GUI for upgrade insertion, inline rename, and
      * other interactions that need to know the original data context.
@@ -366,7 +390,7 @@ public abstract class AbstractTabWidget extends AbstractWidget {
 
     /**
      * Get the data map from widgets to their source data objects.
-     * Used for priority field positioning — the parent GUI iterates
+     * Used for priority field positioning. The parent GUI iterates
      * visible rows and maps headers back to their StorageInfo/StorageBusInfo objects.
      */
     public Map<IWidget, Object> getWidgetDataMap() {
@@ -455,68 +479,6 @@ public abstract class AbstractTabWidget extends AbstractWidget {
         return false;
     }
 
-    // ---- Rename support ----
-
-    /**
-     * Get the hovered renameable target for right-click rename.
-     * Subclasses determine which data types are renameable and what exclusion zones exist
-     * (e.g., don't rename when clicking on buttons).
-     *
-     * @param relMouseX Mouse X relative to GUI left edge
-     * @param relMouseY Mouse Y relative to GUI top edge
-     * @return The hovered Renameable, or null
-     */
-    public Renameable getHoveredRenameable(int relMouseX, int relMouseY) {
-        Object hoveredData = getDataForHoveredRow(relMouseX, relMouseY);
-        if (hoveredData == null) return null;
-
-        return resolveRenameable(hoveredData, relMouseX);
-    }
-
-    /**
-     * Resolve a data object to a Renameable target, applying exclusion zones.
-     * Subclasses override to handle their specific data types and button areas.
-     *
-     * @param data The data object under the mouse
-     * @param relMouseX Mouse X relative to GUI left edge (for button exclusion)
-     * @return The Renameable, or null if clicking in a non-renameable zone
-     */
-    protected Renameable resolveRenameable(Object data, int relMouseX) {
-        if (data instanceof StorageInfo && relMouseX < GuiConstants.BUTTON_PARTITION_X) {
-            return (StorageInfo) data;
-        }
-
-        return null;
-    }
-
-    /**
-     * Get the X position for the inline rename field for a given target.
-     * Cells are more indented (on tree branch) than storages/buses.
-     */
-    public int getRenameFieldX(Renameable target) {
-        if (target instanceof CellInfo) return GuiConstants.CELL_INDENT + 18 - 2;
-
-        // StorageInfo and StorageBusInfo: name drawn at GUI_INDENT + 20
-        return GuiConstants.GUI_INDENT + 20 - 2;
-    }
-
-    /**
-     * Get the Y offset for the inline rename field relative to the row top.
-     * The editor draws the field at (rowY + yOffset + 1), where +1 aligns with text.
-     * Default is 0 (name drawn at y+1, field at rowY+1). TempArea overrides for y+5.
-     */
-    public int getRenameFieldYOffset(Renameable target) {
-        return 0;
-    }
-
-    /**
-     * Get the right edge for the inline rename field for a given target.
-     * Subclasses override based on which buttons are present on that tab.
-     */
-    public int getRenameFieldRightEdge(Renameable target) {
-        return GuiConstants.CONTENT_RIGHT_EDGE - PriorityFieldManager.FIELD_WIDTH - PriorityFieldManager.RIGHT_MARGIN - 4;
-    }
-
     // ---- Upgrade support ----
 
     /**
@@ -583,24 +545,34 @@ public abstract class AbstractTabWidget extends AbstractWidget {
      * @return true if handled
      */
     public boolean handleShiftUpgradeClick(ItemStack heldStack) {
-        // Default: scan all visible cells for first that can accept
-        List<Object> lines = getLines(guiContext.getDataManager());
-        for (Object line : lines) {
-            if (line instanceof CellInfo) {
-                CellInfo cell = (CellInfo) line;
-                if (cell.canAcceptUpgrade(heldStack)) {
-                    StorageInfo storage = guiContext.getDataManager().getStorageMap().get(cell.getParentStorageId());
-                    if (storage != null) {
-                        guiContext.sendPacket(new com.cellterminal.network.PacketUpgradeCell(
-                            storage.getId(), cell.getSlot(), false));
+        // Delegate entirely to the server: send storageId=-1 and shiftClick=true.
+        // The server iterates all storages sorted by distance and finds the first
+        // cell that can actually accept the upgrade.
+        guiContext.sendPacket(new PacketUpgradeCell(-1, -1, true));
 
-                        return true;
-                    }
-                }
-            }
-        }
+        return true;
+    }
 
-        return false;
+    /**
+     * Handle a shift-click on an upgrade item in a player inventory slot.
+     * This is the container-level shift-click path (from player inventory into the terminal)
+     * as opposed to the content-area shift-click path ({@link #handleShiftUpgradeClick}).
+     * <p>
+     * The source slot index is needed so the server knows where to extract the upgrade from.
+     * Default implementation finds the first visible cell that can accept the upgrade.
+     * Storage bus tabs override this to find the first visible bus instead.
+     *
+     * @param upgradeStack The upgrade item being shift-clicked
+     * @param sourceSlotIndex The inventory slot index the upgrade is coming from
+     * @return true if the upgrade was handled and should not propagate
+     */
+    public boolean handleInventorySlotShiftClick(ItemStack upgradeStack, int sourceSlotIndex) {
+        // Delegate entirely to the server: send storageId=-1 and shiftClick=true.
+        // The server iterates all storages sorted by distance and finds the first
+        // cell that can actually accept the upgrade.
+        guiContext.sendPacket(new PacketUpgradeCell(-1, -1, true, sourceSlotIndex));
+
+        return true;
     }
 
     // ---- JEI ghost targets ----

@@ -731,8 +731,6 @@ public class ThaumicEnergisticsIntegration {
             IStorageChannel<thaumicenergistics.api.storage.IAEEssentiaStack> essentiaChannel =
                 AEApi.instance().storage().getStorageChannel(thaumicenergistics.api.storage.IEssentiaStorageChannel.class);
 
-            if (essentiaChannel == null) return ItemStack.EMPTY;
-
             // Handle IAEEssentiaStack directly
             if (ingredient instanceof thaumicenergistics.api.storage.IAEEssentiaStack) {
                 thaumicenergistics.api.storage.IAEEssentiaStack essentiaStack =
@@ -856,14 +854,11 @@ public class ThaumicEnergisticsIntegration {
                             AEApi.instance().storage().getStorageChannel(
                                 thaumicenergistics.api.storage.IEssentiaStorageChannel.class);
 
-                        if (essentiaChannel != null) {
-                            thaumicenergistics.api.storage.IAEEssentiaStack aeStack =
-                                essentiaChannel.createStack(aspect);
+                        thaumicenergistics.api.storage.IAEEssentiaStack aeStack = essentiaChannel.createStack(aspect);
 
-                            if (aeStack != null) {
-                                ItemStack itemRep = aeStack.asItemStackRepresentation();
-                                if (!itemRep.isEmpty()) itemRep.writeToNBT(partNbt);
-                            }
+                        if (aeStack != null) {
+                            ItemStack itemRep = aeStack.asItemStackRepresentation();
+                            if (!itemRep.isEmpty()) itemRep.writeToNBT(partNbt);
                         }
                     }
 
@@ -898,19 +893,16 @@ public class ThaumicEnergisticsIntegration {
                         int amount = aspects.getAmount(aspect);
                         if (amount <= 0) continue;
 
-                        if (essentiaChannel != null) {
-                            thaumicenergistics.api.storage.IAEEssentiaStack aeStack =
-                                essentiaChannel.createStack(aspect);
+                        thaumicenergistics.api.storage.IAEEssentiaStack aeStack = essentiaChannel.createStack(aspect);
 
-                            if (aeStack != null) {
-                                ItemStack itemRep = aeStack.asItemStackRepresentation();
-                                if (!itemRep.isEmpty()) {
-                                    NBTTagCompound stackNbt = new NBTTagCompound();
-                                    itemRep.writeToNBT(stackNbt);
-                                    stackNbt.setLong("Cnt", amount);
-                                    contentsList.appendTag(stackNbt);
-                                    count++;
-                                }
+                        if (aeStack != null) {
+                            ItemStack itemRep = aeStack.asItemStackRepresentation();
+                            if (!itemRep.isEmpty()) {
+                                NBTTagCompound stackNbt = new NBTTagCompound();
+                                itemRep.writeToNBT(stackNbt);
+                                stackNbt.setLong("Cnt", amount);
+                                contentsList.appendTag(stackNbt);
+                                count++;
                             }
                         }
                     }
@@ -1080,7 +1072,7 @@ public class ThaumicEnergisticsIntegration {
     @Optional.Method(modid = MODID)
     private static void clearAspectConfig(thaumicenergistics.util.EssentiaFilter config) {
         int slot = 0;
-        for (thaumcraft.api.aspects.Aspect a : config) config.setAspect(null, slot++);
+        for (thaumcraft.api.aspects.Aspect ignored : config) config.setAspect(null, slot++);
     }
 
     /**

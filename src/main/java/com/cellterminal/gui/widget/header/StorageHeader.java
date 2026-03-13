@@ -5,7 +5,9 @@ import java.util.function.Supplier;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.renderer.RenderItem;
 
+import com.cellterminal.client.Prioritizable;
 import com.cellterminal.gui.GuiConstants;
+import com.cellterminal.gui.PriorityFieldManager;
 
 
 /**
@@ -15,12 +17,12 @@ import com.cellterminal.gui.GuiConstants;
  * <ul>
  *   <li>Location string (dimension + coordinates, rendered below the name)</li>
  *   <li>Expand/collapse button ("[+]"/"[-]" at the right side)</li>
- *   <li>Priority field positioning (managed externally by PriorityFieldManager)</li>
+ *   <li>Priority field (inline, managed via {@link PriorityFieldManager} singleton)</li>
  * </ul>
  *
- * The priority field is NOT rendered by this widget. The parent tab uses
- * {@link #getY()} to position the field via PriorityFieldManager. The header
- * only reserves visual space (by limiting name/location text width).
+ * When a {@link Prioritizable} target is set via {@link #setPrioritizable}, the header
+ * registers its priority field with the singleton during each draw pass. The field itself
+ * persists in the manager's registry across frame rebuilds (keyed by target ID).
  *
  * @see AbstractHeader
  * @see StorageBusHeader
@@ -35,6 +37,13 @@ public class StorageHeader extends AbstractHeader {
 
     /** Callback when the expand/collapse button is clicked */
     protected Runnable onExpandToggle;
+
+    /** The prioritizable target for inline priority editing (null if not editable) */
+    protected Prioritizable prioritizable;
+
+    /** GUI absolute offsets needed for priority field positioning */
+    protected int guiLeft;
+    protected int guiTop;
 
     // Hover state
     protected boolean expandHovered = false;
@@ -58,10 +67,21 @@ public class StorageHeader extends AbstractHeader {
     }
 
     /**
-     * Whether the expand/collapse button is currently hovered.
+     * Set the prioritizable target for this header.
+     * When set, the header registers its priority field with the singleton
+     * {@link PriorityFieldManager} during each draw pass.
      */
-    public boolean isExpandHovered() {
-        return expandHovered;
+    public void setPrioritizable(Prioritizable target) {
+        this.prioritizable = target;
+    }
+
+    /**
+     * Set GUI absolute offsets needed for priority field positioning.
+     * Must be called before draw if a priority field is set.
+     */
+    public void setGuiOffsets(int guiLeft, int guiTop) {
+        this.guiLeft = guiLeft;
+        this.guiTop = guiTop;
     }
 
     // ---- Rendering ----
@@ -75,6 +95,12 @@ public class StorageHeader extends AbstractHeader {
 
         // Draw expand/collapse indicator
         drawExpandIcon(mouseX, mouseY);
+
+        // Register priority field with the singleton (positions it for this frame)
+        if (prioritizable != null && prioritizable.supportsPriority()) {
+            PriorityFieldManager.getInstance().registerField(
+                prioritizable, y, guiLeft, guiTop, fontRenderer);
+        }
 
         // Return the hover right bound (up to expand area, excluding priority field)
         return GuiConstants.EXPAND_ICON_X;

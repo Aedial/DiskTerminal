@@ -14,7 +14,6 @@ import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.RenderItem;
 import net.minecraft.item.ItemStack;
 
-import com.cellterminal.config.CellTerminalClientConfig.TerminalStyle;
 import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.gui.GuiConstants;
 
@@ -110,13 +109,13 @@ public class TabRenderingHandler {
             // Tab background - gray out disabled tabs
             int bgColor;
             if (isDisabled) {
-                bgColor = 0xFF505050;  // Darker gray for disabled tabs
+                bgColor = GuiConstants.COLOR_TAB_DISABLED;
             } else if (isSelected) {
-                bgColor = 0xFFC6C6C6;
+                bgColor = GuiConstants.COLOR_TAB_SELECTED;
             } else if (isHovered) {
-                bgColor = 0xFFA0A0A0;
+                bgColor = GuiConstants.COLOR_TAB_HOVER;
             } else {
-                bgColor = 0xFF8B8B8B;
+                bgColor = GuiConstants.COLOR_TAB_NORMAL;
             }
             Gui.drawRect(tabX, tabY, tabX + ctx.tabWidth, tabY + ctx.tabHeight, bgColor);
 
@@ -242,17 +241,15 @@ public class TabRenderingHandler {
         public final int screenHeight;
         public final int currentTab;
         public final FontRenderer fontRenderer;
-        public final TerminalStyle style;
 
         public ControlsHelpContext(int guiLeft, int guiTop, int ySize, int screenHeight, int currentTab,
-                                   FontRenderer fontRenderer, TerminalStyle style) {
+                                   FontRenderer fontRenderer) {
             this.guiLeft = guiLeft;
             this.guiTop = guiTop;
             this.ySize = ySize;
             this.screenHeight = screenHeight;
             this.currentTab = currentTab;
             this.fontRenderer = fontRenderer;
-            this.style = style;
         }
     }
 

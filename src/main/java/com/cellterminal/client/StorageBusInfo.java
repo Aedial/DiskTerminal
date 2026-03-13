@@ -22,7 +22,7 @@ import com.cellterminal.gui.rename.RenameTargetType;
  * Client-side data holder for storage bus information received from server.
  * Similar to CellInfo but for storage buses which connect to external inventories.
  */
-public class StorageBusInfo implements Renameable {
+public class StorageBusInfo implements Renameable, Prioritizable {
 
     /**
      * Base number of config slots without any capacity upgrades.
@@ -38,11 +38,6 @@ public class StorageBusInfo implements Renameable {
      * Maximum number of config slots (with 5 capacity upgrades).
      */
     public static final int MAX_CONFIG_SLOTS = 63;
-
-    /**
-     * Maximum capacity upgrades a storage bus can have.
-     */
-    public static final int MAX_CAPACITY_UPGRADES = 5;
 
     /**
      * Calculate the number of available config slots for a given capacity upgrade count.
@@ -73,7 +68,6 @@ public class StorageBusInfo implements Renameable {
     private final List<Long> contentCounts = new ArrayList<>();
     private final List<ItemStack> upgrades = new ArrayList<>();
     private final List<Integer> upgradeSlotIndices = new ArrayList<>();
-    private boolean expanded = true;
     private final boolean supportsPriorityFlag;
     private final boolean supportsIOModeFlag;
 
@@ -204,18 +198,6 @@ public class StorageBusInfo implements Renameable {
         return Math.min(raw, maxConfigSlots);
     }
 
-    public boolean hasInverter() {
-        return getInstalledUpgrades(Upgrades.INVERTER) > 0;
-    }
-
-    public boolean hasSticky() {
-        return getInstalledUpgrades(Upgrades.STICKY) > 0;
-    }
-
-    public boolean hasFuzzy() {
-        return getInstalledUpgrades(Upgrades.FUZZY) > 0;
-    }
-
     public boolean isFluid() {
         return isFluid;
     }
@@ -290,18 +272,6 @@ public class StorageBusInfo implements Renameable {
         if (index < 0 || index >= upgradeSlotIndices.size()) return index;
 
         return upgradeSlotIndices.get(index);
-    }
-
-    public boolean isExpanded() {
-        return expanded;
-    }
-
-    public void setExpanded(boolean expanded) {
-        this.expanded = expanded;
-    }
-
-    public void toggleExpanded() {
-        this.expanded = !this.expanded;
     }
 
     public String getDisplayName() {
@@ -386,7 +356,18 @@ public class StorageBusInfo implements Renameable {
      * Storage buses have 5 upgrade slots.
      */
     public boolean hasUpgradeSpace() {
-        return upgrades.size() < 5;
+        return upgrades.size() < getUpgradeSlotCount();
+    }
+
+    /**
+     * Get the total number of upgrade slots available.
+     * Standard AE2 storage buses have 5 upgrade slots.
+     * @return The total upgrade slot count
+     */
+    public int getUpgradeSlotCount() {
+        // Standard AE2 storage buses have 5 upgrade slots
+        // TODO: adjust if supporting buses with different upgrade slot counts
+        return 5;
     }
 
     /**
@@ -418,6 +399,10 @@ public class StorageBusInfo implements Renameable {
     public boolean canAcceptUpgrade(ItemStack upgradeStack) {
         if (upgradeStack.isEmpty()) return false;
         if (!(upgradeStack.getItem() instanceof IUpgradeModule)) return false;
+
+        // Distinguish real upgrades from storage components that also implement IUpgradeModule
+        // Real upgrades (speed card, capacity card, etc.) return a non-null Upgrades type
+        if (((IUpgradeModule) upgradeStack.getItem()).getType(upgradeStack) == null) return false;
 
         return hasUpgradeSpace();
     }

@@ -16,6 +16,8 @@ import appeng.util.ReadableNumberConverter;
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.StorageInfo;
 import com.cellterminal.gui.widget.AbstractWidget;
+import com.cellterminal.network.CellTerminalNetwork;
+import com.cellterminal.network.PacketPartitionAction;
 
 
 /**
@@ -46,9 +48,9 @@ public class PopupCellInventory extends Gui {
     private final int slotOffsetX;
 
     // Button for set/unset all partition
-    private int partitionButtonX;
-    private int partitionButtonY;
-    private int partitionButtonWidth;
+    private final int partitionButtonX;
+    private final int partitionButtonY;
+    private final int partitionButtonWidth;
     private boolean partitionAllHovered = false;
 
     // Hovered item for tooltip
@@ -193,9 +195,8 @@ public class PopupCellInventory extends Gui {
      * Draw tooltip for hovered item. Must be called after draw() in a separate pass.
      */
     public void drawTooltip(int mouseX, int mouseY) {
-        if (!hoveredStack.isEmpty() && parent instanceof GuiScreen) {
-            parent.drawHoveringText(
-                parent.getItemToolTip(hoveredStack), hoveredX, hoveredY);
+        if (!hoveredStack.isEmpty() && parent != null) {
+            parent.drawHoveringText(parent.getItemToolTip(hoveredStack), hoveredX, hoveredY);
         }
     }
 
@@ -213,9 +214,12 @@ public class PopupCellInventory extends Gui {
         if (!isInsidePopup(mouseX, mouseY)) return false;
 
         // Check partition all button click
-        if (mouseX >= partitionButtonX && mouseX < partitionButtonX + partitionButtonWidth
-                && mouseY >= partitionButtonY && mouseY < partitionButtonY + BUTTON_HEIGHT) {
-            if (parent instanceof GuiCellTerminalBase) ((GuiCellTerminalBase) parent).onPartitionAllClicked(cell);
+        if (partitionAllHovered) {
+            CellTerminalNetwork.INSTANCE.sendToServer(new PacketPartitionAction(
+                cell.getParentStorageId(),
+                cell.getSlot(),
+                PacketPartitionAction.Action.SET_ALL_FROM_CONTENTS
+            ));
 
             return true;
         }
@@ -233,8 +237,13 @@ public class PopupCellInventory extends Gui {
             if (slotIndex < cell.getContents().size()) {
                 ItemStack clickedStack = cell.getContents().get(slotIndex);
 
-                if (!clickedStack.isEmpty() && parent instanceof GuiCellTerminalBase) {
-                    ((GuiCellTerminalBase) parent).onTogglePartitionItem(cell, clickedStack);
+                if (!clickedStack.isEmpty()) {
+                    CellTerminalNetwork.INSTANCE.sendToServer(new PacketPartitionAction(
+                        cell.getParentStorageId(),
+                        cell.getSlot(),
+                        PacketPartitionAction.Action.TOGGLE_ITEM,
+                        clickedStack
+                    ));
                 }
 
                 return true;

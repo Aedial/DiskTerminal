@@ -3,6 +3,7 @@ package com.cellterminal.gui.widget.tab;
 import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,7 +32,6 @@ import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.handler.JeiGhostHandler;
 import com.cellterminal.gui.handler.TerminalDataManager;
-import com.cellterminal.gui.rename.Renameable;
 import com.cellterminal.gui.handler.QuickPartitionHandler;
 import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.gui.widget.CardsDisplay;
@@ -165,25 +165,6 @@ public class StorageBusTabWidget extends AbstractTabWidget {
             guiContext.getDataManager().getStorageBusMap());
     }
 
-    // ---- Rename support ----
-
-    @Override
-    protected Renameable resolveRenameable(Object data, int relMouseX) {
-        if (data instanceof StorageBusInfo && relMouseX < GuiConstants.BUTTON_IO_MODE_X) {
-            return (StorageBusInfo) data;
-        }
-
-        return null;
-    }
-
-    @Override
-    public int getRenameFieldRightEdge(Renameable target) {
-        // Storage buses have IO mode button at BUTTON_IO_MODE_X
-        if (target instanceof StorageBusInfo) return GuiConstants.BUTTON_IO_MODE_X - 4;
-
-        return super.getRenameFieldRightEdge(target);
-    }
-
     // ---- Upgrade support ----
 
     @Override
@@ -211,6 +192,33 @@ public class StorageBusTabWidget extends AbstractTabWidget {
         // Shift-click: server finds first bus that can accept
         guiContext.sendPacket(new PacketUpgradeStorageBus(0, true));
         return true;
+    }
+
+    @Override
+    public boolean handleInventorySlotShiftClick(ItemStack upgradeStack, int sourceSlotIndex) {
+        // Shift-click from player inventory: find first visible bus that can accept
+        List<Object> lines = getLines(guiContext.getDataManager());
+        Set<Long> checkedBusIds = new HashSet<>();
+
+        for (Object line : lines) {
+            StorageBusInfo bus = null;
+
+            if (line instanceof StorageBusInfo) {
+                bus = (StorageBusInfo) line;
+            } else if (line instanceof StorageBusContentRow) {
+                bus = ((StorageBusContentRow) line).getStorageBus();
+            }
+
+            if (bus == null) continue;
+            if (!checkedBusIds.add(bus.getId())) continue;
+            if (!bus.canAcceptUpgrade(upgradeStack)) continue;
+
+            guiContext.sendPacket(new PacketUpgradeStorageBus(bus.getId(), true, sourceSlotIndex));
+
+            return true;
+        }
+
+        return false;
     }
 
     // ---- JEI ghost targets ----
@@ -299,8 +307,8 @@ public class StorageBusTabWidget extends AbstractTabWidget {
         CardsDisplay cards = createBusCards(bus, y);
         if (cards != null) header.setCardsDisplay(cards);
 
-        header.setOnNameClick(() -> guiContext.startInlineRename(bus,
-            y, getRenameFieldX(bus), getRenameFieldRightEdge(bus)));
+        // Rename info: header handles right-click directly via InlineRenameManager
+        header.setRenameInfo(bus, GuiConstants.GUI_INDENT + 20 - 2, 0, GuiConstants.BUTTON_IO_MODE_X - 4);
         header.setOnNameDoubleClick(() -> guiContext.highlightInWorld(
             bus.getPos(), bus.getDimension(), bus.getLocalizedName()),
             DoubleClickTracker.storageBusTargetId(bus.getId()));
@@ -324,6 +332,10 @@ public class StorageBusTabWidget extends AbstractTabWidget {
             });
             header.setSelectedSupplier(() -> guiContext.getSelectedStorageBusIds().contains(bus.getId()));
         }
+
+        // Priority field: header registers its own field with the singleton during draw
+        header.setPrioritizable(bus);
+        header.setGuiOffsets(guiLeft, guiTop);
 
         return header;
     }
@@ -575,10 +587,20 @@ public class StorageBusTabWidget extends AbstractTabWidget {
 
     private List<CardsDisplay.CardEntry> buildCardEntries(StorageBusInfo bus) {
         List<CardsDisplay.CardEntry> entries = new ArrayList<>();
+        int slotCount = bus.getUpgradeSlotCount();
 
+        // Build a slot-indexed array so empty slots are visually present
+        ItemStack[] slotStacks = new ItemStack[slotCount];
+        java.util.Arrays.fill(slotStacks, ItemStack.EMPTY);
         for (int i = 0; i < bus.getUpgrades().size(); i++) {
-            entries.add(new CardsDisplay.CardEntry(
-                bus.getUpgrades().get(i), bus.getUpgradeSlotIndex(i)));
+            int slotIdx = bus.getUpgradeSlotIndex(i);
+            if (slotIdx >= 0 && slotIdx < slotCount) {
+                slotStacks[slotIdx] = bus.getUpgrades().get(i);
+            }
+        }
+
+        for (int i = 0; i < slotCount; i++) {
+            entries.add(new CardsDisplay.CardEntry(slotStacks[i], i));
         }
 
         return entries;

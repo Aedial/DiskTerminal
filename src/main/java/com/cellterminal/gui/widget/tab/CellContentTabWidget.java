@@ -25,10 +25,10 @@ import com.cellterminal.client.StorageInfo;
 import com.cellterminal.client.TabStateManager;
 import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.gui.GuiConstants;
+import com.cellterminal.gui.PriorityFieldManager;
 import com.cellterminal.gui.handler.JeiGhostHandler;
 import com.cellterminal.gui.handler.QuickPartitionHandler;
 import com.cellterminal.gui.handler.TerminalDataManager;
-import com.cellterminal.gui.rename.Renameable;
 import com.cellterminal.gui.widget.CardsDisplay;
 import com.cellterminal.gui.widget.DoubleClickTracker;
 import com.cellterminal.gui.widget.IWidget;
@@ -208,20 +208,6 @@ public class CellContentTabWidget extends AbstractTabWidget {
         return true;
     }
 
-    // ---- Rename support ----
-
-    @Override
-    protected Renameable resolveRenameable(Object data, int relMouseX) {
-        if (data instanceof StorageInfo && relMouseX < GuiConstants.BUTTON_PARTITION_X) {
-            return (StorageInfo) data;
-        }
-
-        // On both inventory and partition tabs, cells are renameable (no right-side button exclusion)
-        if (data instanceof CellInfo) return (CellInfo) data;
-
-        return null;
-    }
-
     // ---- JEI ghost targets ----
 
     @Override
@@ -309,8 +295,10 @@ public class CellContentTabWidget extends AbstractTabWidget {
         header.setExpandedSupplier(() ->
             TabStateManager.getInstance().isExpanded(tabType, storage.getId()));
 
-        header.setOnNameClick(() -> guiContext.startInlineRename(storage,
-            y, getRenameFieldX(storage), getRenameFieldRightEdge(storage)));
+        // Rename info: header handles right-click directly via InlineRenameManager
+        int renameRightEdge = GuiConstants.CONTENT_RIGHT_EDGE
+            - PriorityFieldManager.FIELD_WIDTH - PriorityFieldManager.RIGHT_MARGIN - 4;
+        header.setRenameInfo(storage, GuiConstants.GUI_INDENT + 20 - 2, 0, renameRightEdge);
         header.setOnNameDoubleClick(() -> guiContext.highlightInWorld(
             storage.getPos(), storage.getDimension(), storage.getName()),
             DoubleClickTracker.storageTargetId(storage.getId()));
@@ -318,6 +306,10 @@ public class CellContentTabWidget extends AbstractTabWidget {
             TabStateManager.getInstance().toggleExpanded(tabType, storage.getId());
             guiContext.rebuildAndUpdateScrollbar();
         });
+
+        // Priority field: header registers its own field with the singleton during draw
+        header.setPrioritizable(storage);
+        header.setGuiOffsets(guiLeft, guiTop);
 
         return header;
     }
@@ -400,6 +392,9 @@ public class CellContentTabWidget extends AbstractTabWidget {
             startIndex, fontRenderer, itemRender
         );
 
+        // Tabs 2/3 have no junction element (cell slot/button) on continuation rows,
+        // so the horizontal branch would point at empty space.
+        line.setDrawHorizontalBranch(false);
         configureSlotData(line, cell);
         line.setGuiOffsets(guiLeft, guiTop);
 
@@ -417,7 +412,7 @@ public class CellContentTabWidget extends AbstractTabWidget {
         } else {
             // Partition mode: partition list is the items source
             line.setItemsSupplier(cell::getPartition);
-            line.setMaxSlots(GuiConstants.MAX_CELL_PARTITION_SLOTS);
+            line.setMaxSlots((int) cell.getTotalTypes());
         }
 
         line.setSlotClickCallback((slotIndex, mouseButton) -> {

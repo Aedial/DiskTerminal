@@ -31,10 +31,6 @@ public class GuiBackButton extends GuiAtlasButton {
         this.isInOverviewMode = inOverview;
     }
 
-    public boolean isInOverviewMode() {
-        return isInOverviewMode;
-    }
-
     @Override
     protected int getBackgroundTexX() {
         return GuiConstants.SUBNET_BUTTON_X + (isInOverviewMode ? SIZE : 0);
@@ -53,8 +49,12 @@ public class GuiBackButton extends GuiAtlasButton {
 
         if (isInOverviewMode) {
             tooltip.add(I18n.format("cellterminal.subnet.back"));
+            tooltip.add("");
+            tooltip.add(I18n.format("cellterminal.subnet.back.desc"));
         } else {
             tooltip.add(I18n.format("cellterminal.subnet.overview"));
+            tooltip.add("");
+            tooltip.add(I18n.format("cellterminal.subnet.overview.desc"));
         }
 
         return tooltip;

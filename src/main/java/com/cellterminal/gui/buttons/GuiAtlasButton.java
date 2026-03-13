@@ -23,10 +23,10 @@ import net.minecraft.util.ResourceLocation;
  *
  * Subclasses implement:
  * <ul>
- *   <li>{@link #getBackgroundTexX()} — atlas U for background (may depend on state)</li>
- *   <li>{@link #getBackgroundTexY()} — atlas V for background (typically offset by size when hovered)</li>
- *   <li>{@link #drawForeground(Minecraft)} — any overlay on top of the background</li>
- *   <li>{@link #getTooltip()} — tooltip lines for the button</li>
+ *   <li>{@link #getBackgroundTexX()}: atlas U for background (may depend on state)</li>
+ *   <li>{@link #getBackgroundTexY()}: atlas V for background (typically offset by size when hovered)</li>
+ *   <li>{@link #drawForeground(Minecraft)}: any overlay on top of the background</li>
+ *   <li>{@link #getTooltip()}: tooltip lines for the button</li>
  * </ul>
  */
 public abstract class GuiAtlasButton extends GuiButton {
@@ -40,13 +40,13 @@ public abstract class GuiAtlasButton extends GuiButton {
 
     /**
      * Get the texture X coordinate in the atlas for the background.
-     * Called every frame — may depend on button state.
+     * Called every frame, may depend on button state.
      */
     protected abstract int getBackgroundTexX();
 
     /**
      * Get the texture Y coordinate in the atlas for the background.
-     * Called every frame — typically returns baseY + (hovered ? size : 0).
+     * Called every frame, typically returns baseY + (hovered ? size : 0).
      */
     protected abstract int getBackgroundTexY();
 

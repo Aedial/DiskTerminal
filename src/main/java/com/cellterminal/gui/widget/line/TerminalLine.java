@@ -13,6 +13,8 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
 
 import com.cellterminal.gui.GuiConstants;
+import com.cellterminal.gui.rename.InlineRenameManager;
+import com.cellterminal.gui.rename.Renameable;
 import com.cellterminal.gui.widget.AbstractWidget;
 import com.cellterminal.gui.widget.CardsDisplay;
 import com.cellterminal.gui.widget.DoubleClickTracker;
@@ -62,8 +64,6 @@ public class TerminalLine extends AbstractLine {
         void onEjectClicked();
         void onInventoryClicked();
         void onPartitionClicked();
-        /** Called on right-click for rename */
-        void onNameClicked();
         /** Called on double-click for highlight in world */
         void onNameDoubleClicked();
     }
@@ -88,6 +88,15 @@ public class TerminalLine extends AbstractLine {
 
     /** Callback for button actions */
     private TerminalLineCallback callback;
+
+    /** Renameable target for right-click rename */
+    private Renameable renameable;
+
+    /** Rename field X position */
+    private int renameFieldX;
+
+    /** Rename field right edge */
+    private int renameFieldRightEdge;
 
     // Hover tracking (computed during draw)
     private int hoveredButton = HOVER_NONE;
@@ -132,6 +141,16 @@ public class TerminalLine extends AbstractLine {
     }
 
     /**
+     * Set the rename info for this line. When the name area is right-clicked,
+     * the line triggers InlineRenameManager directly.
+     */
+    public void setRenameInfo(Renameable target, int fieldX, int fieldRightEdge) {
+        this.renameable = target;
+        this.renameFieldX = fieldX;
+        this.renameFieldRightEdge = fieldRightEdge;
+    }
+
+    /**
      * Set the target ID for double-click tracking.
      * <p>
      * Since widgets are recreated every frame, we use {@link DoubleClickTracker}
@@ -148,13 +167,6 @@ public class TerminalLine extends AbstractLine {
      */
     public int getHoveredButton() {
         return hoveredButton;
-    }
-
-    /**
-     * Whether the cell name is currently hovered (for rename).
-     */
-    public boolean isNameHovered() {
-        return nameHovered;
     }
 
     @Override
@@ -212,9 +224,10 @@ public class TerminalLine extends AbstractLine {
             }
         }
 
-        // Name rename - RIGHT-click only
-        if (button == 1 && nameHovered) {
-            callback.onNameClicked();
+        // Name rename - RIGHT-click only, handled directly via InlineRenameManager
+        if (button == 1 && nameHovered && renameable != null && renameable.isRenameable()) {
+            InlineRenameManager.getInstance().startEditing(
+                renameable, y, renameFieldX, renameFieldRightEdge);
             return true;
         }
 

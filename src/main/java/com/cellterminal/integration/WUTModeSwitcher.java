@@ -34,9 +34,6 @@ public class WUTModeSwitcher {
     private WUTModeButton toggleButton;
     private boolean expanded = false;
     private Rectangle exclusionArea = new Rectangle();
-    private int baseX;
-    private int baseY;
-    private int maxY;  // Maximum Y before we'd go off-screen
 
     public WUTModeSwitcher(WirelessTerminalGuiObject wth) {
         this.wirelessTerminalGuiObject = wth;
@@ -58,9 +55,10 @@ public class WUTModeSwitcher {
         if (modes == null || modes.length == 0) return startButtonId;
 
         // Position toggle button on the right side, below the title/search bar area
-        this.baseX = guiLeft + GuiConstants.GUI_WIDTH + 2;  // Just to the right of the main GUI
-        this.baseY = guiTop + 18;  // Below the title/search bar area
-        this.maxY = Math.max(baseY + 100, screenHeight - BUTTON_SIZE - 4);  // Leave margin at bottom
+        int baseX = guiLeft + GuiConstants.GUI_WIDTH + 2;  // Just to the right of the main GUI
+        int baseY = guiTop + 18;  // Below the title/search bar area
+        // Maximum Y before we'd go off-screen
+        int maxY = Math.max(baseY + 100, screenHeight - BUTTON_SIZE - 4);  // Leave margin at bottom
 
         // Create toggle button (shows arrows to indicate expandable)
         toggleButton = new WUTModeButton(startButtonId++, baseX, baseY, (byte) -1, true);
@@ -94,14 +92,6 @@ public class WUTModeSwitcher {
         updateExclusionArea();
 
         return startButtonId;
-    }
-
-    /**
-     * Backwards compatible version without style parameters.
-     */
-    public int initButtons(List<GuiButton> buttonList, int startButtonId, int guiLeft, int guiTop, int guiHeight) {
-        // Default to screen height = guiTop + guiHeight + some margin
-        return initButtons(buttonList, startButtonId, guiLeft, guiTop, guiHeight, guiTop + guiHeight + 50, false);
     }
 
     /**

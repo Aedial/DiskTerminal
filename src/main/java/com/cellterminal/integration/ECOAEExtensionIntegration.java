@@ -143,20 +143,17 @@ public class ECOAEExtensionIntegration {
             github.kasuminova.ecoaeextension.common.tile.ecotech.estorage.EStorageCellDrive drive =
                 (github.kasuminova.ecoaeextension.common.tile.ecotech.estorage.EStorageCellDrive) driveObj;
 
-            TileEntity te = drive;
-            if (te.getWorld() == null) return null;
-
             // Generate unique ID for this drive
-            long id = te.getPos().toLong() ^ ((long) te.getWorld().provider.getDimension() << 48);
+            long id = drive.getPos().toLong() ^ ((long) drive.getWorld().provider.getDimension() << 48);
 
             // Register with callback for server-side tracking
             // Note: We use EStorageDriveWrapper to handle IChestOrDrive interface
-            if (callback != null) callback.register(id, te, new EStorageDriveWrapper(drive));
+            if (callback != null) callback.register(id, drive, new EStorageDriveWrapper(drive));
 
             NBTTagCompound storageData = new NBTTagCompound();
             storageData.setLong("id", id);
-            storageData.setLong("pos", te.getPos().toLong());
-            storageData.setInteger("dim", te.getWorld().provider.getDimension());
+            storageData.setLong("pos", drive.getPos().toLong());
+            storageData.setInteger("dim", drive.getWorld().provider.getDimension());
 
             // Use localized name or default
             storageData.setString("name", "tile.ecoaeextension.estorage_cell_drive.name");
@@ -165,7 +162,7 @@ public class ECOAEExtensionIntegration {
             storageData.setInteger("priority", channelPriority);
 
             // Get block item for display
-            ItemStack blockItem = getBlockItem(te);
+            ItemStack blockItem = getBlockItem(drive);
             if (!blockItem.isEmpty()) {
                 NBTTagCompound blockNbt = new NBTTagCompound();
                 blockItem.writeToNBT(blockNbt);

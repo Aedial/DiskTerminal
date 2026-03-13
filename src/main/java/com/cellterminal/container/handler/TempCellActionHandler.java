@@ -23,8 +23,9 @@ import com.cellterminal.util.PlayerMessageHelper;
 public class TempCellActionHandler {
 
     /**
-     * Handle temp cell action (insert, extract, send).
+     * Handle temp cell action (insert, extract, send, upgrade).
      * @param toInventory For EXTRACT: if true, send directly to inventory instead of cursor (shift-click)
+     *                    For UPGRADE: if true, server finds first cell that can accept
      */
     public static void handleAction(ContainerCellTerminalBase container,
                                      PacketTempCellAction.Action action,
@@ -39,6 +40,12 @@ public class TempCellActionHandler {
                 break;
             case SEND:
                 handleSend(container, tempSlotIndex, player);
+                break;
+            case UPGRADE:
+                handleUpgrade(container, tempSlotIndex, playerSlotIndex, player, toInventory);
+                break;
+            case SWAP:
+                handleSwap(container, tempSlotIndex, player);
                 break;
         }
     }
@@ -230,6 +237,51 @@ public class TempCellActionHandler {
     }
 
     /**
+     * Swap the cell in a temp area slot with the cell on the player's cursor.
+     * The existing cell goes to the cursor, and the cursor cell goes into the slot.
+     */
+    private static void handleSwap(ContainerCellTerminalBase container, int tempSlotIndex, EntityPlayer player) {
+        IItemHandlerModifiable tempInv = getTempCellInventory(container);
+        if (tempInv == null) return;
+
+        if (tempSlotIndex < 0 || tempSlotIndex >= tempInv.getSlots()) return;
+
+        ItemStack existingCell = tempInv.getStackInSlot(tempSlotIndex);
+        if (existingCell.isEmpty()) return;
+
+        ItemStack cursorStack = player.inventory.getItemStack();
+        if (cursorStack.isEmpty()) return;
+
+        // Validate the cursor item is a valid cell
+        if (!(cursorStack.getItem() instanceof ICellWorkbenchItem)) {
+            PlayerMessageHelper.error(player, "gui.cellterminal.temp_area.not_cell");
+
+            return;
+        }
+
+        // Only swap single items (cells don't stack, but just in case)
+        ItemStack newCell = cursorStack.splitStack(1);
+
+        // Put existing cell on cursor, new cell in slot
+        tempInv.setStackInSlot(tempSlotIndex, newCell);
+
+        // Give the old cell back to the cursor
+        if (cursorStack.isEmpty()) {
+            // Cursor is now empty after splitting - just set it to the existing cell
+            player.inventory.setItemStack(existingCell);
+        } else {
+            // Cursor still has items (shouldn't happen for cells, but handle gracefully)
+            // Try to add the existing cell to inventory, or drop it
+            if (!player.inventory.addItemStackToInventory(existingCell)) {
+                player.dropItem(existingCell, false);
+            }
+        }
+
+        ((EntityPlayerMP) player).updateHeldItem();
+        markDirty(container);
+    }
+
+    /**
      * Send a temp cell to the first available slot in the ME network.
      */
     private static void handleSend(ContainerCellTerminalBase container, int tempSlotIndex, EntityPlayer player) {
@@ -255,6 +307,89 @@ public class TempCellActionHandler {
         markDirty(container);
         String gridName = container.getGridName();
         PlayerMessageHelper.success(player, "cellterminal.temp_area.sent", gridName);
+    }
+
+    /**
+     * Insert an upgrade card into a temp cell.
+     *
+     * @param tempSlotIndex The temp slot to upgrade (-1 = find first that accepts)
+     * @param fromSlot The player inventory slot to take the upgrade from (-1 = cursor)
+     * @param shiftClick If true, find first cell that can accept this upgrade
+     */
+    private static void handleUpgrade(ContainerCellTerminalBase container, int tempSlotIndex,
+                                       int fromSlot, EntityPlayer player, boolean shiftClick) {
+        IItemHandlerModifiable tempInv = getTempCellInventory(container);
+        if (tempInv == null) return;
+
+        ItemStack upgradeStack = fromSlot >= 0
+            ? player.inventory.getStackInSlot(fromSlot)
+            : player.inventory.getItemStack();
+
+        if (upgradeStack.isEmpty()) return;
+
+        if (!(upgradeStack.getItem() instanceof appeng.api.implementations.items.IUpgradeModule)) return;
+
+        // Shift-click: find first cell that can accept this upgrade
+        if (shiftClick || tempSlotIndex < 0) {
+            for (int i = 0; i < tempInv.getSlots(); i++) {
+                if (tryInsertUpgradeIntoTempCell(tempInv, i, upgradeStack, player, fromSlot)) {
+                    markDirty(container);
+
+                    return;
+                }
+            }
+
+            return;
+        }
+
+        // Regular click: use specific temp slot
+        if (tempSlotIndex >= tempInv.getSlots()) return;
+
+        if (tryInsertUpgradeIntoTempCell(tempInv, tempSlotIndex, upgradeStack, player, fromSlot)) {
+            markDirty(container);
+        }
+    }
+
+    /**
+     * Try to insert an upgrade into a temp cell at the given slot.
+     *
+     * @return true if the upgrade was successfully inserted
+     */
+    private static boolean tryInsertUpgradeIntoTempCell(IItemHandlerModifiable tempInv, int tempSlotIndex,
+                                                         ItemStack upgradeStack, EntityPlayer player, int fromSlot) {
+        ItemStack cellStack = tempInv.getStackInSlot(tempSlotIndex);
+        if (cellStack.isEmpty()) return false;
+
+        if (!(cellStack.getItem() instanceof ICellWorkbenchItem)) return false;
+
+        ICellWorkbenchItem cellItem = (ICellWorkbenchItem) cellStack.getItem();
+        if (!cellItem.isEditable(cellStack)) return false;
+
+        IItemHandler upgradesInv = cellItem.getUpgradesInventory(cellStack);
+        if (upgradesInv == null) return false;
+
+        ItemStack toInsert = upgradeStack.copy();
+        toInsert.setCount(1);
+
+        for (int slot = 0; slot < upgradesInv.getSlots(); slot++) {
+            ItemStack remainder = upgradesInv.insertItem(slot, toInsert, false);
+            if (remainder.isEmpty()) {
+                upgradeStack.shrink(1);
+
+                if (fromSlot >= 0) {
+                    player.inventory.markDirty();
+                } else {
+                    ((EntityPlayerMP) player).updateHeldItem();
+                }
+
+                // Update the cell in temp inventory (NBT was modified)
+                tempInv.setStackInSlot(tempSlotIndex, cellStack);
+
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

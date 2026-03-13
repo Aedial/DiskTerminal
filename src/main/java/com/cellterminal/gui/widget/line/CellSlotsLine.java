@@ -89,13 +89,6 @@ public class CellSlotsLine extends SlotsLine {
         this.cellSlotCallback = callback;
     }
 
-    /**
-     * Whether the cell slot is currently hovered.
-     */
-    public boolean isCellSlotHovered() {
-        return cellSlotHovered;
-    }
-
     @Override
     public void draw(int mouseX, int mouseY) {
         if (!visible) return;

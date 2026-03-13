@@ -59,9 +59,6 @@ public class TempAreaHeader extends AbstractHeader {
     /** Supplier for whether a cell is inserted in this slot */
     private Supplier<Boolean> hasCellSupplier;
 
-    /** Supplier for the placeholder text when no cell is present */
-    private Supplier<String> emptyTextSupplier;
-
     /** Callback when the cell slot is clicked (insert/extract) */
     private CellSlotClickCallback cellSlotCallback;
 
@@ -91,30 +88,12 @@ public class TempAreaHeader extends AbstractHeader {
         this.hasCellSupplier = supplier;
     }
 
-    public void setEmptyTextSupplier(Supplier<String> supplier) {
-        this.emptyTextSupplier = supplier;
-    }
-
     public void setCellSlotCallback(CellSlotClickCallback callback) {
         this.cellSlotCallback = callback;
     }
 
     public void setOnSendClick(Runnable callback) {
         this.onSendClick = callback;
-    }
-
-    /**
-     * Whether the cell slot is currently hovered.
-     */
-    public boolean isCellSlotHovered() {
-        return cellSlotHovered;
-    }
-
-    /**
-     * Whether the send button is currently hovered.
-     */
-    public boolean isSendButtonHovered() {
-        return sendButtonHovered;
     }
 
     // ---- Rendering ----
@@ -218,8 +197,7 @@ public class TempAreaHeader extends AbstractHeader {
         if (hasCell) {
             name = nameSupplier != null ? nameSupplier.get() : "";
         } else {
-            name = emptyTextSupplier != null ? emptyTextSupplier.get()
-                : I18n.format("gui.cellterminal.temp_area.drop_cell");
+            name = I18n.format("gui.cellterminal.temp_area.drop_cell");
         }
 
         if (name.isEmpty()) return;
@@ -227,13 +205,16 @@ public class TempAreaHeader extends AbstractHeader {
         String displayName = trimTextToWidth(name, nameMaxWidth);
 
         boolean isSelected = selectedSupplier != null && selectedSupplier.get();
+        boolean hasCustomName = hasCustomNameSupplier != null && hasCustomNameSupplier.get();
         int nameColor;
         if (isSelected) {
             nameColor = GuiConstants.COLOR_NAME_SELECTED;
-        } else if (hasCell) {
-            nameColor = GuiConstants.COLOR_TEXT_NORMAL;
-        } else {
+        } else if (!hasCell) {
             nameColor = GuiConstants.COLOR_TEXT_PLACEHOLDER;
+        } else if (hasCustomName) {
+            nameColor = GuiConstants.COLOR_CUSTOM_NAME;
+        } else {
+            nameColor = GuiConstants.COLOR_TEXT_NORMAL;
         }
 
         fontRenderer.drawString(displayName, GuiConstants.HEADER_NAME_X, y + 5, nameColor);
@@ -241,8 +222,8 @@ public class TempAreaHeader extends AbstractHeader {
         // Name hover only makes sense when a cell is present (for rename interaction)
         if (!hasCell) return;
 
-        int nameWidth = fontRenderer.getStringWidth(displayName);
-        if (mouseX >= GuiConstants.HEADER_NAME_X && mouseX < GuiConstants.HEADER_NAME_X + nameWidth
+        // Use full name area width for easier click targeting (not just actual text width)
+        if (mouseX >= GuiConstants.HEADER_NAME_X && mouseX < GuiConstants.HEADER_NAME_X + nameMaxWidth
             && mouseY >= y + 5 && mouseY < y + 14) {
             nameHovered = true;
         }

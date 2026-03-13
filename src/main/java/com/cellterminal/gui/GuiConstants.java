@@ -36,12 +36,6 @@ public final class GuiConstants {
     /** Right edge of content area */
     public static final int CONTENT_RIGHT_EDGE = 180;
 
-    /** Right edge of hoverable area */
-    public static final int HOVER_RIGHT_EDGE = 185;
-
-    /** Left edge of hoverable area */
-    public static final int HOVER_LEFT_EDGE = 4;
-
     /** Inner padding for panels and popups */
     public static final int PADDING = 8;
 
@@ -69,7 +63,7 @@ public final class GuiConstants {
     // ========================================
 
     /** Tab indices */
-    // FIXME: these should probably be derived from tab widget registration
+    // TODO: ideally, we shouldn't need them at all
     public static final int TAB_TERMINAL = 0;
     public static final int TAB_INVENTORY = 1;
     public static final int TAB_PARTITION = 2;
@@ -229,26 +223,20 @@ public final class GuiConstants {
     // BUTTON CONFIGURATION
     // ========================================
 
-    /** Standard button size */
-    public static final int BUTTON_SIZE = 16;
-
     /** X position of eject button in terminal tab */
-    public static final int BUTTON_EJECT_X = 135;
+    public static final int BUTTON_EJECT_X = 141;
 
     /** X position of inventory button in terminal tab */
-    public static final int BUTTON_INVENTORY_X = 150;
+    public static final int BUTTON_INVENTORY_X = 154;
 
     /** X position of partition button in terminal tab */
-    public static final int BUTTON_PARTITION_X = 165;
+    public static final int BUTTON_PARTITION_X = 167;
 
     /** X position of IO mode button in storage bus headers (before priority field) */
     public static final int BUTTON_IO_MODE_X = 120;
 
     /** X position for upgrade card icons (left margin area) */
     public static final int CARDS_X = 3;
-
-    /** Size of the small button background texture (button SIZE + 1px padding each side) */
-    public static final int SMALL_BUTTON_BG_SIZE = SMALL_BUTTON_SIZE + 2;
 
     // ========================================
     // TERMINAL TAB CELL LAYOUT
@@ -321,20 +309,8 @@ public final class GuiConstants {
     // COLORS
     // ========================================
 
-    /** Background color for slots */
-    public static final int COLOR_SLOT_BACKGROUND = 0xFF8B8B8B;
-
-    /** Dark border for slots (top-left) */
-    public static final int COLOR_SLOT_BORDER_DARK = 0xFF373737;
-
-    /** Light border for slots (bottom-right) */
-    public static final int COLOR_SLOT_BORDER_LIGHT = 0xFFFFFFFF;
-
     /** Hover highlight overlay */
     public static final int COLOR_HOVER_HIGHLIGHT = 0x80FFFFFF;
-
-    /** Row hover highlight */
-    public static final int COLOR_ROW_HOVER = 0x50CCCCCC;
 
     /** Storage header hover */
     public static final int COLOR_STORAGE_HEADER_HOVER = 0x30FFFFFF;
@@ -350,6 +326,9 @@ public final class GuiConstants {
 
     /** Button shadow (bottom-right) */
     public static final int COLOR_BUTTON_SHADOW = 0xFF555555;
+
+    /** Tab background (disabled) */
+    public static final int COLOR_TAB_DISABLED = 0xFF505050;
 
     /** Tab background (selected) */
     public static final int COLOR_TAB_SELECTED = 0xFFC6C6C6;

@@ -43,17 +43,6 @@ public final class StorageScannerRegistry {
     }
 
     /**
-     * Scan all storage devices from all registered scanners.
-     *
-     * @param grid the ME network grid to scan
-     * @param storageList the list to append storage data to
-     * @param callback callback to register storage trackers
-     */
-    public static void scanAllStorages(IGrid grid, NBTTagList storageList, CellDataHandler.StorageTrackerCallback callback) {
-        scanAllStorages(grid, storageList, callback, Integer.MAX_VALUE);
-    }
-
-    /**
      * Scan all storage devices from all registered scanners with a slot limit.
      *
      * @param grid the ME network grid to scan
@@ -74,21 +63,4 @@ public final class StorageScannerRegistry {
         }
     }
 
-    /**
-     * Get all registered scanners (for debugging).
-     *
-     * @return copy of the scanner list
-     */
-    public static List<IStorageScanner> getScanners() {
-        return new ArrayList<>(scanners);
-    }
-
-    /**
-     * Check if any scanners are registered.
-     *
-     * @return true if at least one scanner is available
-     */
-    public static boolean hasAnyScanners() {
-        return scanners.stream().anyMatch(IStorageScanner::isAvailable);
-    }
 }

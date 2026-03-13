@@ -1,7 +1,6 @@
 package com.cellterminal.gui.widget.tab;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import net.minecraft.client.gui.FontRenderer;
@@ -82,7 +81,7 @@ public class NetworkToolsTabWidget extends AbstractTabWidget {
         INetworkTool tool = (INetworkTool) lineData;
         NetworkToolRowWidget row = new NetworkToolRowWidget(tool, y, fontRenderer, itemRender);
 
-        // Wire up context supplier — lazily fetches tool context each frame
+        // Wire up context supplier. Lazily fetches tool context each frame
         row.setContextSupplier(() -> guiContext != null
             ? ((NetworkToolGuiContext) guiContext).createNetworkToolContext()
             : null);

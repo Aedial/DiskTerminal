@@ -45,6 +45,7 @@ public class FilterPanelManager {
     private GuiSlotLimitButton slotLimitButton = null;
 
     private boolean forStorageBus = false;
+    private int currentTab = 0;
 
     /**
      * Initialize filter buttons for the given tab.
@@ -65,13 +66,17 @@ public class FilterPanelManager {
         if (slotLimitButton != null) buttonList.remove(slotLimitButton);
 
         this.forStorageBus = currentTab >= GuiConstants.TAB_TEMP_AREA;
+        this.currentTab = currentTab;
         CellTerminalClientConfig config = CellTerminalClientConfig.getInstance();
 
         int buttonId = startButtonId;
 
-        // Create slot limit button first (only for tabs that show content)
-        if (currentTab == GuiConstants.TAB_INVENTORY || currentTab == GuiConstants.TAB_STORAGE_BUS_INVENTORY) {
-            SlotLimit limit = config.getSlotLimit(forStorageBus);
+        // Create slot limit button for tabs that show content (inventory, storage bus inventory, subnet overview)
+        // FIXME: use GuiConstants
+        if (currentTab == GuiConstants.TAB_INVENTORY
+                || currentTab == GuiConstants.TAB_STORAGE_BUS_INVENTORY
+                || currentTab < 0) {
+            SlotLimit limit = config.getSlotLimitForTab(currentTab);
             slotLimitButton = new GuiSlotLimitButton(buttonId++, 0, 0, limit);
             buttonList.add(slotLimitButton);
         } else {
@@ -327,8 +332,8 @@ public class FilterPanelManager {
 
         // Include slot limit button
         if (slotLimitButton != null && slotLimitButton.visible) {
-            minX = Math.min(minX, slotLimitButton.x);
-            minY = Math.min(minY, slotLimitButton.y);
+            minX = slotLimitButton.x;
+            minY = slotLimitButton.y;
             maxX = Math.max(maxX, slotLimitButton.x + BUTTON_SIZE);
             maxY = Math.max(maxY, slotLimitButton.y + BUTTON_SIZE);
         }
@@ -414,7 +419,9 @@ public class FilterPanelManager {
         SlotLimit newLimit = button.cycleLimit();
         CellTerminalClientConfig config = CellTerminalClientConfig.getInstance();
 
-        if (forStorageBus) {
+        if (currentTab < 0) {
+            config.setSubnetSlotLimit(newLimit);
+        } else if (forStorageBus) {
             config.setBusSlotLimit(newLimit);
         } else {
             config.setCellSlotLimit(newLimit);
@@ -423,7 +430,8 @@ public class FilterPanelManager {
         // Send updated slot limits to server
         CellTerminalNetwork.INSTANCE.sendToServer(new PacketSlotLimitChange(
             config.getCellSlotLimit().getLimit(),
-            config.getBusSlotLimit().getLimit()
+            config.getBusSlotLimit().getLimit(),
+            config.getSubnetSlotLimit().getLimit()
         ));
 
         return true;
@@ -433,7 +441,7 @@ public class FilterPanelManager {
      * Get the current slot limit based on the current tab.
      */
     public SlotLimit getCurrentSlotLimit() {
-        return CellTerminalClientConfig.getInstance().getSlotLimit(forStorageBus);
+        return CellTerminalClientConfig.getInstance().getSlotLimitForTab(currentTab);
     }
 
     public List<GuiFilterButton> getButtons() {

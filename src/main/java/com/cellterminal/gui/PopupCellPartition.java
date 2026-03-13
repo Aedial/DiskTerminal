@@ -29,6 +29,8 @@ import com.cellterminal.client.CellInfo;
 import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.gui.widget.AbstractWidget;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
+import com.cellterminal.network.CellTerminalNetwork;
+import com.cellterminal.network.PacketPartitionAction;
 
 
 /**
@@ -167,9 +169,8 @@ public class PopupCellPartition extends Gui {
      * Draw tooltip for hovered item. Must be called after draw() in a separate pass.
      */
     public void drawTooltip(int mouseX, int mouseY) {
-        if (!hoveredStack.isEmpty() && parent instanceof GuiScreen) {
-            parent.drawHoveringText(
-                parent.getItemToolTip(hoveredStack), hoveredX, hoveredY);
+        if (!hoveredStack.isEmpty() && parent != null) {
+            parent.drawHoveringText(parent.getItemToolTip(hoveredStack), hoveredX, hoveredY);
         }
     }
 
@@ -191,9 +192,12 @@ public class PopupCellPartition extends Gui {
                 if (!removed.isEmpty()) {
                     editablePartition.set(slotIndex, ItemStack.EMPTY);
 
-                    if (parent instanceof GuiCellTerminalBase) {
-                        ((GuiCellTerminalBase) parent).onRemovePartitionItem(cell, slotIndex);
-                    }
+                    CellTerminalNetwork.INSTANCE.sendToServer(new PacketPartitionAction(
+                        cell.getParentStorageId(),
+                        cell.getSlot(),
+                        PacketPartitionAction.Action.REMOVE_ITEM,
+                        slotIndex
+                    ));
                 }
 
                 return true;
@@ -312,9 +316,13 @@ public class PopupCellPartition extends Gui {
 
         editablePartition.set(targetSlot, stack.copy());
 
-        if (parent instanceof GuiCellTerminalBase) {
-            ((GuiCellTerminalBase) parent).onAddPartitionItem(cell, targetSlot, stack);
-        }
+        CellTerminalNetwork.INSTANCE.sendToServer(new PacketPartitionAction(
+            cell.getParentStorageId(),
+            cell.getSlot(),
+            PacketPartitionAction.Action.ADD_ITEM,
+            targetSlot,
+            stack
+        ));
 
         return true;
     }
@@ -373,9 +381,13 @@ public class PopupCellPartition extends Gui {
 
         editablePartition.set(targetSlot, stack.copy());
 
-        if (parent instanceof GuiCellTerminalBase) {
-            ((GuiCellTerminalBase) parent).onAddPartitionItem(cell, targetSlot, stack);
-        }
+        CellTerminalNetwork.INSTANCE.sendToServer(new PacketPartitionAction(
+            cell.getParentStorageId(),
+            cell.getSlot(),
+            PacketPartitionAction.Action.ADD_ITEM,
+            targetSlot,
+            stack
+        ));
 
         return true;
     }

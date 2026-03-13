@@ -1,36 +1,56 @@
 package com.cellterminal.client;
 
+import java.util.List;
+
 import net.minecraft.item.ItemStack;
 
 
 /**
- * Represents a row of connection filter items for display in the subnet overview.
- * Each SubnetConnectionRow shows up to 9 filter items from a connection point, starting at a given index.
+ * Represents a row of connection content or partition items for display in the subnet overview.
+ * Each SubnetConnectionRow shows up to 9 items from a connection point, starting at a given index.
  * <p>
- * This is analogous to {@link StorageBusContentRow} but for subnet connections.
+ * This is analogous to {@link CellContentRow} but for subnet connections. Like CellContentRow,
+ * each row has an {@code isPartitionRow} flag to distinguish content rows (read-only, items
+ * flowing through the connection) from partition rows (editable, storage bus filter config).
+ * <p>
+ * The flattened display under a {@link SubnetConnectionEntry} header is:
+ * <pre>
+ *   SubnetConnectionRow (isPartitionRow=false) → content rows (subnet's whole storage)
+ *   SubnetConnectionRow (isPartitionRow=true)  → partition rows (storage bus filter config)
+ * </pre>
+ *
+ * @see SubnetConnectionEntry
+ * @see SubnetInfo.ConnectionPoint
  */
 public class SubnetConnectionRow {
 
     private final SubnetInfo subnet;
     private final SubnetInfo.ConnectionPoint connection;
-    private final int connectionIndex;  // Index of this connection in the subnet's connection list
-    private final int filterStartIndex; // Starting index of filter items to display (0, 9, 18, etc.)
-    private final boolean isFirstRowForConnection;
+    private final int connectionIndex;
+    private final int startIndex;
+    private final boolean isFirstRow;
+    private final boolean isPartitionRow;
+    private final boolean usesSubnetInventory;
 
     /**
      * @param subnet The subnet this row belongs to
-     * @param connection The connection point this row displays filters for
+     * @param connection The connection point this row displays items for
      * @param connectionIndex Index of this connection in subnet's connection list
-     * @param filterStartIndex The starting index of filter items to display (0, 9, 18, etc.)
-     * @param isFirstRowForConnection Whether this is the first row for this connection
+     * @param startIndex The starting index of items to display (0, 9, 18, etc.)
+     * @param isFirstRow Whether this is the first row for this content/partition section
+     * @param isPartitionRow Whether this row displays partition data (vs content data)
+     * @param usesSubnetInventory Whether content comes from the subnet's ME storage inventory
      */
     public SubnetConnectionRow(SubnetInfo subnet, SubnetInfo.ConnectionPoint connection,
-                                int connectionIndex, int filterStartIndex, boolean isFirstRowForConnection) {
+                                int connectionIndex, int startIndex, boolean isFirstRow,
+                                boolean isPartitionRow, boolean usesSubnetInventory) {
         this.subnet = subnet;
         this.connection = connection;
         this.connectionIndex = connectionIndex;
-        this.filterStartIndex = filterStartIndex;
-        this.isFirstRowForConnection = isFirstRowForConnection;
+        this.startIndex = startIndex;
+        this.isFirstRow = isFirstRow;
+        this.isPartitionRow = isPartitionRow;
+        this.usesSubnetInventory = usesSubnetInventory;
     }
 
     public SubnetInfo getSubnet() {
@@ -45,42 +65,58 @@ public class SubnetConnectionRow {
         return connectionIndex;
     }
 
-    public int getFilterStartIndex() {
-        return filterStartIndex;
+    public int getStartIndex() {
+        return startIndex;
     }
 
-    public boolean isFirstRowForConnection() {
-        return isFirstRowForConnection;
-    }
-
-    /**
-     * Get the filter item at the given slot index (0-8 for this row).
-     * @param slotIndex Slot index within this row (0-8)
-     * @return The filter item, or EMPTY if none
-     */
-    public ItemStack getFilterAt(int slotIndex) {
-        int actualIndex = filterStartIndex + slotIndex;
-
-        if (actualIndex < connection.getFilter().size()) {
-            return connection.getFilter().get(actualIndex);
-        }
-
-        return ItemStack.EMPTY;
+    public boolean isFirstRow() {
+        return isFirstRow;
     }
 
     /**
-     * Get the total number of filter items in this connection.
+     * Whether this row displays partition data (storage bus filter config).
+     * False means this row displays content data (items flowing through connection).
      */
-    public int getTotalFilterCount() {
-        return connection.getFilter().size();
+    public boolean isPartitionRow() {
+        return isPartitionRow;
     }
 
     /**
-     * Get the number of filter items displayed in this row (up to 9).
+     * Whether this row's content comes from the subnet's aggregated ME storage inventory
+     * rather than from the per-connection content.
+     * Only meaningful for content rows (isPartitionRow=false) on outbound connections.
      */
-    public int getFilterCountInRow() {
-        int remaining = connection.getFilter().size() - filterStartIndex;
+    public boolean usesSubnetInventory() {
+        return usesSubnetInventory;
+    }
 
-        return Math.min(remaining, 9);
+    /**
+     * Get the items for this row's data source.
+     * <ul>
+     *   <li>Partition rows → connection partition</li>
+     *   <li>Content rows with subnet inventory → subnet's ME storage</li>
+     *   <li>Content rows without subnet inventory → connection's content</li>
+     * </ul>
+     */
+    public List<ItemStack> getItems() {
+        if (isPartitionRow) return connection.getPartition();
+        if (usesSubnetInventory) return subnet.getInventory();
+
+        return connection.getContent();
+    }
+
+    /**
+     * Get the total number of items (in the relevant list, content or partition).
+     */
+    public int getTotalItemCount() {
+        return getItems().size();
+    }
+
+    /**
+     * Get the max number of slots available for partition editing.
+     * Content has no meaningful max (backend decides).
+     */
+    public int getMaxSlots() {
+        return isPartitionRow ? connection.getMaxPartitionSlots() : Integer.MAX_VALUE;
     }
 }

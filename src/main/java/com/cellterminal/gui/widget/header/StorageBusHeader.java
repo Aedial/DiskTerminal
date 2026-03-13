@@ -8,6 +8,7 @@ import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.renderer.RenderItem;
 
 import com.cellterminal.gui.GuiConstants;
+import com.cellterminal.gui.PriorityFieldManager;
 import com.cellterminal.gui.widget.button.ButtonType;
 import com.cellterminal.gui.widget.button.SmallButton;
 
@@ -72,13 +73,6 @@ public class StorageBusHeader extends StorageHeader {
         this.onIOModeClick = callback;
     }
 
-    /**
-     * Whether the IO mode button is currently hovered.
-     */
-    public boolean isIOModeHovered() {
-        return ioModeHovered;
-    }
-
     // ---- Rendering ----
 
     @Override
@@ -96,6 +90,12 @@ public class StorageBusHeader extends StorageHeader {
 
         // Draw upgrade cards (from AbstractHeader)
         if (cardsDisplay != null) cardsDisplay.draw(mouseX, mouseY);
+
+        // Register priority field with the singleton (positions it for this frame)
+        if (prioritizable != null && prioritizable.supportsPriority()) {
+            PriorityFieldManager.getInstance().registerField(
+                prioritizable, y, guiLeft, guiTop, fontRenderer);
+        }
 
         // Return the hover right bound (up to IO mode button area)
         return GuiConstants.BUTTON_IO_MODE_X;

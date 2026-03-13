@@ -30,7 +30,6 @@ import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.handler.JeiGhostHandler;
 import com.cellterminal.gui.handler.TerminalDataManager;
-import com.cellterminal.gui.rename.Renameable;
 import com.cellterminal.gui.handler.QuickPartitionHandler;
 import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.gui.widget.CardsDisplay;
@@ -134,38 +133,6 @@ public class TempAreaTabWidget extends AbstractTabWidget {
             guiContext.getSelectedTempCellSlots(),
             guiContext.getSlotUnderMouse(),
             getLines(guiContext.getDataManager()));
-    }
-
-    // ---- Rename support ----
-
-    @Override
-    protected Renameable resolveRenameable(Object data, int relMouseX) {
-        // TempCellInfo header → delegate to inner CellInfo
-        if (data instanceof TempCellInfo) {
-            TempCellInfo tempCell = (TempCellInfo) data;
-            if (tempCell.getCellInfo() != null) return tempCell.getCellInfo();
-        }
-
-        return null;
-    }
-
-    @Override
-    public int getRenameFieldX(Renameable target) {
-        // Temp area header names are drawn at HEADER_NAME_X, not CELL_INDENT
-        // HEADER_NAME_X = GUI_INDENT + 20 = 42, minus 2 for field padding
-        return GuiConstants.HEADER_NAME_X - 2;
-    }
-
-    @Override
-    public int getRenameFieldYOffset(Renameable target) {
-        // TempAreaHeader draws name at y+5 instead of y+1, so offset by 4
-        return 4;
-    }
-
-    @Override
-    public int getRenameFieldRightEdge(Renameable target) {
-        // Temp area has send button, so stop the rename field before that
-        return TempAreaHeader.SEND_BUTTON_X - 4;
     }
 
     // ---- JEI ghost targets ----
@@ -294,21 +261,40 @@ public class TempAreaTabWidget extends AbstractTabWidget {
                         // First partition row after content: draw horizontal line and button, but NO vertical line
                         // Set lineAboveCutY to row's own junction so vertical line has zero length
                         line.setTreeLineParams(true, line.getY() + 5);
-                        lastPartitionCutY = line.getTreeLineCutY();
                     } else {
                         // Continuation partition row: draw tree line connecting to previous partition
                         line.setTreeLineParams(true, lastPartitionCutY);
-                        lastPartitionCutY = line.getTreeLineCutY();
                     }
                 } else if (i == 0 && hasContentAbove) {
                     // First visible row with content above
                     line.setTreeLineParams(true, GuiConstants.CONTENT_START_Y);
-                    lastContentCutY = line.getTreeLineCutY();
                 } else {
                     line.setTreeLineParams(true, lastContentCutY);
-                    lastContentCutY = line.getTreeLineCutY();
                 }
+
+                lastPartitionCutY = line.getTreeLineCutY();
             }
+        }
+
+        // Draw a bottom continuation line if there is more content of the SAME TYPE
+        // below the visible window. Don't draw between content→partition transitions,
+        // as they are separate tree branches.
+        int lastVisibleIndex = scrollOffset + visibleRows.size() - 1;
+        boolean nextIsContent = lastVisibleIndex + 1 < allLines.size()
+            && isContentLine(allLines, lastVisibleIndex + 1);
+
+        if (nextIsContent) {
+            boolean lastIsPartition = isPartitionRow(allLines, lastVisibleIndex);
+            boolean nextIsPartition = isPartitionRow(allLines, lastVisibleIndex + 1);
+
+            // Only continue the line if both rows are the same type (both content or both partition)
+            if (lastIsPartition == nextIsPartition) {
+                bottomContinuationFromY = lastIsPartition ? lastPartitionCutY : lastContentCutY;
+            } else {
+                bottomContinuationFromY = -1;
+            }
+        } else {
+            bottomContinuationFromY = -1;
         }
     }
 
@@ -330,18 +316,24 @@ public class TempAreaTabWidget extends AbstractTabWidget {
             if (cards != null) header.setCardsDisplay(cards);
         }
 
-        // Cell slot click (insert/extract cell)
+        // Cell slot click (insert/extract/swap cell)
         header.setCellSlotCallback(button -> {
             if (button != 0) return;
 
             ItemStack heldStack = guiContext.getHeldStack();
             if (tempCell.isEmpty() && !heldStack.isEmpty()) {
+                // Empty slot + holding cell = insert
                 guiContext.sendPacket(new PacketTempCellAction(
                     PacketTempCellAction.Action.INSERT, tempCell.getTempSlotIndex()));
             } else if (!tempCell.isEmpty() && heldStack.isEmpty()) {
+                // Occupied slot + empty hand = extract
                 boolean toInventory = guiContext.isShiftDown();
                 guiContext.sendPacket(new PacketTempCellAction(
                     PacketTempCellAction.Action.EXTRACT, tempCell.getTempSlotIndex(), toInventory));
+            } else if (!tempCell.isEmpty() && !heldStack.isEmpty()) {
+                // Occupied slot + holding cell = swap
+                guiContext.sendPacket(new PacketTempCellAction(
+                    PacketTempCellAction.Action.SWAP, tempCell.getTempSlotIndex()));
             }
         });
 
@@ -350,10 +342,11 @@ public class TempAreaTabWidget extends AbstractTabWidget {
             guiContext.sendPacket(new PacketTempCellAction(
                 PacketTempCellAction.Action.SEND, tempCell.getTempSlotIndex())));
 
-        // Name click (rename) - y + 4 so field background (editingY + 1) aligns with name at y + 5
+        // Name click (rename): header handles right-click directly via InlineRenameManager
+        // yOffset = 4 so field background (editingY + 1) aligns with name at y + 5
         if (cellInfo != null) {
-            header.setOnNameClick(() -> guiContext.startInlineRename(cellInfo,
-                y + 4, getRenameFieldX(cellInfo), getRenameFieldRightEdge(cellInfo)));
+            header.setRenameInfo(cellInfo, GuiConstants.HEADER_NAME_X - 2, 4,
+                TempAreaHeader.SEND_BUTTON_X - 4);
         }
 
         // Header selection for quick-add
@@ -479,7 +472,7 @@ public class TempAreaTabWidget extends AbstractTabWidget {
             line.setCountProvider(() -> cell::getContentCount);
         } else {
             line.setItemsSupplier(cell::getPartition);
-            line.setMaxSlots(GuiConstants.MAX_CELL_PARTITION_SLOTS);
+            line.setMaxSlots((int) cell.getTotalTypes());
         }
 
         line.setSlotClickCallback((slotIndex, mouseButton) -> {
@@ -520,9 +513,11 @@ public class TempAreaTabWidget extends AbstractTabWidget {
             return;
         }
 
+        int tempSlotIndex = findTempSlotIndexForCell(cell);
+        if (tempSlotIndex < 0) return;
+
         boolean toInventory = Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT);
-        guiContext.sendPacket(PacketExtractUpgrade.forCell(
-            cell.getParentStorageId(), cell.getSlot(), upgradeSlotIndex, toInventory));
+        guiContext.sendPacket(PacketExtractUpgrade.forTempCell(tempSlotIndex, upgradeSlotIndex, toInventory));
     }
 
     // ---- Keybind handling ----
@@ -663,6 +658,59 @@ public class TempAreaTabWidget extends AbstractTabWidget {
         }
 
         return null;
+    }
+
+    // ---- Upgrade support ----
+
+    @Override
+    public boolean handleUpgradeClick(Object hoveredData, ItemStack heldStack, boolean isShiftClick) {
+        // Handle TempCellInfo (header) - specific temp cell slot
+        if (hoveredData instanceof TempCellInfo) {
+            TempCellInfo tempCell = (TempCellInfo) hoveredData;
+            CellInfo cellInfo = tempCell.getCellInfo();
+            if (cellInfo == null || !cellInfo.canAcceptUpgrade(heldStack)) return false;
+
+            guiContext.sendPacket(new PacketTempCellAction(
+                PacketTempCellAction.Action.UPGRADE, tempCell.getTempSlotIndex()));
+
+            return true;
+        }
+
+        // Handle CellContentRow (content/partition row) - find parent temp cell
+        if (hoveredData instanceof CellContentRow) {
+            CellInfo cell = ((CellContentRow) hoveredData).getCell();
+            if (cell == null || !cell.canAcceptUpgrade(heldStack)) return false;
+
+            int tempSlotIndex = findTempSlotIndexForCell(cell);
+            if (tempSlotIndex < 0) return false;
+
+            guiContext.sendPacket(new PacketTempCellAction(
+                PacketTempCellAction.Action.UPGRADE, tempSlotIndex));
+
+            return true;
+        }
+
+        return false;
+    }
+
+    @Override
+    public boolean handleShiftUpgradeClick(ItemStack heldStack) {
+        // Shift-click with upgrade: server finds first temp cell that can accept
+        guiContext.sendPacket(new PacketTempCellAction(
+            PacketTempCellAction.Action.UPGRADE, -1, true));
+
+        return true;
+    }
+
+    @Override
+    public boolean handleInventorySlotShiftClick(ItemStack upgradeStack, int sourceSlotIndex) {
+        // Delegate entirely to the server: send tempSlotIndex=-1 so the server
+        // iterates all temp cells and finds the first one that can actually accept
+        // the upgrade, avoiding client-side mispredictions.
+        guiContext.sendPacket(new PacketTempCellAction(
+            PacketTempCellAction.Action.UPGRADE, -1, sourceSlotIndex));
+
+        return true;
     }
 
     // ---- Helpers ----

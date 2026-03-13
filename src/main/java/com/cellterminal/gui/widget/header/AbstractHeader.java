@@ -10,6 +10,8 @@ import net.minecraft.client.renderer.RenderItem;
 import net.minecraft.item.ItemStack;
 
 import com.cellterminal.gui.GuiConstants;
+import com.cellterminal.gui.rename.InlineRenameManager;
+import com.cellterminal.gui.rename.Renameable;
 import com.cellterminal.gui.widget.AbstractWidget;
 import com.cellterminal.gui.widget.CardsDisplay;
 import com.cellterminal.gui.widget.DoubleClickTracker;
@@ -36,8 +38,9 @@ import com.cellterminal.gui.widget.DoubleClickTracker;
  * {@link #getConnectorY()} as its {@code lineAboveCutY}.
  *
  * <h3>Priority field</h3>
- * Priority fields are managed externally by PriorityFieldManager. The header
- * does not own or render the field; it only reserves visual space for it.
+ * Subclasses that support priority (e.g., {@link StorageHeader}) register their
+ * field with the {@link com.cellterminal.gui.PriorityFieldManager} singleton
+ * during draw. The base header does not handle priority fields directly.
  *
  * @see StorageHeader
  * @see StorageBusHeader
@@ -66,8 +69,17 @@ public abstract class AbstractHeader extends AbstractWidget {
     /** Maximum pixel width for name text before truncation */
     protected int nameMaxWidth = GuiConstants.HEADER_NAME_MAX_WIDTH;
 
-    /** Callback when the name area is clicked (for rename) */
-    protected Runnable onNameClick;
+    /** Renameable target for right-click rename (null if this header is not renameable) */
+    protected Renameable renameable;
+
+    /** Rename field X position (text field start) */
+    protected int renameFieldX;
+
+    /** Rename field Y offset relative to the row Y position */
+    protected int renameFieldYOffset;
+
+    /** Rename field right edge (stops before buttons) */
+    protected int renameFieldRightEdge;
 
     /** Callback when the name area is double-clicked (for highlight in world) */
     protected Runnable onNameDoubleClick;
@@ -112,12 +124,20 @@ public abstract class AbstractHeader extends AbstractWidget {
         this.drawConnector = drawConnector;
     }
 
-    public void setNameMaxWidth(int maxWidth) {
-        this.nameMaxWidth = maxWidth;
-    }
-
-    public void setOnNameClick(Runnable callback) {
-        this.onNameClick = callback;
+    /**
+     * Set the rename info for this header. When the name area is right-clicked,
+     * the header triggers InlineRenameManager directly.
+     *
+     * @param target The renameable data object
+     * @param fieldX The X position for the rename text field
+     * @param yOffset The Y offset relative to the row's Y position (0 for most tabs, 4 for TempArea)
+     * @param fieldRightEdge The right edge for the rename text field
+     */
+    public void setRenameInfo(Renameable target, int fieldX, int yOffset, int fieldRightEdge) {
+        this.renameable = target;
+        this.renameFieldX = fieldX;
+        this.renameFieldYOffset = yOffset;
+        this.renameFieldRightEdge = fieldRightEdge;
     }
 
     /**
@@ -133,15 +153,6 @@ public abstract class AbstractHeader extends AbstractWidget {
     public void setOnNameDoubleClick(Runnable callback, long targetId) {
         this.onNameDoubleClick = callback;
         this.doubleClickTargetId = targetId;
-    }
-
-    /**
-     * Set the callback for double-clicking the name area (for highlight in world).
-     * @deprecated Use {@link #setOnNameDoubleClick(Runnable, long)} instead for proper tracking
-     */
-    @Deprecated
-    public void setOnNameDoubleClick(Runnable callback) {
-        this.onNameDoubleClick = callback;
     }
 
     /**
@@ -168,21 +179,29 @@ public abstract class AbstractHeader extends AbstractWidget {
         this.cardsDisplay = cards;
     }
 
+    // ---- Hover detection ----
+
+    /**
+     * Extend hover detection to include the CardsDisplay overflow area.
+     * <p>
+     * When a header has more upgrade cards than fit in a single row height
+     * (e.g. 5 cards = 3 rows × 9px = 27px, but ROW_HEIGHT is only 18px),
+     * the overflow cards extend below the header's standard bounds.
+     * Without this override, {@link com.cellterminal.gui.widget.tab.AbstractTabWidget#handleClick}
+     * (which iterates in reverse order and checks isHovered first) would skip
+     * the header for clicks in the overflow area, making those cards unclickable.
+     */
+    @Override
+    public boolean isHovered(int mouseX, int mouseY) {
+        if (super.isHovered(mouseX, mouseY)) return true;
+
+        // Check if the mouse is over an overflow card below the header's standard bounds
+        if (cardsDisplay != null && cardsDisplay.isHovered(mouseX, mouseY)) return true;
+
+        return false;
+    }
+
     // ---- Accessors ----
-
-    /**
-     * Whether the header area is currently hovered (for click targeting by parent).
-     */
-    public boolean isHeaderHovered() {
-        return headerHovered;
-    }
-
-    /**
-     * Whether the name text is currently hovered (for rename interaction).
-     */
-    public boolean isNameHovered() {
-        return nameHovered;
-    }
 
     /**
      * Get the Y position of the tree connector at the bottom of this header.
@@ -277,9 +296,8 @@ public abstract class AbstractHeader extends AbstractWidget {
 
         fontRenderer.drawString(displayName, GuiConstants.HEADER_NAME_X, y + 1, nameColor);
 
-        // Check name hover for rename interaction
-        int nameWidth = fontRenderer.getStringWidth(displayName);
-        if (mouseX >= GuiConstants.HEADER_NAME_X && mouseX < GuiConstants.HEADER_NAME_X + nameWidth
+        // Check name hover for rename interaction - use full name area for easier clicking
+        if (mouseX >= GuiConstants.HEADER_NAME_X && mouseX < GuiConstants.HEADER_NAME_X + nameMaxWidth
             && mouseY >= y + 1 && mouseY < y + 10) {
             nameHovered = true;
         }
@@ -291,9 +309,10 @@ public abstract class AbstractHeader extends AbstractWidget {
     public boolean handleClick(int mouseX, int mouseY, int button) {
         if (!visible) return false;
 
-        // Name click for rename (right-click only)
-        if (button == 1 && nameHovered && onNameClick != null) {
-            onNameClick.run();
+        // Name right-click for rename
+        if (button == 1 && nameHovered && renameable != null && renameable.isRenameable()) {
+            InlineRenameManager.getInstance().startEditing(
+                renameable, y + renameFieldYOffset, renameFieldX, renameFieldRightEdge);
             return true;
         }
 

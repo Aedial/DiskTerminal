@@ -91,29 +91,6 @@ public class PartCellTerminal extends AbstractPartDisplay implements IAEAppEngIn
         return this.tempCellInventory;
     }
 
-    /**
-     * Get the number of currently stored temp cells.
-     */
-    public int getTempCellCount() {
-        int count = 0;
-        for (int i = 0; i < tempCellInventory.getSlots(); i++) {
-            if (!tempCellInventory.getStackInSlot(i).isEmpty()) count++;
-        }
-
-        return count;
-    }
-
-    /**
-     * Get the first empty slot index, or -1 if full.
-     */
-    public int getFirstEmptyTempSlot() {
-        for (int i = 0; i < tempCellInventory.getSlots(); i++) {
-            if (tempCellInventory.getStackInSlot(i).isEmpty()) return i;
-        }
-
-        return -1;
-    }
-
     @Override
     public IItemHandler getInventoryByName(String name) {
         if ("tempCells".equals(name)) return this.tempCellInventory;

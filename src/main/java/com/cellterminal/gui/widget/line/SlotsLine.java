@@ -187,39 +187,6 @@ public class SlotsLine extends AbstractLine {
         this.guiTop = guiTop;
     }
 
-    public void setStartIndex(int startIndex) {
-        this.startIndex = startIndex;
-    }
-
-    public int getStartIndex() {
-        return startIndex;
-    }
-
-    /**
-     * Get the hovered slot index (absolute in data), or -1 if none.
-     */
-    public int getHoveredSlotIndex() {
-        return hoveredSlotIndex;
-    }
-
-    /**
-     * Get the hovered item stack, or EMPTY.
-     */
-    public ItemStack getHoveredStack() {
-        return hoveredStack;
-    }
-
-    /**
-     * Get the absolute screen position of the hovered slot for tooltip display.
-     */
-    public int getHoveredAbsX() {
-        return hoveredAbsX;
-    }
-
-    public int getHoveredAbsY() {
-        return hoveredAbsY;
-    }
-
     /**
      * Get the JEI partition slot targets accumulated during the last draw.
      * Only populated in PARTITION mode.
@@ -340,8 +307,13 @@ public class SlotsLine extends AbstractLine {
     protected void drawPartitionSlots(int mouseX, int mouseY) {
         List<ItemStack> partition = itemsSupplier != null ? itemsSupplier.get() : Collections.emptyList();
 
-        for (int x = slotsXOffset; x < slotsXOffset + (slotsPerRow * SIZE); x += SIZE) {
-            drawPartitionSlotBackground(x, y);
+        // Only draw slot backgrounds for slots that are within the valid range
+        for (int i = 0; i < slotsPerRow; i++) {
+            int absIndex = startIndex + i;
+            if (absIndex >= maxSlots) break;
+
+            int slotBgX = slotsXOffset + (i * SIZE);
+            drawPartitionSlotBackground(slotBgX, y);
         }
 
         for (int i = 0; i < slotsPerRow; i++) {

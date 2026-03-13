@@ -38,6 +38,7 @@ public interface ISubnetScanner {
      * @param out NBTTagList to append subnet connection data to
      * @param trackerMap Map to populate with subnet trackers for server-side operations
      * @param playerId The player ID for security permission checks
+     * @param slotLimit Maximum number of inventory item types to include per subnet
      */
-    void scanSubnets(IGrid grid, NBTTagList out, Map<Long, SubnetTracker> trackerMap, int playerId);
+    void scanSubnets(IGrid grid, NBTTagList out, Map<Long, SubnetTracker> trackerMap, int playerId, int slotLimit);
 }

@@ -19,18 +19,6 @@ import com.cellterminal.container.handler.CellDataHandler;
  */
 public abstract class AbstractStorageScanner implements IStorageScanner {
 
-
-    /**
-     * Maximum number of config/partition slots.
-     * This is the standard AE2 limit for both cells and storage buses.
-     */
-    public static final int MAX_PARTITION_SLOTS = 63;
-
-    /**
-     * Number of content slots per row for cell displays.
-     */
-    public static final int CELL_SLOTS_PER_ROW = 8;
-
     @Override
     public abstract String getId();
 

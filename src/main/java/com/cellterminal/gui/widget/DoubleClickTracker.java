@@ -84,6 +84,15 @@ public final class DoubleClickTracker {
     }
 
     /**
+     * Generate a unique target ID for a subnet.
+     * Uses a distinct negative range (offset by Long.MIN_VALUE/2) to avoid
+     * collision with storageBusTargetId which uses -id - 1.
+     */
+    public static long subnetTargetId(long subnetId) {
+        return Long.MIN_VALUE / 2 - subnetId;
+    }
+
+    /**
      * Reset the tracker state (e.g., when closing GUI).
      */
     public static void reset() {

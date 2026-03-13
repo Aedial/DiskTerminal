@@ -45,10 +45,7 @@ public final class SafeMath {
      * @return true if a + b would overflow a long
      */
     public static boolean wouldOverflow(final long a, final long b) {
-        if (b > 0 && a > Long.MAX_VALUE - b) return true;
-        if (b < 0 && a < Long.MIN_VALUE - b) return true;
-
-        return false;
+        return (b > 0 && a > Long.MAX_VALUE - b) || (b < 0 && a < Long.MIN_VALUE - b);
     }
 
     /**

@@ -209,6 +209,14 @@ public class CellTerminalNetwork {
             Side.SERVER
         );
 
+        // Client -> Server: Subnet connection partition editing
+        INSTANCE.registerMessage(
+            PacketSubnetPartitionAction.Handler.class,
+            PacketSubnetPartitionAction.class,
+            packetId++,
+            Side.SERVER
+        );
+
         // Server -> Client: GUI-safe feedback messages (overlay + chat)
         INSTANCE.registerMessage(
             PacketPlayerFeedback.Handler.class,

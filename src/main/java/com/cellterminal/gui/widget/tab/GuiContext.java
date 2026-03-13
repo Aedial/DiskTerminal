@@ -4,12 +4,10 @@ import java.util.Set;
 
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.BlockPos;
 
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.gui.handler.TerminalDataManager;
-import com.cellterminal.gui.rename.Renameable;
-
-import net.minecraft.util.math.BlockPos;
 
 
 /**
@@ -19,7 +17,7 @@ import net.minecraft.util.math.BlockPos;
  * Tab widgets use this to communicate upward to the GUI for actions that require
  * GUI-level state (scrollbar, popups, modals, network packets).
  * <p>
- * The intent is to keep this as small as possible — each tab should handle its own
+ * The intent is to keep this as small as possible: each tab should handle its own
  * logic internally whenever feasible, and only call back to the GUI for truly
  * shared operations (sending network packets, opening popups, etc.).
  */
@@ -57,12 +55,6 @@ public interface GuiContext {
 
     /** Open a partition preview popup for a cell. */
     void openPartitionPopup(CellInfo cell);
-
-    /** Start inline rename editing for a renameable target at the given row position. */
-    void startInlineRename(Renameable target, int rowY, int renameX, int renameRightEdge);
-
-    /** Send a rename packet for any renameable target. */
-    void sendRenamePacket(Renameable target, String newName);
 
     /** Show an overlay error message. */
     void showError(String translationKey, Object... args);

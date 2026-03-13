@@ -17,8 +17,8 @@ import com.cellterminal.client.SearchFilterMode;
 import com.cellterminal.client.StorageInfo;
 import com.cellterminal.client.TabStateManager;
 import com.cellterminal.gui.GuiConstants;
+import com.cellterminal.gui.PriorityFieldManager;
 import com.cellterminal.gui.handler.TerminalDataManager;
-import com.cellterminal.gui.rename.Renameable;
 import com.cellterminal.gui.widget.CardsDisplay;
 import com.cellterminal.gui.widget.DoubleClickTracker;
 import com.cellterminal.gui.widget.IWidget;
@@ -134,8 +134,10 @@ public class TerminalTabWidget extends AbstractTabWidget {
         header.setExpandedSupplier(() ->
             TabStateManager.getInstance().isExpanded(TabStateManager.TabType.TERMINAL, storage.getId()));
 
-        header.setOnNameClick(() -> guiContext.startInlineRename(storage,
-            y, getRenameFieldX(storage), getRenameFieldRightEdge(storage)));
+        // Rename info: header handles right-click directly via InlineRenameManager
+        int renameRightEdge = GuiConstants.CONTENT_RIGHT_EDGE
+            - PriorityFieldManager.FIELD_WIDTH - PriorityFieldManager.RIGHT_MARGIN - 4;
+        header.setRenameInfo(storage, GuiConstants.GUI_INDENT + 20 - 2, 0, renameRightEdge);
         header.setOnNameDoubleClick(() -> guiContext.highlightInWorld(
             storage.getPos(), storage.getDimension(), storage.getName()),
             DoubleClickTracker.storageTargetId(storage.getId()));
@@ -143,6 +145,10 @@ public class TerminalTabWidget extends AbstractTabWidget {
             TabStateManager.getInstance().toggleExpanded(TabStateManager.TabType.TERMINAL, storage.getId());
             guiContext.rebuildAndUpdateScrollbar();
         });
+
+        // Priority field: header registers its own field with the singleton during draw
+        header.setPrioritizable(storage);
+        header.setGuiOffsets(guiLeft, guiTop);
 
         return header;
     }
@@ -164,6 +170,9 @@ public class TerminalTabWidget extends AbstractTabWidget {
         CardsDisplay cards = createCellCards(cell, y);
         if (cards != null) line.setCardsDisplay(cards);
 
+        // Rename info: line handles right-click directly via InlineRenameManager
+        line.setRenameInfo(cell, GuiConstants.CELL_INDENT + 18 - 2, GuiConstants.BUTTON_EJECT_X - 4);
+
         // Wire up action callbacks directly to GuiContext
         line.setCallback(new TerminalLine.TerminalLineCallback() {
             @Override
@@ -180,12 +189,6 @@ public class TerminalTabWidget extends AbstractTabWidget {
             @Override
             public void onPartitionClicked() {
                 guiContext.openPartitionPopup(cell);
-            }
-
-            @Override
-            public void onNameClicked() {
-                guiContext.startInlineRename(cell,
-                    y, getRenameFieldX(cell), getRenameFieldRightEdge(cell));
             }
 
             @Override
@@ -251,26 +254,5 @@ public class TerminalTabWidget extends AbstractTabWidget {
     @Override
     public String getTabTooltip() {
         return I18n.format("gui.cellterminal.tab.terminal.tooltip");
-    }
-
-    @Override
-    protected Renameable resolveRenameable(Object data, int relMouseX) {
-        if (data instanceof StorageInfo && relMouseX < GuiConstants.BUTTON_PARTITION_X) {
-            return (StorageInfo) data;
-        }
-
-        if (data instanceof CellInfo && relMouseX < GuiConstants.BUTTON_EJECT_X) {
-            return (CellInfo) data;
-        }
-
-        return null;
-    }
-
-    @Override
-    public int getRenameFieldRightEdge(Renameable target) {
-        // Cells on terminal tab have E/I/P buttons starting at BUTTON_EJECT_X
-        if (target instanceof CellInfo) return GuiConstants.BUTTON_EJECT_X - 4;
-
-        return super.getRenameFieldRightEdge(target);
     }
 }

@@ -107,13 +107,15 @@ public class CardsDisplay extends AbstractWidget {
             int iconX = x + col * CARD_STRIDE;
             int iconY = y + row * CARD_STRIDE;
 
-            renderSmallItemStack(entry.stack, iconX, iconY);
+            if (!entry.stack.isEmpty()) {
+                renderSmallItemStack(entry.stack, iconX, iconY);
 
-            // Check hover (using 8x8 icon bounds)
-            if (mouseX >= iconX && mouseX < iconX + CARD_ICON_SIZE
-                && mouseY >= iconY && mouseY < iconY + CARD_ICON_SIZE) {
-                hoveredCardIndex = entry.slotIndex;
-                hoveredCardStack = entry.stack;
+                // Check hover (using 8x8 icon bounds) - only for non-empty cards
+                if (mouseX >= iconX && mouseX < iconX + CARD_ICON_SIZE
+                    && mouseY >= iconY && mouseY < iconY + CARD_ICON_SIZE) {
+                    hoveredCardIndex = entry.slotIndex;
+                    hoveredCardStack = entry.stack;
+                }
             }
         }
     }
@@ -136,7 +138,11 @@ public class CardsDisplay extends AbstractWidget {
         if (cards.isEmpty()) return false;
 
         // Check each individual card's bounds in the 2-column grid
+        // Only non-empty cards are hoverable (empty slots are just visual placeholders)
         for (int i = 0; i < cards.size(); i++) {
+            CardEntry entry = cards.get(i);
+            if (entry.stack.isEmpty()) continue;
+
             int col = i % COLUMNS;
             int row = i / COLUMNS;
             int iconX = x + col * CARD_STRIDE;
@@ -162,20 +168,6 @@ public class CardsDisplay extends AbstractWidget {
         lines.add("§b" + I18n.format("gui.cellterminal.upgrade.shift_click_inventory"));
 
         return lines;
-    }
-
-    /**
-     * Get the currently hovered card index, or -1 if none.
-     */
-    public int getHoveredCardIndex() {
-        return hoveredCardIndex;
-    }
-
-    /**
-     * Get the currently hovered card ItemStack, or EMPTY if none.
-     */
-    public ItemStack getHoveredCardStack() {
-        return hoveredCardStack;
     }
 
     private void renderSmallItemStack(ItemStack stack, int renderX, int renderY) {
