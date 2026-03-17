@@ -4,14 +4,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
-import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderItem;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.ResourceLocation;
 
 import com.cellterminal.gui.GuiConstants;
 
@@ -53,8 +50,6 @@ public class TempAreaHeader extends AbstractHeader {
     private static final int MAX_NAME_WIDTH = SEND_BUTTON_X - GuiConstants.HEADER_NAME_X - 4;
 
     private static final int SIZE = GuiConstants.MINI_SLOT_SIZE;
-    private static final ResourceLocation TEXTURE =
-        new ResourceLocation("cellterminal", "textures/guis/atlas.png");
 
     /** Supplier for whether a cell is inserted in this slot */
     private Supplier<Boolean> hasCellSupplier;
@@ -309,16 +304,10 @@ public class TempAreaHeader extends AbstractHeader {
     // ---- Slot rendering helpers ----
 
     private void drawSlotBackground(int slotX, int slotY) {
-        Minecraft.getMinecraft().getTextureManager().bindTexture(TEXTURE);
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        GlStateManager.enableBlend();
-
         // Mini slot: left half of slot (y uv 0-15)
         int texX = GuiConstants.MINI_SLOT_X;
         int texY = GuiConstants.MINI_SLOT_Y;
-        Gui.drawScaledCustomSizeModalRect(
-            slotX, slotY, texX, texY, SIZE, SIZE, SIZE, SIZE,
-            GuiConstants.ATLAS_WIDTH, GuiConstants.ATLAS_HEIGHT);
+        GuiConstants.drawAtlasSprite(slotX, slotY, texX, texY, SIZE, SIZE);
     }
 
     private void drawSlotHoverHighlight(int slotX, int slotY) {

@@ -14,7 +14,6 @@ import net.minecraft.client.resources.I18n;
 import net.minecraft.enchantment.EnchantmentData;
 import net.minecraft.item.ItemEnchantedBook;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidUtil;
 
@@ -28,6 +27,7 @@ import mezz.jei.api.gui.IGhostIngredientHandler;
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.gui.widget.AbstractWidget;
+import com.cellterminal.integration.MekanismEnergisticsIntegration;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketPartitionAction;
@@ -46,9 +46,6 @@ public class PopupCellPartition extends Gui {
     private static final int HEADER_HEIGHT = GuiConstants.POPUP_HEADER_HEIGHT;
     private static final int FOOTER_HEIGHT = GuiConstants.POPUP_FOOTER_HEIGHT;
     private static final int MAX_PARTITION_SLOTS = SLOTS_PER_ROW * MAX_ROWS;
-
-    private static final ResourceLocation TEXTURE =
-        new ResourceLocation("cellterminal", "textures/guis/atlas.png");
 
     private final GuiScreen parent;
     private final CellInfo cell;
@@ -220,6 +217,18 @@ public class PopupCellPartition extends Gui {
         if (ingredient instanceof ItemStack) {
             ItemStack itemStack = (ItemStack) ingredient;
 
+            // For gas cells, try to extract gas from containers
+            if (cell.isGas()) {
+                ItemStack gasRep = MekanismEnergisticsIntegration.tryConvertGasContainerToGas(itemStack);
+
+                if (!gasRep.isEmpty()) return gasRep;
+
+                // If it's not a gas container, reject it
+                MessageHelper.error("cellterminal.error.gas_cell_item");
+
+                return ItemStack.EMPTY;
+            }
+
             // For essentia cells, try to extract essentia from containers (phials, jars, etc.)
             if (cell.isEssentia()) {
                 ItemStack essentiaRep = ThaumicEnergisticsIntegration.tryConvertEssentiaContainerToAspect(itemStack);
@@ -255,6 +264,12 @@ public class PopupCellPartition extends Gui {
 
         // FluidStack - from JEI fluid entries
         if (ingredient instanceof FluidStack) {
+            if (cell.isGas()) {
+                MessageHelper.error("cellterminal.error.gas_cell_fluid");
+
+                return ItemStack.EMPTY;
+            }
+
             if (cell.isEssentia()) {
                 MessageHelper.error("cellterminal.error.essentia_cell_fluid");
 
@@ -279,7 +294,10 @@ public class PopupCellPartition extends Gui {
         // EnchantmentData - JEI's deprecated hack for enchanted books (removed in 1.13+)
         if (ingredient instanceof EnchantmentData) {
             if (!cell.isItem()) {
-                MessageHelper.error(cell.isFluid() ? "cellterminal.error.fluid_cell_item" : "cellterminal.error.essentia_cell_item");
+                String errorKey = cell.isFluid() ? "cellterminal.error.fluid_cell_item"
+                    : cell.isGas() ? "cellterminal.error.gas_cell_item"
+                    : "cellterminal.error.essentia_cell_item";
+                MessageHelper.error(errorKey);
 
                 return ItemStack.EMPTY;
             }
@@ -287,6 +305,20 @@ public class PopupCellPartition extends Gui {
             EnchantmentData enchantData = (EnchantmentData) ingredient;
 
             return ItemEnchantedBook.getEnchantedItemStack(enchantData);
+        }
+
+        // Gas ingredients from JEI (GasStack or IAEGasStack from MekanismEnergistics)
+        if (MekanismEnergisticsIntegration.isGasIngredient(ingredient)) {
+            if (!cell.isGas()) {
+                String errorKey = cell.isFluid() ? "cellterminal.error.fluid_cell_gas"
+                    : cell.isEssentia() ? "cellterminal.error.essentia_cell_gas"
+                    : "cellterminal.error.item_cell_gas";
+                MessageHelper.error(errorKey);
+
+                return ItemStack.EMPTY;
+            }
+
+            return MekanismEnergisticsIntegration.tryConvertJeiIngredientToGas(ingredient);
         }
 
         // Unknown ingredient type - reject silently (popup doesn't need logging)
@@ -437,27 +469,8 @@ public class PopupCellPartition extends Gui {
         return targets;
     }
 
-    public int getSlotAtPosition(int mouseX, int mouseY) {
-        int slotStartY = y + HEADER_HEIGHT;
-        int relX = mouseX - x - slotOffsetX;
-        int relY = mouseY - slotStartY;
-
-        if (relX >= 0 && relX < SLOTS_PER_ROW * SLOT_SIZE && relY >= 0 && relY < MAX_ROWS * SLOT_SIZE) {
-            int slotCol = relX / SLOT_SIZE;
-            int slotRow = relY / SLOT_SIZE;
-
-            return slotRow * SLOTS_PER_ROW + slotCol;
-        }
-
-        return -1;
-    }
-
     public CellInfo getCell() {
         return cell;
-    }
-
-    public List<ItemStack> getEditablePartition() {
-        return editablePartition;
     }
 
     public int getWidth() {
@@ -479,16 +492,10 @@ public class PopupCellPartition extends Gui {
     // ---- Drawing helpers (consistent with SlotsLine) ----
 
     private void drawPartitionSlotBackground(int slotX, int slotY) {
-        Minecraft.getMinecraft().getTextureManager().bindTexture(TEXTURE);
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        GlStateManager.enableBlend();
-
         // Use partition variant (right half of slot texture with amber tint)
         int texX = GuiConstants.SLOT_BACKGROUND_X + SLOT_SIZE;
         int texY = GuiConstants.SLOT_BACKGROUND_Y;
-        Gui.drawScaledCustomSizeModalRect(
-            slotX, slotY, texX, texY, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE,
-            GuiConstants.ATLAS_WIDTH, GuiConstants.ATLAS_HEIGHT);
+        GuiConstants.drawAtlasSprite(slotX, slotY, texX, texY, SLOT_SIZE);
     }
 
     private void drawSlotHoverHighlight(int slotX, int slotY) {

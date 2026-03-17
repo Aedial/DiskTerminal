@@ -11,6 +11,7 @@ public enum CellFilter {
     ITEM_CELLS("item_cells"),
     FLUID_CELLS("fluid_cells"),
     ESSENTIA_CELLS("essentia_cells"),
+    GAS_CELLS("gas_cells"),
     HAS_ITEMS("has_items"),
     PARTITIONED("partitioned");
 

@@ -5,13 +5,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderItem;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.ResourceLocation;
 
 import appeng.util.ReadableNumberConverter;
 
@@ -81,8 +79,6 @@ public class SlotsLine extends AbstractLine {
     }
 
     private static final int SIZE = GuiConstants.MINI_SLOT_SIZE;
-    private static final ResourceLocation TEXTURE =
-        new ResourceLocation("cellterminal", "textures/guis/atlas.png");
 
     protected final int slotsPerRow;
     protected final int slotsXOffset;
@@ -102,7 +98,7 @@ public class SlotsLine extends AbstractLine {
     /** Starting index into the data list for this row */
     protected int startIndex;
 
-    /** Maximum number of slots allowed (e.g., MAX_CELL_PARTITION_SLOTS) */
+    /** Maximum number of slots allowed */
     protected int maxSlots = Integer.MAX_VALUE;
 
     /** Absolute GUI position offsets for JEI target registration */
@@ -112,8 +108,6 @@ public class SlotsLine extends AbstractLine {
     // Hover tracking (computed during draw, consumed by tooltip/click)
     protected int hoveredSlotIndex = -1;
     protected ItemStack hoveredStack = ItemStack.EMPTY;
-    protected int hoveredAbsX;
-    protected int hoveredAbsY;
 
     // JEI targets accumulated during draw
     protected final List<PartitionSlotTarget> partitionTargets = new ArrayList<>();
@@ -172,14 +166,6 @@ public class SlotsLine extends AbstractLine {
 
     public void setMaxSlots(int maxSlots) {
         this.maxSlots = maxSlots;
-    }
-
-    /**
-     * Set whether to draw a horizontal separator line at the top of this row.
-     * Used for the first partition row in temp area to visually separate from content rows.
-     */
-    public void setDrawTopSeparator(boolean draw) {
-        this.drawTopSeparator = draw;
     }
 
     public void setGuiOffsets(int guiLeft, int guiTop) {
@@ -296,8 +282,6 @@ public class SlotsLine extends AbstractLine {
                 drawSlotHoverHighlight(slotX, y);
                 hoveredSlotIndex = absIndex;
                 hoveredStack = stack;
-                hoveredAbsX = guiLeft + mouseX;
-                hoveredAbsY = guiTop + mouseY;
             }
         }
     }
@@ -339,8 +323,6 @@ public class SlotsLine extends AbstractLine {
 
                 if (!partItem.isEmpty()) {
                     hoveredStack = partItem;
-                    hoveredAbsX = guiLeft + mouseX;
-                    hoveredAbsY = guiTop + mouseY;
                 }
             }
         }
@@ -349,28 +331,16 @@ public class SlotsLine extends AbstractLine {
     // ---- Drawing helpers ----
 
     protected void drawSlotBackground(int slotX, int slotY) {
-        Minecraft.getMinecraft().getTextureManager().bindTexture(TEXTURE);
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        GlStateManager.enableBlend();
-
         int texX = GuiConstants.MINI_SLOT_X;
         int texY = GuiConstants.MINI_SLOT_Y;
-        Gui.drawScaledCustomSizeModalRect(
-            slotX, slotY, texX, texY, SIZE, SIZE, SIZE, SIZE,
-            GuiConstants.ATLAS_WIDTH, GuiConstants.ATLAS_HEIGHT);
+        GuiConstants.drawAtlasSprite(slotX, slotY, texX, texY, SIZE, SIZE);
     }
 
     protected void drawPartitionSlotBackground(int slotX, int slotY) {
-        Minecraft.getMinecraft().getTextureManager().bindTexture(TEXTURE);
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        GlStateManager.enableBlend();
-
         // Partition variant uses the right half of the texture (x uv 16-31)
         int texX = GuiConstants.MINI_SLOT_X + SIZE;
         int texY = GuiConstants.MINI_SLOT_Y;
-        Gui.drawScaledCustomSizeModalRect(
-            slotX, slotY, texX, texY, SIZE, SIZE, SIZE, SIZE,
-            GuiConstants.ATLAS_WIDTH, GuiConstants.ATLAS_HEIGHT);
+        GuiConstants.drawAtlasSprite(slotX, slotY, texX, texY, SIZE, SIZE);
     }
 
     protected void drawSlotHoverHighlight(int slotX, int slotY) {

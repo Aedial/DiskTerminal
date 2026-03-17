@@ -62,10 +62,6 @@ public class TabStateManager {
         return INSTANCE;
     }
 
-    public static boolean isSubnetTab(int tabIndex) {
-        return tabIndex == TabType.SUBNET_OVERVIEW.getIndex();
-    }
-
     /**
      * Check if a storage entry is expanded for the given tab.
      *
@@ -134,13 +130,6 @@ public class TabStateManager {
      */
     public boolean isBusExpanded(TabType tab, long busId) {
         return isExpanded(tab, -busId - 1);
-    }
-
-    /**
-     * Set the expansion state for a storage bus entry in the given tab.
-     */
-    public void setBusExpanded(TabType tab, long busId, boolean expanded) {
-        setExpanded(tab, -busId - 1, expanded);
     }
 
     /**

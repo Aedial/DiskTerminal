@@ -165,7 +165,7 @@ public class TempAreaTabWidget extends AbstractTabWidget {
                     @Override
                     public void accept(Object ing) {
                         ItemStack stack = JeiGhostHandler.convertJeiIngredientToItemStack(
-                            ing, cell.isFluid(), cell.isEssentia());
+                            ing, cell.getStorageType());
                         if (!stack.isEmpty()) {
                             guiContext.sendPacket(new PacketTempCellPartitionAction(
                                 tempSlotIndex,
@@ -365,8 +365,7 @@ public class TempAreaTabWidget extends AbstractTabWidget {
                         CellInfo existingCell = existingTempCell.getCellInfo();
                         CellInfo newCell = tempCell.getCellInfo();
                         if (newCell != null) {
-                            boolean sameType = (newCell.isFluid() == existingCell.isFluid())
-                                && (newCell.isEssentia() == existingCell.isEssentia());
+                            boolean sameType = newCell.getStorageType() == existingCell.getStorageType();
                             if (!sameType) {
                                 guiContext.showError("gui.cellterminal.temp_area.mixed_cell_selection");
                                 return;

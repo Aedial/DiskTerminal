@@ -40,8 +40,10 @@ import appeng.parts.automation.PartUpgradeable;
 import appeng.parts.misc.PartStorageBus;
 import appeng.util.helpers.ItemHandlerUtil;
 
+import com.cellterminal.client.StorageType;
 import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.integration.StorageDrawersIntegration;
+import com.cellterminal.integration.MekanismEnergisticsIntegration;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 import com.cellterminal.network.PacketStorageBusPartitionAction;
 import com.cellterminal.network.PacketSubnetPartitionAction;
@@ -109,7 +111,7 @@ public class StorageBusDataHandler {
         busData.setInteger("dim", hostTile.getWorld().provider.getDimension());
         busData.setInteger("side", bus.getSide().ordinal());
         busData.setInteger("priority", bus.getPriority());
-        busData.setBoolean("isItem", true);
+        StorageType.ITEM.writeToNBT(busData);
         // Slot parameters are provided by the scanner implementation
 
         // Access restriction (IO mode)
@@ -147,7 +149,7 @@ public class StorageBusDataHandler {
         busData.setInteger("dim", hostTile.getWorld().provider.getDimension());
         busData.setInteger("side", bus.getSide().ordinal());
         busData.setInteger("priority", bus.getPriority());
-        busData.setBoolean("isFluid", true);
+        StorageType.FLUID.writeToNBT(busData);
         // Slot parameters are provided by the scanner implementation
 
         // Access restriction (IO mode)
@@ -383,6 +385,8 @@ public class StorageBusDataHandler {
     private static void addUpgradesData(NBTTagCompound busData, IItemHandler upgradesInv) {
         if (upgradesInv == null) return;
 
+        busData.setInteger("upgradeSlotCount", upgradesInv.getSlots());
+
         NBTTagList upgradeList = new NBTTagList();
         for (int i = 0; i < upgradesInv.getSlots(); i++) {
             ItemStack upgrade = upgradesInv.getStackInSlot(i);
@@ -412,6 +416,11 @@ public class StorageBusDataHandler {
             return handleFluidBusPartition((PartFluidStorageBus) tracker.storageBus, action, partitionSlot, itemStack, tracker);
         } else if (ThaumicEnergisticsIntegration.isModLoaded()) {
             ThaumicEnergisticsIntegration.handleEssentiaStorageBusPartition(tracker.storageBus, action, partitionSlot, itemStack);
+            tracker.hostTile.markDirty();
+
+            return true;
+        } else if (MekanismEnergisticsIntegration.isModLoaded()) {
+            MekanismEnergisticsIntegration.handleGasStorageBusPartition(tracker.storageBus, action, partitionSlot, itemStack);
             tracker.hostTile.markDirty();
 
             return true;
@@ -770,31 +779,6 @@ public class StorageBusDataHandler {
         return true;
     }
 
-    /**
-     * Insert an upgrade into a storage bus.
-     * @return true if upgrade was inserted
-     */
-    public static boolean insertUpgrade(StorageBusTracker tracker, ItemStack upgradeStack) {
-        if (!(tracker.storageBus instanceof PartUpgradeable)) return false;
-
-        IItemHandler upgradesInv = ((PartUpgradeable) tracker.storageBus).getInventoryByName("upgrades");
-        if (upgradesInv == null) return false;
-
-        ItemStack toInsert = upgradeStack.copy();
-        toInsert.setCount(1);
-
-        for (int slot = 0; slot < upgradesInv.getSlots(); slot++) {
-            ItemStack remainder = upgradesInv.insertItem(slot, toInsert, false);
-            if (remainder.isEmpty()) {
-                upgradeStack.shrink(1);
-
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private static ItemStack getBlockAsItemStack(IBlockState state, World world, BlockPos pos) {
         if (state == null) return ItemStack.EMPTY;
 
@@ -856,6 +840,11 @@ public class StorageBusDataHandler {
             return ThaumicEnergisticsIntegration.essentiaStorageBusHasConnectedInventory(tracker.storageBus);
         }
 
+        // For gas buses, check via integration
+        if (MekanismEnergisticsIntegration.isModLoaded()) {
+            return MekanismEnergisticsIntegration.gasStorageBusHasConnectedInventory(tracker.storageBus);
+        }
+
         return false;
     }
 
@@ -892,6 +881,11 @@ public class StorageBusDataHandler {
         // For essentia buses, check via reflection
         if (ThaumicEnergisticsIntegration.isModLoaded()) {
             return ThaumicEnergisticsIntegration.essentiaStorageBusHasPartition(tracker.storageBus);
+        }
+
+        // For gas buses, check via integration
+        if (MekanismEnergisticsIntegration.isModLoaded()) {
+            return MekanismEnergisticsIntegration.gasStorageBusHasPartition(tracker.storageBus);
         }
 
         return false;

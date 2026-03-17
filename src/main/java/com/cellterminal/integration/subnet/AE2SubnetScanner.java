@@ -1,7 +1,6 @@
 package com.cellterminal.integration.subnet;
 
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 import net.minecraft.item.ItemStack;
@@ -11,6 +10,7 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.AEApi;
@@ -29,6 +29,7 @@ import appeng.api.storage.data.IItemList;
 import appeng.api.util.AEPartLocation;
 import appeng.capabilities.Capabilities;
 import appeng.fluids.parts.PartFluidStorageBus;
+import appeng.fluids.util.IAEFluidTank;
 import appeng.parts.misc.PartInterface;
 import appeng.parts.misc.PartStorageBus;
 import appeng.tile.misc.TileInterface;
@@ -405,6 +406,9 @@ public class AE2SubnetScanner extends AbstractSubnetScanner {
                 nbt.setTag("remoteIcon", iconNbt);
             }
 
+            // Filter from fluid storage bus config
+            addFluidStorageBusFilter(nbt, bus);
+
         } else if (part instanceof TileInterface) {
             // Inbound connection: Interface on main <- Storage Bus on subnet
             nbt.setInteger("side", connectionSide != null ? connectionSide.ordinal() : 0);
@@ -515,10 +519,41 @@ public class AE2SubnetScanner extends AbstractSubnetScanner {
                 return;
             }
 
-            // Fluid storage bus: no item partition editing supported yet
-            // FIXME: support fluid storage bus
-            if (part instanceof PartFluidStorageBus) return;
+            if (part instanceof PartFluidStorageBus) {
+                addFluidStorageBusFilter(nbt, (PartFluidStorageBus) part);
+                return;
+            }
         }
+    }
+
+    /**
+     * Add fluid storage bus filter configuration to connection NBT.
+     * Converts fluid config to ItemStack representations for the client.
+     * The "filter" key is always sent so the client shows partition rows.
+     */
+    private void addFluidStorageBusFilter(NBTTagCompound nbt, PartFluidStorageBus bus) {
+        IFluidHandler configInv = bus.getFluidInventoryByName("config");
+        if (!(configInv instanceof IAEFluidTank)) return;
+
+        IAEFluidTank aeConfig = (IAEFluidTank) configInv;
+        NBTTagList filterList = new NBTTagList();
+        int totalSlots = aeConfig.getSlots();
+
+        // Send all slots including empties to preserve positions for partition editing
+        for (int i = 0; i < totalSlots; i++) {
+            IAEFluidStack fluid = aeConfig.getFluidInSlot(i);
+            NBTTagCompound itemNbt = new NBTTagCompound();
+
+            if (fluid != null) {
+                ItemStack rep = fluid.asItemStackRepresentation();
+                rep.writeToNBT(itemNbt);
+            }
+
+            filterList.appendTag(itemNbt);
+        }
+
+        nbt.setTag("filter", filterList);
+        nbt.setInteger("maxPartitionSlots", totalSlots);
     }
 
     /**

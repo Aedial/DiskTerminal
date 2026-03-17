@@ -419,11 +419,19 @@ public class CellTerminalClientConfig {
      * @param tabIndex The tab index (-1 for subnet overview)
      */
     public SlotLimit getSlotLimitForTab(int tabIndex) {
-        // FIXME: use the indexes defined in GuiConstants
-        if (tabIndex < 0) return subnetSlotLimit;
-        if (tabIndex >= GuiConstants.TAB_TEMP_AREA) return busSlotLimit;
-
-        return cellSlotLimit;
+        switch (tabIndex) {
+            case GuiConstants.TAB_SUBNETS:
+                return subnetSlotLimit;
+            case GuiConstants.TAB_TERMINAL:
+            case GuiConstants.TAB_INVENTORY:
+            case GuiConstants.TAB_PARTITION:
+                return cellSlotLimit;
+            case GuiConstants.TAB_STORAGE_BUS_INVENTORY:
+            case GuiConstants.TAB_STORAGE_BUS_PARTITION:
+                return busSlotLimit;
+            default:
+                return SlotLimit.UNLIMITED;
+        }
     }
 
     /**

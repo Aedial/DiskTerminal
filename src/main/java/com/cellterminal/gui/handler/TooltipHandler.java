@@ -5,7 +5,6 @@ import java.util.Collections;
 import java.util.List;
 
 import net.minecraft.client.resources.I18n;
-import net.minecraft.item.ItemStack;
 
 import com.cellterminal.gui.buttons.*;
 import com.cellterminal.gui.PriorityFieldManager;
@@ -38,7 +37,6 @@ public class TooltipHandler {
      */
     public interface TooltipRenderer {
         void drawHoveringText(List<String> lines, int x, int y);
-        List<String> getItemToolTip(ItemStack stack);
     }
 
     /**

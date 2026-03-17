@@ -24,7 +24,6 @@ public class GuiToolConfirmationModal {
     private static final int TITLE_HEIGHT = 20;
 
     private final INetworkTool tool;
-    private final INetworkTool.ToolContext context;
     private final FontRenderer fontRenderer;
     private final Runnable onConfirm;
     private final Runnable onCancel;
@@ -45,7 +44,6 @@ public class GuiToolConfirmationModal {
                                      int screenWidth, int screenHeight,
                                      Runnable onConfirm, Runnable onCancel) {
         this.tool = tool;
-        this.context = context;
         this.fontRenderer = fontRenderer;
         this.onConfirm = onConfirm;
         this.onCancel = onCancel;

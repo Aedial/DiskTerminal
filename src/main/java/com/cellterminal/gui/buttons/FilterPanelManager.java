@@ -13,6 +13,7 @@ import com.cellterminal.client.CellFilter;
 import com.cellterminal.client.CellFilter.State;
 import com.cellterminal.client.SlotLimit;
 import com.cellterminal.config.CellTerminalClientConfig;
+import com.cellterminal.integration.MekanismEnergisticsIntegration;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketSlotLimitChange;
@@ -72,10 +73,9 @@ public class FilterPanelManager {
         int buttonId = startButtonId;
 
         // Create slot limit button for tabs that show content (inventory, storage bus inventory, subnet overview)
-        // FIXME: use GuiConstants
         if (currentTab == GuiConstants.TAB_INVENTORY
                 || currentTab == GuiConstants.TAB_STORAGE_BUS_INVENTORY
-                || currentTab < 0) {
+                || currentTab == GuiConstants.TAB_SUBNETS) {
             SlotLimit limit = config.getSlotLimitForTab(currentTab);
             slotLimitButton = new GuiSlotLimitButton(buttonId++, 0, 0, limit);
             buttonList.add(slotLimitButton);
@@ -112,6 +112,7 @@ public class FilterPanelManager {
             filters.add(CellFilter.FLUID_CELLS);
 
             if (ThaumicEnergisticsIntegration.isModLoaded()) filters.add(CellFilter.ESSENTIA_CELLS);
+            if (MekanismEnergisticsIntegration.isModLoaded()) filters.add(CellFilter.GAS_CELLS);
         }
 
         // Content-based filters

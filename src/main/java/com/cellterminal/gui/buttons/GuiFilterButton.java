@@ -3,7 +3,7 @@ package com.cellterminal.gui.buttons;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.cellterminal.gui.GuiConstants;
+import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
@@ -20,6 +20,7 @@ import appeng.api.AEApi;
 import com.cellterminal.CellTerminal;
 import com.cellterminal.client.CellFilter;
 import com.cellterminal.client.CellFilter.State;
+import com.cellterminal.gui.GuiConstants;
 
 
 /**
@@ -37,6 +38,7 @@ public class GuiFilterButton extends GuiAtlasButton {
     private static final ItemStack ITEM_CELL_ICON = new ItemStack(Blocks.STONE);
     private static final ItemStack FLUID_CELL_ICON = new ItemStack(Items.BUCKET);
     private static final ItemStack ESSENTIA_CELL_ICON = getEssentiaIcon();
+    private static final ItemStack GAS_CELL_ICON = getGasIcon();
     private static final ItemStack HAS_ITEMS_ICON = new ItemStack(Blocks.CHEST);
     private static final ItemStack PARTITIONED_ICON = AEApi.instance().definitions().blocks().
         cellWorkbench().maybeStack(1).orElse(ItemStack.EMPTY);
@@ -97,6 +99,9 @@ public class GuiFilterButton extends GuiAtlasButton {
             case ESSENTIA_CELLS:
                 iconStack = ESSENTIA_CELL_ICON;
                 break;
+            case GAS_CELLS:
+                iconStack = GAS_CELL_ICON;
+                break;
             case HAS_ITEMS:
                 iconStack = HAS_ITEMS_ICON;
                 break;
@@ -123,6 +128,21 @@ public class GuiFilterButton extends GuiAtlasButton {
         }
 
         return new ItemStack(Items.GLASS_BOTTLE);
+    }
+
+    private static ItemStack getGasIcon() {
+        // Try to get Mekanism Gas Tank, fall back to bucket if not available
+        if (!Loader.isModLoaded("mekanism")) return new ItemStack(Items.BUCKET);
+
+        try {
+            Class<?> mekanismBlocks = Class.forName("mekanism.common.MekanismBlocks");
+            Object gasTankBlock = mekanismBlocks.getField("GasTank").get(null);
+            if (gasTankBlock instanceof Block) return new ItemStack((Block) gasTankBlock);
+        } catch (Exception e) {
+            CellTerminal.LOGGER.warn("Failed to get Mekanism Gas Tank block for gas cell filter icon", e);
+        }
+
+        return new ItemStack(Items.BUCKET);
     }
 
     private void renderItemIcon(Minecraft mc, ItemStack stack) {

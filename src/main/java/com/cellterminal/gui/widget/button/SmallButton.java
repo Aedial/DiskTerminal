@@ -3,11 +3,6 @@ package com.cellterminal.gui.widget.button;
 import java.util.Collections;
 import java.util.List;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Gui;
-import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.util.ResourceLocation;
-
 import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.widget.AbstractWidget;
 
@@ -25,8 +20,6 @@ import com.cellterminal.gui.widget.AbstractWidget;
 public class SmallButton extends AbstractWidget {
 
     private static final int SIZE = GuiConstants.SMALL_BUTTON_SIZE;
-    private static final ResourceLocation TEXTURE =
-        new ResourceLocation("cellterminal", "textures/guis/atlas.png");
 
     protected ButtonType type;
     private final Runnable onClick;
@@ -49,15 +42,9 @@ public class SmallButton extends AbstractWidget {
 
         boolean hovered = isHovered(mouseX, mouseY);
 
-        Minecraft.getMinecraft().getTextureManager().bindTexture(TEXTURE);
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        GlStateManager.enableBlend();
-
         int texX = GuiConstants.SMALL_BUTTON_X + type.getTextureX();
         int texY = GuiConstants.SMALL_BUTTON_Y + (hovered ? SIZE : 0);
-        Gui.drawScaledCustomSizeModalRect(
-            this.x, this.y, texX, texY, SIZE, SIZE, SIZE, SIZE,
-            GuiConstants.ATLAS_WIDTH, GuiConstants.ATLAS_HEIGHT);
+        GuiConstants.drawAtlasSprite(this.x, this.y, texX, texY, SIZE, SIZE);
     }
 
     @Override

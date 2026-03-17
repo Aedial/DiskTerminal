@@ -53,10 +53,4 @@ public enum ButtonType {
         return I18n.format(tooltipKey);
     }
 
-    /**
-     * Get the tooltip localization key.
-     */
-    public String getTooltipKey() {
-        return tooltipKey;
-    }
 }

@@ -24,7 +24,6 @@ import com.cellterminal.gui.widget.AbstractWidget;
 import com.cellterminal.gui.widget.CardsDisplay;
 import com.cellterminal.gui.widget.IWidget;
 import com.cellterminal.gui.widget.line.AbstractLine;
-import com.cellterminal.gui.widget.line.SlotsLine;
 import com.cellterminal.gui.widget.header.AbstractHeader;
 import com.cellterminal.network.PacketUpgradeCell;
 
@@ -355,24 +354,6 @@ public abstract class AbstractTabWidget extends AbstractWidget {
     // ---- JEI integration ----
 
     /**
-     * Collect all JEI partition slot targets from visible SlotsLine widgets.
-     * The parent GUI calls this to provide ghost ingredient targets.
-     *
-     * @return Unmodifiable list of partition slot targets
-     */
-    public List<SlotsLine.PartitionSlotTarget> getPartitionTargets() {
-        List<SlotsLine.PartitionSlotTarget> targets = new ArrayList<>();
-
-        for (IWidget widget : visibleRows) {
-            if (widget instanceof SlotsLine) {
-                targets.addAll(((SlotsLine) widget).getPartitionTargets());
-            }
-        }
-
-        return Collections.unmodifiableList(targets);
-    }
-
-    /**
      * Get the source data object for the widget under the mouse cursor.
      * Used by the parent GUI for upgrade insertion, inline rename, and
      * other interactions that need to know the original data context.
@@ -469,13 +450,6 @@ public abstract class AbstractTabWidget extends AbstractWidget {
      * @return true if the key was handled
      */
     public boolean handleTabKeyTyped(int keyCode) {
-        return false;
-    }
-
-    /**
-     * Whether this tab requires server-side polling for data updates.
-     */
-    public boolean requiresServerPolling() {
         return false;
     }
 

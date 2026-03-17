@@ -23,7 +23,9 @@ import appeng.helpers.IPriorityHost;
 import appeng.tile.grid.AENetworkInvTile;
 import appeng.tile.storage.TileChest;
 
+import com.cellterminal.client.StorageType;
 import com.cellterminal.integration.ECOAEExtensionIntegration;
+import com.cellterminal.integration.MekanismEnergisticsIntegration;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 
 
@@ -110,7 +112,11 @@ public class CellDataHandler {
         // Try each channel type in order
         if (tryPopulateItemCell(cellData, cellHandler, cellStack, slotLimit)) return cellData;
         if (tryPopulateFluidCell(cellData, cellHandler, cellStack, slotLimit)) return cellData;
-        tryPopulateEssentiaCell(cellData, cellHandler, cellStack, slotLimit);
+        if (tryPopulateEssentiaCell(cellData, cellHandler, cellStack, slotLimit)) return cellData;
+        tryPopulateGasCell(cellData, cellHandler, cellStack, slotLimit);
+
+        // TODO: log unsupported cell type if we couldn't populate any data?
+        //       Or even return null to indicate unsupported cell, and let the client handle it by showing a blank/unknown cell display?
 
         return cellData;
     }
@@ -140,7 +146,7 @@ public class CellDataHandler {
             return true;
         }
 
-        cellData.setBoolean("isItem", true);
+        StorageType.ITEM.writeToNBT(cellData);
         populateCellStats(cellData, cellInv);
         populateConfigInventory(cellData, cellInv.getConfigInventory());
         populateItemContents(cellData, cellInv, channel, slotLimit);
@@ -168,14 +174,14 @@ public class CellDataHandler {
             // Only populate if we have at least config or upgrades
             if (configInv == null && upgradesInv == null) return false;
 
-            cellData.setBoolean("isFluid", true);
+            StorageType.FLUID.writeToNBT(cellData);
             populateConfigInventory(cellData, configInv);
             populateCellUpgrades(cellData, upgradesInv);
 
             return true;
         }
 
-        cellData.setBoolean("isFluid", true);
+        StorageType.FLUID.writeToNBT(cellData);
         populateCellStats(cellData, cellInv);
         populateConfigInventory(cellData, cellInv.getConfigInventory());
         populateFluidContents(cellData, cellInv, channel, slotLimit);
@@ -184,14 +190,23 @@ public class CellDataHandler {
         return true;
     }
 
-    private static void tryPopulateEssentiaCell(NBTTagCompound cellData, ICellHandler cellHandler,
+    private static boolean tryPopulateEssentiaCell(NBTTagCompound cellData, ICellHandler cellHandler,
                                                  ItemStack cellStack, int slotLimit) {
         NBTTagCompound essentiaData = ThaumicEnergisticsIntegration.tryPopulateEssentiaCell(
             cellHandler, cellStack, slotLimit);
-        if (essentiaData != null) {
-            for (String key : essentiaData.getKeySet()) {
-                cellData.setTag(key, essentiaData.getTag(key));
-            }
+        if (essentiaData == null) return false;
+
+        for (String key : essentiaData.getKeySet()) cellData.setTag(key, essentiaData.getTag(key));
+
+        return true;
+    }
+
+    private static void tryPopulateGasCell(NBTTagCompound cellData, ICellHandler cellHandler,
+                                            ItemStack cellStack, int slotLimit) {
+        NBTTagCompound gasData = MekanismEnergisticsIntegration.tryPopulateGasCell(
+            cellHandler, cellStack, slotLimit);
+        if (gasData != null) {
+            for (String key : gasData.getKeySet()) cellData.setTag(key, gasData.getTag(key));
         }
     }
 

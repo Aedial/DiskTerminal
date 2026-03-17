@@ -9,7 +9,6 @@ import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.ResourceLocation;
 
 import appeng.util.ReadableNumberConverter;
 
@@ -33,9 +32,6 @@ public class PopupCellInventory extends Gui {
     private static final int HEADER_HEIGHT = GuiConstants.POPUP_HEADER_HEIGHT;
     private static final int BUTTON_HEIGHT = GuiConstants.POPUP_BUTTON_HEIGHT;
     private static final int FOOTER_HEIGHT = GuiConstants.POPUP_FOOTER_HEIGHT;
-
-    private static final ResourceLocation TEXTURE =
-        new ResourceLocation("cellterminal", "textures/guis/atlas.png");
 
     private final GuiScreen parent;
     private final CellInfo cell;
@@ -295,15 +291,9 @@ public class PopupCellInventory extends Gui {
     // ---- Drawing helpers (consistent with SlotsLine) ----
 
     private void drawSlotBackground(int slotX, int slotY) {
-        Minecraft.getMinecraft().getTextureManager().bindTexture(TEXTURE);
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        GlStateManager.enableBlend();
-
         int texX = GuiConstants.SLOT_BACKGROUND_X;
         int texY = GuiConstants.SLOT_BACKGROUND_Y;
-        Gui.drawScaledCustomSizeModalRect(
-            slotX, slotY, texX, texY, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE,
-            GuiConstants.ATLAS_WIDTH, GuiConstants.ATLAS_HEIGHT);
+        GuiConstants.drawAtlasSprite(slotX, slotY, texX, texY, SLOT_SIZE);
     }
 
     private void drawSlotHoverHighlight(int slotX, int slotY) {

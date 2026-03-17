@@ -83,6 +83,7 @@ public class CellTerminalServerConfig {
     private final Property integrationECOAEProperty;
     private final Property integrationStorageDrawersProperty;
     private final Property integrationThaumicEnergisticsProperty;
+    private final Property integrationMekanismEnergisticsProperty;
     private final Property integrationJeiProperty;
 
     private int wutModeId = 11;
@@ -92,6 +93,7 @@ public class CellTerminalServerConfig {
     private boolean integrationECOAEEnabled = true;
     private boolean integrationStorageDrawersEnabled = true;
     private boolean integrationThaumicEnergisticsEnabled = true;
+    private boolean integrationMekanismEnergisticsEnabled = true;
     private boolean integrationJeiEnabled = true;
 
     private CellTerminalServerConfig(File configDir) {
@@ -259,6 +261,12 @@ public class CellTerminalServerConfig {
         this.integrationThaumicEnergisticsProperty.setLanguageKey("config.cellterminal.config.server.integration.enable_thaumicenergistics");
         this.integrationThaumicEnergisticsEnabled = this.integrationThaumicEnergisticsProperty.getBoolean();
 
+        this.integrationMekanismEnergisticsProperty = config.get(CATEGORY_INTEGRATION, "enableMekanismEnergistics", true,
+            "Enable integration with MekanismEnergistics (gas cells and gas storage buses).\n" +
+            "Set to false to disable MekanismEnergistics-specific code.");
+        this.integrationMekanismEnergisticsProperty.setLanguageKey("config.cellterminal.config.server.integration.enable_mekanismenergistics");
+        this.integrationMekanismEnergisticsEnabled = this.integrationMekanismEnergisticsProperty.getBoolean();
+
         this.integrationJeiProperty = config.get(CATEGORY_INTEGRATION, "enableJEI", true,
             "Enable JEI integration (ghost ingredients, GUI handlers).\n" +
             "Set to false to disable JEI integration.");
@@ -321,6 +329,7 @@ public class CellTerminalServerConfig {
         this.integrationECOAEEnabled = this.integrationECOAEProperty.getBoolean();
         this.integrationStorageDrawersEnabled = this.integrationStorageDrawersProperty.getBoolean();
         this.integrationThaumicEnergisticsEnabled = this.integrationThaumicEnergisticsProperty.getBoolean();
+        this.integrationMekanismEnergisticsEnabled = this.integrationMekanismEnergisticsProperty.getBoolean();
         this.integrationJeiEnabled = this.integrationJeiProperty.getBoolean();
 
         if (config.hasChanged()) config.save();
@@ -466,6 +475,10 @@ public class CellTerminalServerConfig {
 
     public boolean isIntegrationThaumicEnergisticsEnabled() {
         return integrationThaumicEnergisticsEnabled;
+    }
+
+    public boolean isIntegrationMekanismEnergisticsEnabled() {
+        return integrationMekanismEnergisticsEnabled;
     }
 
     public boolean isIntegrationJeiEnabled() {

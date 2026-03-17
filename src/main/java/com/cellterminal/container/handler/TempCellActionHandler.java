@@ -30,10 +30,10 @@ public class TempCellActionHandler {
     public static void handleAction(ContainerCellTerminalBase container,
                                      PacketTempCellAction.Action action,
                                      int tempSlotIndex, int playerSlotIndex,
-                                     ItemStack itemStack, EntityPlayer player, boolean toInventory) {
+                                     EntityPlayer player, boolean toInventory) {
         switch (action) {
             case INSERT:
-                handleInsert(container, tempSlotIndex, playerSlotIndex, itemStack, player);
+                handleInsert(container, tempSlotIndex, playerSlotIndex, player);
                 break;
             case EXTRACT:
                 handleExtract(container, tempSlotIndex, player, toInventory);
@@ -73,7 +73,7 @@ public class TempCellActionHandler {
 
         // Execute the partition action using the same logic as regular cells
         CellActionHandler.executePartitionActionDirect(config.configInv, action, partitionSlot, itemStack,
-            cellHandler, cellStack, config.isFluidCell, config.essentiaData);
+            cellHandler, cellStack, config.isFluidCell, config.essentiaData, config.gasData);
 
         // Update the cell NBT in the temp inventory
         tempInv.setStackInSlot(tempSlotIndex, cellStack);
@@ -86,7 +86,7 @@ public class TempCellActionHandler {
      * Insert a cell from player inventory into temp area.
      */
     private static void handleInsert(ContainerCellTerminalBase container, int tempSlotIndex,
-                                      int playerSlotIndex, ItemStack itemStack, EntityPlayer player) {
+                                      int playerSlotIndex, EntityPlayer player) {
         IItemHandlerModifiable tempInv = getTempCellInventory(container);
         if (tempInv == null) return;
 
@@ -119,11 +119,7 @@ public class TempCellActionHandler {
 
         // Get the cell from player inventory (only take ONE item from stack)
         ItemStack cellStack;
-        if (!itemStack.isEmpty()) {
-            // From JEI ghost drag - find matching stack in inventory
-            // FIXME: JEI ghost dragging...? Why? Seems error-prone and something nobody would use.
-            cellStack = findAndRemoveFromInventory(player, itemStack);
-        } else if (playerSlotIndex >= 0) {
+        if (playerSlotIndex >= 0) {
             // From specific slot - take only one item
             ItemStack sourceStack = player.inventory.getStackInSlot(playerSlotIndex);
             if (sourceStack.isEmpty()) {
@@ -305,8 +301,7 @@ public class TempCellActionHandler {
         // Remove from temp area
         tempInv.setStackInSlot(tempSlotIndex, ItemStack.EMPTY);
         markDirty(container);
-        String gridName = container.getGridName();
-        PlayerMessageHelper.success(player, "cellterminal.temp_area.sent", gridName);
+        PlayerMessageHelper.success(player, "cellterminal.temp_area.sent", container.getGridName());
     }
 
     /**
@@ -405,26 +400,6 @@ public class TempCellActionHandler {
     private static void markDirty(ContainerCellTerminalBase container) {
         // Trigger refresh
         container.requestFullRefresh();
-    }
-
-    /**
-     * Find and remove a matching stack from player inventory.
-     */
-    private static ItemStack findAndRemoveFromInventory(EntityPlayer player, ItemStack target) {
-        for (int i = 0; i < player.inventory.mainInventory.size(); i++) {
-            ItemStack stack = player.inventory.mainInventory.get(i);
-
-            if (!stack.isEmpty() && ItemStack.areItemsEqual(stack, target) &&
-                    ItemStack.areItemStackTagsEqual(stack, target)) {
-                ItemStack extracted = stack.splitStack(1);
-
-                if (stack.isEmpty()) player.inventory.mainInventory.set(i, ItemStack.EMPTY);
-
-                return extracted;
-            }
-        }
-
-        return ItemStack.EMPTY;
     }
 
     /**

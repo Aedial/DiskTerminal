@@ -42,6 +42,7 @@ import com.cellterminal.gui.widget.button.SmallButton;
 import com.cellterminal.gui.widget.header.StorageBusHeader;
 import com.cellterminal.gui.widget.line.ContinuationLine;
 import com.cellterminal.gui.widget.line.SlotsLine;
+import com.cellterminal.integration.MekanismEnergisticsIntegration;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketExtractUpgrade;
@@ -109,11 +110,6 @@ public class StorageBusTabWidget extends AbstractTabWidget {
     @Override
     public boolean showSearchModeButton() {
         return false;
-    }
-
-    @Override
-    public boolean requiresServerPolling() {
-        return true;
     }
 
     @Override
@@ -249,7 +245,7 @@ public class StorageBusTabWidget extends AbstractTabWidget {
                     @Override
                     public void accept(Object ing) {
                         ItemStack stack = JeiGhostHandler.convertJeiIngredientForStorageBus(
-                            ing, bus.isFluid(), bus.isEssentia());
+                            ing, bus.getStorageType());
                         if (!stack.isEmpty()) {
                             guiContext.sendPacket(new PacketStorageBusPartitionAction(
                                 bus.getId(),
@@ -428,9 +424,16 @@ public class StorageBusTabWidget extends AbstractTabWidget {
                 boolean slotOccupied = slotIndex < partition.size() && !partition.get(slotIndex).isEmpty();
 
                 if (!heldStack.isEmpty()) {
+                    // For gas buses, convert gas containers (tanks) to gas representation
+                    ItemStack stackToSend = heldStack;
+                    if (bus.isGas()) {
+                        stackToSend = MekanismEnergisticsIntegration.tryConvertGasContainerToGas(heldStack);
+                        if (stackToSend.isEmpty()) return;
+                    }
+
                     guiContext.sendPacket(new PacketStorageBusPartitionAction(
                         bus.getId(), PacketStorageBusPartitionAction.Action.ADD_ITEM,
-                        slotIndex, heldStack));
+                        slotIndex, stackToSend));
                 } else if (slotOccupied) {
                     guiContext.sendPacket(new PacketStorageBusPartitionAction(
                         bus.getId(), PacketStorageBusPartitionAction.Action.REMOVE_ITEM, slotIndex));
@@ -523,6 +526,16 @@ public class StorageBusTabWidget extends AbstractTabWidget {
                     validForBusType = false;
                 } else {
                     stackToSend = essentiaRep;
+                }
+            } else if (storageBus.isGas()) {
+                // For gas buses, need DummyGas or gas container (IGasItem)
+                ItemStack gasRep = MekanismEnergisticsIntegration.tryConvertGasContainerToGas(stack);
+                // Can't use this item on gas bus
+                if (gasRep.isEmpty()) {
+                    invalidItemCount++;
+                    validForBusType = false;
+                } else {
+                    stackToSend = gasRep;
                 }
             }
 

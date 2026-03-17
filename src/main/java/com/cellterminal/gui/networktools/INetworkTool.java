@@ -14,6 +14,7 @@ import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.SearchFilterMode;
 import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.client.StorageInfo;
+import com.cellterminal.client.StorageType;
 
 
 /**
@@ -204,11 +205,9 @@ public interface INetworkTool {
          * @param includeEssentia Whether to include essentia cells
          * @return List of available cells
          */
-        public List<FilteredCell> getAvailableCellsForRedistribution(
-                boolean includeItem, boolean includeFluid, boolean includeEssentia) {
+        public List<FilteredCell> getAvailableCellsForRedistribution(StorageType type) {
             List<FilteredCell> filtered = getFilteredCells();
-            List<FilteredCell> emptyNonPartitioned = getEmptyNonPartitionedCells(
-                includeItem, includeFluid, includeEssentia);
+            List<FilteredCell> emptyNonPartitioned = getEmptyNonPartitionedCells(type);
 
             // Combine, avoiding duplicates (empty non-partitioned cells might already be in filtered)
             Set<CellInfo> seen = new HashSet<>();
@@ -232,10 +231,8 @@ public interface INetworkTool {
          * @param includeEssentia Whether to include essentia cells
          * @return List of empty non-partitioned cells
          */
-        public List<FilteredCell> getEmptyNonPartitionedCells(
-                boolean includeItem, boolean includeFluid, boolean includeEssentia) {
-            return NetworkToolFilterUtils.getEmptyNonPartitionedCells(
-                storageMap, includeItem, includeFluid, includeEssentia);
+        public List<FilteredCell> getEmptyNonPartitionedCells(StorageType type) {
+            return NetworkToolFilterUtils.getEmptyNonPartitionedCells(storageMap, type);
         }
     }
 

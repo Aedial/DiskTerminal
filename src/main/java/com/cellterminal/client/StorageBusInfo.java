@@ -21,6 +21,42 @@ import com.cellterminal.gui.rename.RenameTargetType;
 /**
  * Client-side data holder for storage bus information received from server.
  * Similar to CellInfo but for storage buses which connect to external inventories.
+ * <p>
+ * <b>NBT Data Map</b> (written by {@link com.cellterminal.container.handler.StorageBusDataHandler}):
+ * <pre>
+ * StorageBusInfo                        Size (bytes)
+ * ─────────────────────────────────────────────────
+ * "id"              long                  8
+ * "pos"             long (BlockPos)       8
+ * "dim"             int                   4
+ * "side"            int (EnumFacing)      4
+ * "priority"        int                   4
+ * "storageType"     int (ordinal)         4   (StorageType enum ordinal)
+ * "access"          int (AccessRestr.)    4   (0=NONE, 1=READ, 2=WRITE, 3=RW)
+ * "supportsPriority" boolean              1   (from scanner capabilities)
+ * "supportsIOMode"  boolean               1   (from scanner capabilities)
+ * "upgradeSlotCount" int                  4   (total upgrade slots; default 5)
+ * "baseConfigSlots"  int                  4   (optional; per-impl slot params)
+ * "slotsPerUpgrade"  int                  4   (optional; per-impl slot params)
+ * "maxConfigSlots"   int                  4   (optional; per-impl slot params)
+ * "customName"      String                ~N  (optional; user-set bus name)
+ * "connectedName"   String                ~N  (optional; connected block name)
+ * "connectedIcon"   NBTTagCompound        ~I  (optional; connected block icon)
+ * "upgrades"        NBTTagList            ~U  (list of upgrade ItemStacks + slot indices)
+ *   └─ each entry: ItemStack NBT + "slot" int
+ * "partition"       NBTTagList            ~P  (config inventory slots with slot positions)
+ *   └─ each entry: "slot" int (4) + ItemStack NBT (~I per non-empty slot)
+ * "contents"        NBTTagList            S * T  (T = unique item types in connected inv)
+ *   └─ each entry: ItemStack NBT + "Cnt" long
+ * ─────────────────────────────────────────────────
+ * Total ≈ 54 + N + I + U + P + S * T
+ *   where S = average size of one content entry (~50-200 bytes per stack),
+ *         T = number of unique item types in connected inventory,
+ *         N = combined string lengths (customName + connectedName),
+ *         I = connected icon NBT size (0 if absent),
+ *         U = total upgrades NBT size,
+ *         P = total partition NBT size
+ * </pre>
  */
 public class StorageBusInfo implements Renameable, Prioritizable {
 
@@ -56,9 +92,7 @@ public class StorageBusInfo implements Renameable, Prioritizable {
     private final int baseConfigSlots;
     private final int slotsPerUpgrade;
     private final int maxConfigSlots;
-    private final boolean isItem;      // True for item storage buses
-    private final boolean isFluid;     // True for fluid storage buses
-    private final boolean isEssentia;  // True for Thaumic Energistics essentia storage buses
+    private final StorageType storageType;
     private final int accessRestriction;  // 0=NO_ACCESS, 1=READ, 2=WRITE, 3=READ_WRITE
     private final String customName;      // Storage bus custom name (takes priority over connectedName)
     private final String connectedName;
@@ -70,6 +104,7 @@ public class StorageBusInfo implements Renameable, Prioritizable {
     private final List<Integer> upgradeSlotIndices = new ArrayList<>();
     private final boolean supportsPriorityFlag;
     private final boolean supportsIOModeFlag;
+    private final int upgradeSlotCount;
 
     public StorageBusInfo(NBTTagCompound nbt) {
         this.id = nbt.getLong("id");
@@ -77,10 +112,7 @@ public class StorageBusInfo implements Renameable, Prioritizable {
         this.dimension = nbt.getInteger("dim");
         this.side = EnumFacing.byIndex(nbt.getInteger("side"));
         this.priority = nbt.getInteger("priority");
-        this.isFluid = nbt.getBoolean("isFluid");
-        this.isEssentia = nbt.getBoolean("isEssentia");
-        // Prefer explicit isItem flag; fallback to legacy inference if missing
-        this.isItem = nbt.hasKey("isItem") ? nbt.getBoolean("isItem") : (!this.isFluid && !this.isEssentia);
+        this.storageType = StorageType.fromNBT(nbt);
         this.accessRestriction = nbt.hasKey("access") ? nbt.getInteger("access") : 3;  // Default READ_WRITE
 
         // Per-implementation slot parameters (optional; default to AE2 values)
@@ -91,6 +123,9 @@ public class StorageBusInfo implements Renameable, Prioritizable {
         // Capability flags provided by scanners
         this.supportsPriorityFlag = nbt.getBoolean("supportsPriority");
         this.supportsIOModeFlag = nbt.getBoolean("supportsIOMode");
+
+        // Upgrade slot count from server; fallback to 5 if not provided
+        this.upgradeSlotCount = nbt.hasKey("upgradeSlotCount") ? nbt.getInteger("upgradeSlotCount") : 5;
 
         // Storage bus custom name (takes priority over connected block name)
         this.customName = nbt.hasKey("customName") ? nbt.getString("customName") : null;
@@ -198,16 +233,24 @@ public class StorageBusInfo implements Renameable, Prioritizable {
         return Math.min(raw, maxConfigSlots);
     }
 
+    public StorageType getStorageType() {
+        return storageType;
+    }
+
     public boolean isFluid() {
-        return isFluid;
+        return storageType.isFluid();
     }
 
     public boolean isEssentia() {
-        return isEssentia;
+        return storageType.isEssentia();
     }
 
     public boolean isItem() {
-        return isItem;
+        return storageType.isItem();
+    }
+
+    public boolean isGas() {
+        return storageType.isGas();
     }
 
     /**
@@ -230,19 +273,6 @@ public class StorageBusInfo implements Renameable, Prioritizable {
      */
     public int getAccessRestriction() {
         return accessRestriction;
-    }
-
-    /**
-     * Get the localized display name for the current IO mode (for tooltips).
-     */
-    public String getIOModeDisplayName() {
-        switch (accessRestriction) {
-            case 0: return I18n.format("gui.cellterminal.storagebus.iomode.none");
-            case 1: return I18n.format("gui.cellterminal.storagebus.iomode.read");
-            case 2: return I18n.format("gui.cellterminal.storagebus.iomode.write");
-            case 3: return I18n.format("gui.cellterminal.storagebus.iomode.readwrite");
-            default: return "?";
-        }
     }
 
     public List<ItemStack> getPartition() {
@@ -365,9 +395,7 @@ public class StorageBusInfo implements Renameable, Prioritizable {
      * @return The total upgrade slot count
      */
     public int getUpgradeSlotCount() {
-        // Standard AE2 storage buses have 5 upgrade slots
-        // TODO: adjust if supporting buses with different upgrade slot counts
-        return 5;
+        return upgradeSlotCount;
     }
 
     /**

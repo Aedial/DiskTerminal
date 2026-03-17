@@ -618,9 +618,8 @@ public class TerminalDataManager {
         // Item type filter
         State itemState = activeFilters.getOrDefault(CellFilter.ITEM_CELLS, State.SHOW_ALL);
         if (itemState != State.SHOW_ALL) {
-            boolean isItem = bus.isItem();
-            if (itemState == State.SHOW_ONLY && !isItem) return false;
-            if (itemState == State.HIDE && isItem) return false;
+            if (itemState == State.SHOW_ONLY && !bus.isItem()) return false;
+            if (itemState == State.HIDE && bus.isItem()) return false;
         }
 
         // Fluid type filter
@@ -635,6 +634,13 @@ public class TerminalDataManager {
         if (essentiaState != State.SHOW_ALL) {
             if (essentiaState == State.SHOW_ONLY && !bus.isEssentia()) return false;
             if (essentiaState == State.HIDE && bus.isEssentia()) return false;
+        }
+
+        // Gas type filter
+        State gasState = activeFilters.getOrDefault(CellFilter.GAS_CELLS, State.SHOW_ALL);
+        if (gasState != State.SHOW_ALL) {
+            if (gasState == State.SHOW_ONLY && !bus.isGas()) return false;
+            if (gasState == State.HIDE && bus.isGas()) return false;
         }
 
         // Has items filter
@@ -743,9 +749,8 @@ public class TerminalDataManager {
         // Item type filter
         State itemState = activeFilters.getOrDefault(CellFilter.ITEM_CELLS, State.SHOW_ALL);
         if (itemState != State.SHOW_ALL) {
-            boolean isItem = cell.isItem();
-            if (itemState == State.SHOW_ONLY && !isItem) return false;
-            if (itemState == State.HIDE && isItem) return false;
+            if (itemState == State.SHOW_ONLY && !cell.isItem()) return false;
+            if (itemState == State.HIDE && cell.isItem()) return false;
         }
 
         // Fluid type filter
@@ -760,6 +765,13 @@ public class TerminalDataManager {
         if (essentiaState != State.SHOW_ALL) {
             if (essentiaState == State.SHOW_ONLY && !cell.isEssentia()) return false;
             if (essentiaState == State.HIDE && cell.isEssentia()) return false;
+        }
+
+        // Gas type filter
+        State gasState = activeFilters.getOrDefault(CellFilter.GAS_CELLS, State.SHOW_ALL);
+        if (gasState != State.SHOW_ALL) {
+            if (gasState == State.SHOW_ONLY && !cell.isGas()) return false;
+            if (gasState == State.HIDE && cell.isGas()) return false;
         }
 
         // Has items filter

@@ -28,8 +28,10 @@ import appeng.util.helpers.ItemHandlerUtil;
 
 import com.cells.api.IItemCompactingCell;
 
+import com.cellterminal.integration.MekanismEnergisticsIntegration;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 import com.cellterminal.network.PacketPartitionAction;
+import com.cellterminal.network.PacketTempCellPartitionAction;
 
 
 /**
@@ -59,7 +61,8 @@ public class CellActionHandler {
 
         // Execute the action
         executePartitionAction(config.configInv, action, partitionSlot, itemStack,
-                               cellHandler, cellStack, config.isFluidCell, config.essentiaData);
+                               cellHandler, cellStack, config.isFluidCell, config.essentiaData,
+                               config.gasData);
 
         // Write the modified cell back to the inventory
         // The config modification updates cellStack's NBT, but we need to persist it
@@ -274,7 +277,15 @@ public class CellActionHandler {
         }
 
         result.essentiaData = ThaumicEnergisticsIntegration.tryGetEssentiaConfigInventory(cellHandler, cellStack);
-        if (result.essentiaData != null) result.configInv = (IItemHandler) result.essentiaData[0];
+        if (result.essentiaData != null) {
+            result.configInv = (IItemHandler) result.essentiaData[0];
+
+            return result;
+        }
+
+        // Try gas channel (MekanismEnergistics)
+        result.gasData = MekanismEnergisticsIntegration.tryGetGasConfigInventory(cellHandler, cellStack);
+        if (result.gasData != null) result.configInv = (IItemHandler) result.gasData[0];
 
         return result;
     }
@@ -284,10 +295,24 @@ public class CellActionHandler {
      * Maps PacketTempCellPartitionAction.Action to the internal action.
      */
     public static void executePartitionActionDirect(IItemHandler configInv,
-                                                     com.cellterminal.network.PacketTempCellPartitionAction.Action action,
-                                                     int partitionSlot, ItemStack itemStack,
-                                                     ICellHandler cellHandler, ItemStack cellStack,
-                                                     boolean isFluidCell, Object[] essentiaData) {
+                                                    PacketTempCellPartitionAction.Action action,
+                                                    int partitionSlot, ItemStack itemStack,
+                                                    ICellHandler cellHandler, ItemStack cellStack,
+                                                    boolean isFluidCell, Object[] essentiaData) {
+        executePartitionActionDirect(configInv, action, partitionSlot, itemStack,
+            cellHandler, cellStack, isFluidCell, essentiaData, null);
+    }
+
+    /**
+     * Execute a partition action directly (for temp cells), with gas data support.
+     * Maps PacketTempCellPartitionAction.Action to the internal action.
+     */
+    public static void executePartitionActionDirect(IItemHandler configInv,
+                                                    PacketTempCellPartitionAction.Action action,
+                                                    int partitionSlot, ItemStack itemStack,
+                                                    ICellHandler cellHandler, ItemStack cellStack,
+                                                    boolean isFluidCell, Object[] essentiaData,
+                                                    Object[] gasData) {
         // Map temp cell action to partition action
         PacketPartitionAction.Action mappedAction;
         switch (action) {
@@ -311,15 +336,25 @@ public class CellActionHandler {
         }
 
         executePartitionAction(configInv, mappedAction, partitionSlot, itemStack,
-            cellHandler, cellStack, isFluidCell, essentiaData);
+            cellHandler, cellStack, isFluidCell, essentiaData, gasData);
     }
 
     private static void executePartitionAction(IItemHandler configInv, PacketPartitionAction.Action action,
                                                 int partitionSlot, ItemStack itemStack,
                                                 ICellHandler cellHandler, ItemStack cellStack,
-                                                boolean isFluidCell, Object[] essentiaData) {
-        // Normalize fluid stacks to remove NBT tags that would cause comparison mismatches
-        ItemStack normalizedStack = isFluidCell ? normalizeFluidStack(itemStack) : itemStack;
+                                                boolean isFluidCell, Object[] essentiaData,
+                                                Object[] gasData) {
+        // Normalize fluid/gas stacks to remove NBT tags that would cause comparison mismatches
+        // Gas cells also need normalization: raw gas tanks must be converted to DummyGas representation
+        ItemStack normalizedStack;
+        boolean isGasCell = gasData != null;
+        if (isFluidCell) {
+            normalizedStack = normalizeFluidStack(itemStack);
+        } else if (isGasCell) {
+            normalizedStack = MekanismEnergisticsIntegration.normalizeGasStack(itemStack);
+        } else {
+            normalizedStack = itemStack;
+        }
 
         switch (action) {
             case ADD_ITEM:
@@ -338,7 +373,9 @@ public class CellActionHandler {
                 if (!normalizedStack.isEmpty()) {
                     int existingSlot = isFluidCell
                         ? findFluidInConfig(configInv, normalizedStack)
-                        : findItemInConfig(configInv, normalizedStack);
+                        : isGasCell
+                            ? MekanismEnergisticsIntegration.findGasInCellConfig(configInv, normalizedStack)
+                            : findItemInConfig(configInv, normalizedStack);
 
                     if (existingSlot >= 0) {
                         setConfigSlot(configInv, existingSlot, ItemStack.EMPTY);
@@ -351,7 +388,7 @@ public class CellActionHandler {
 
             case SET_ALL_FROM_CONTENTS:
                 clearConfig(configInv);
-                setPartitionFromContents(cellHandler, cellStack, configInv, isFluidCell, essentiaData);
+                setPartitionFromContents(cellHandler, cellStack, configInv, isFluidCell, essentiaData, gasData);
                 break;
 
             case CLEAR_ALL:
@@ -362,7 +399,13 @@ public class CellActionHandler {
 
     private static void setPartitionFromContents(ICellHandler cellHandler, ItemStack cellStack,
                                                   IItemHandler configInv, boolean isFluidCell,
-                                                  Object[] essentiaData) {
+                                                  Object[] essentiaData, Object[] gasData) {
+        if (gasData != null) {
+            MekanismEnergisticsIntegration.setAllFromGasContents(configInv, gasData);
+
+            return;
+        }
+
         if (essentiaData != null) {
             ThaumicEnergisticsIntegration.setAllFromEssentiaContents(configInv, essentiaData);
         } else if (!isFluidCell) {
@@ -509,6 +552,9 @@ public class CellActionHandler {
         public ICellInventoryHandler<IAEItemStack> itemHandler;
         public ICellInventoryHandler<IAEFluidStack> fluidHandler;
         public boolean isFluidCell;
+        /** Essentia cell data: [configInv, essentiaChannel, essentiaCellHandler] or null if not an essentia cell */
         public Object[] essentiaData;
+        /** Gas cell data: [configInv, gasChannel, gasCellHandler] or null if not a gas cell */
+        public Object[] gasData;
     }
 }

@@ -89,6 +89,8 @@ if (propertyBool('publish_to_curseforge')) {
                     optionalDependency 'jei'
                     // Optional: Thaumic Energistics (for Essentia cell support)
                     optionalDependency 'thaumic-energistics'
+                    // Optional: Mekanism Energistics (for Gas cell support)
+                    optionalDependency 'mekanism-energistics'
                     // Optional: AE2WUT (Wireless Universal Terminal integration)
                     optionalDependency 'ae2uel-wireless-universal-terminal'
                     // Optional: CrazyAE

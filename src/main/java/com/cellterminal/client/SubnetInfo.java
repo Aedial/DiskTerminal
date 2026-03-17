@@ -18,6 +18,43 @@ import com.cellterminal.gui.rename.RenameTargetType;
 /**
  * Client-side data holder for subnet connection information received from server.
  * <p>
+ * <b>NBT Data Map</b> (written by {@link com.cellterminal.integration.subnet.AbstractSubnetScanner}):
+ * <pre>
+ * SubnetInfo                            Size (bytes)
+ * ─────────────────────────────────────────────────
+ * "id"              long                  8
+ * "dim"             int                   4
+ * "primaryPos"      long (BlockPos)       8
+ * "posX"            int                   4   (for client-side name generation)
+ * "posY"            int                   4   (")
+ * "posZ"            int                   4   (")
+ * "customName"      String                ~N  (optional; user-set subnet name)
+ * "favorite"        boolean               1   (optional; only if true)
+ * "hasSecurity"     boolean               1
+ * "accessible"      boolean               1
+ * "hasPower"        boolean               1
+ * "inventory"       NBTTagList            S_inv * T_inv  (subnet ME storage contents)
+ *   └─ each entry: ItemStack NBT + "Cnt" long
+ * "connections"     NBTTagList            S_conn * C  (C = connection count)
+ *   └─ each ConnectionPoint entry:
+ *        "pos"          long (BlockPos)       8
+ *        "dim"          int                   4
+ *        "side"         int (EnumFacing)      4
+ *        "outbound"     boolean               1
+ *        "localIcon"    NBTTagCompound        ~I  (optional; block icon on main net)
+ *        "remoteIcon"   NBTTagCompound        ~I  (optional; block icon on subnet)
+ *        "content"      NBTTagList            ~S  (optional; flowing items)
+ *        "filter"       NBTTagList            ~P  (optional; partition/filter items)
+ *        "maxPartitionSlots" int              4   (optional; default 63)
+ * ─────────────────────────────────────────────────
+ * Total ≈ 36 + N + S_inv * T_inv + S_conn * C
+ *   where S_inv  = average size of one inventory entry (~50-200 bytes),
+ *         T_inv  = number of unique item types in subnet ME storage,
+ *         S_conn = average size of one connection entry (~50-300 bytes),
+ *         C      = number of connection points to this subnet,
+ *         N      = custom name length (0 if absent)
+ * </pre>
+ * <p>
  * A subnet is a SEPARATE ME grid that connects to the main network through the
  * ME Passthrough mechanism (IStorageMonitorableAccessor capability). Each connection
  * is one-way:

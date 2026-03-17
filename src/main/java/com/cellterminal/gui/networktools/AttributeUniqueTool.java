@@ -15,6 +15,7 @@ import appeng.api.AEApi;
 import com.cells.api.IItemCompactingCell;
 
 import com.cellterminal.client.CellInfo;
+import com.cellterminal.client.StorageType;
 import com.cellterminal.gui.networktools.INetworkTool.FilteredCell;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketNetworkToolAction;
@@ -36,14 +37,6 @@ public class AttributeUniqueTool implements INetworkTool {
     public static final String TOOL_ID = "attribute_unique";
 
     private ItemStack cachedIcon = null;
-
-    /**
-     * Cell type for tracking separate counts per type.
-     * Mirrors the server-side CellType in NetworkToolActionHandler.
-     */
-    private enum CellType {
-        ITEM, FLUID, ESSENTIA
-    }
 
     /**
      * Statistics per cell type.
@@ -110,9 +103,9 @@ public class AttributeUniqueTool implements INetworkTool {
     /**
      * Collect statistics per cell type from the context.
      */
-    private Map<CellType, TypeStats> collectTypeStats(ToolContext context) {
-        Map<CellType, TypeStats> statsByType = new EnumMap<>(CellType.class);
-        for (CellType type : CellType.values()) statsByType.put(type, new TypeStats());
+    private Map<StorageType, TypeStats> collectTypeStats(ToolContext context) {
+        Map<StorageType, TypeStats> statsByType = new EnumMap<>(StorageType.class);
+        for (StorageType type : StorageType.values()) statsByType.put(type, new TypeStats());
 
         // First pass: collect unique items from filtered cells and track which cells are filtered
         List<FilteredCell> filteredCells = context.getFilteredCells();
@@ -125,7 +118,7 @@ public class AttributeUniqueTool implements INetworkTool {
             if (cell.getCellItem().getItem() instanceof IItemCompactingCell) continue;
 
             filteredCellSet.add(cell);
-            CellType type = getCellType(cell);
+            StorageType type = cell.getStorageType();
             TypeStats stats = statsByType.get(type);
 
             stats.filteredCellCount++;
@@ -137,19 +130,17 @@ public class AttributeUniqueTool implements INetworkTool {
 
         // Second pass: count empty non-partitioned cells per type
         // Only for types that have content, and exclude cells already counted in first pass
-        for (CellType type : CellType.values()) {
+        for (StorageType type : StorageType.values()) {
             TypeStats stats = statsByType.get(type);
             if (!stats.hasContent()) continue;
 
-            for (FilteredCell fc : context.getEmptyNonPartitionedCells(type == CellType.ITEM,
-                                                                        type == CellType.FLUID,
-                                                                        type == CellType.ESSENTIA)) {
+            for (FilteredCell fc : context.getEmptyNonPartitionedCells(type)) {
                 CellInfo cell = fc.getCell();
 
                 // Skip compacting cells - they use a special chain mechanism
                 if (cell.getCellItem().getItem() instanceof IItemCompactingCell) continue;
 
-                if (getCellType(cell) == type && !filteredCellSet.contains(cell)) {
+                if (cell.getStorageType() == type && !filteredCellSet.contains(cell)) {
                     stats.emptyCellCount++;
                 }
             }
@@ -158,16 +149,9 @@ public class AttributeUniqueTool implements INetworkTool {
         return statsByType;
     }
 
-    private CellType getCellType(CellInfo cell) {
-        if (cell.isEssentia()) return CellType.ESSENTIA;
-        if (cell.isFluid()) return CellType.FLUID;
-
-        return CellType.ITEM;
-    }
-
-    private String getItemKey(ItemStack stack, CellType type) {
-        // FIXME: use ItemStackKey and FluidStackKey from util
-        if (type == CellType.FLUID) {
+    private String getItemKey(ItemStack stack, StorageType type) {
+        // TODO: use ItemStackKey and FluidStackKey from util?
+        if (type.isFluid()) {
             // For fluids, use a simpler key based on the representation item
             return "fluid:" + stack.getItem().getRegistryName().toString() + "@" + stack.getMetadata();
         }
@@ -180,7 +164,7 @@ public class AttributeUniqueTool implements INetworkTool {
 
     @Override
     public ToolPreviewInfo getPreview(ToolContext context) {
-        Map<CellType, TypeStats> statsByType = collectTypeStats(context);
+        Map<StorageType, TypeStats> statsByType = collectTypeStats(context);
 
         // Calculate totals across all types
         int totalUnique = 0;
@@ -203,7 +187,7 @@ public class AttributeUniqueTool implements INetworkTool {
         tooltipLines.add("");
 
         // Show per-type breakdown
-        for (CellType type : CellType.values()) {
+        for (StorageType type : StorageType.values()) {
             TypeStats stats = statsByType.get(type);
             if (!stats.hasContent()) continue;
 
@@ -231,7 +215,7 @@ public class AttributeUniqueTool implements INetworkTool {
         List<FilteredCell> filteredCells = context.getFilteredCells();
         if (filteredCells.isEmpty()) return I18n.format("gui.cellterminal.networktools.error.no_cells");
 
-        Map<CellType, TypeStats> statsByType = collectTypeStats(context);
+        Map<StorageType, TypeStats> statsByType = collectTypeStats(context);
 
         // Check if any content exists
         boolean hasAnyContent = false;
@@ -248,7 +232,7 @@ public class AttributeUniqueTool implements INetworkTool {
         StringBuilder errorBuilder = new StringBuilder();
         boolean hasError = false;
 
-        for (CellType type : CellType.values()) {
+        for (StorageType type : StorageType.values()) {
             TypeStats stats = statsByType.get(type);
             if (!stats.hasContent()) continue;
 
@@ -271,7 +255,7 @@ public class AttributeUniqueTool implements INetworkTool {
 
     @Override
     public String getConfirmationMessage(ToolContext context) {
-        Map<CellType, TypeStats> statsByType = collectTypeStats(context);
+        Map<StorageType, TypeStats> statsByType = collectTypeStats(context);
 
         int totalUnique = 0;
         int totalCells = 0;

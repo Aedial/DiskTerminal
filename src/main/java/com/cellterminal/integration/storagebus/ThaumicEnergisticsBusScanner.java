@@ -13,6 +13,7 @@ import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridHost;
 import appeng.api.util.AEPartLocation;
 
+import com.cellterminal.client.StorageType;
 import com.cellterminal.container.handler.StorageBusDataHandler;
 import com.cellterminal.container.handler.StorageBusDataHandler.StorageBusTracker;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
@@ -54,7 +55,7 @@ public class ThaumicEnergisticsBusScanner extends AbstractStorageBusScanner {
             if (hostTile == null) continue;
 
             int sideOrdinal = getSideOrdinalFromMachine(machine);
-            long busId = StorageBusDataHandler.createBusId(hostTile, sideOrdinal, 2);
+            long busId = StorageBusDataHandler.createBusId(hostTile, sideOrdinal, StorageType.ESSENTIA.ordinal());
 
             NBTTagCompound nbt = ThaumicEnergisticsIntegration.tryCreateEssentiaStorageBusData(machine, busId);
             if (nbt == null) continue;

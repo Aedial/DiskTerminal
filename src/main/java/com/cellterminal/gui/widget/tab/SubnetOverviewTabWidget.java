@@ -19,6 +19,7 @@ import net.minecraftforge.common.util.Constants;
 
 import mezz.jei.api.gui.IGhostIngredientHandler;
 
+import com.cellterminal.client.StorageType;
 import com.cellterminal.client.SubnetConnectionEntry;
 import com.cellterminal.client.SubnetConnectionRow;
 import com.cellterminal.client.SubnetInfo;
@@ -309,6 +310,8 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
             if (subnetContext != null) subnetContext.switchToNetwork(0);
         });
 
+        // FIXME: does not supply the star onClick lambda
+
         return header;
     }
 
@@ -524,7 +527,7 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
                     public void accept(Object ing) {
                         // Subnet connections are always item-based storage buses for now
                         ItemStack stack = JeiGhostHandler.convertJeiIngredientForStorageBus(
-                            ing, false, false);
+                            ing, StorageType.ITEM);
                         if (!stack.isEmpty()) {
                             guiContext.sendPacket(new PacketSubnetPartitionAction(
                                 subnet.getId(), conn.getPos().toLong(), conn.getSide().ordinal(),
@@ -533,23 +536,6 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
                         }
                     }
                 });
-            }
-        }
-
-        return targets;
-    }
-
-    /**
-     * Get phantom targets for JEI ghost ingredient support on partition slots.
-     * Returns SlotsLine.PartitionSlotTarget instances for all visible partition rows.
-     */
-    public List<SlotsLine.PartitionSlotTarget> getPartitionTargets() {
-        List<SlotsLine.PartitionSlotTarget> targets = new ArrayList<>();
-
-        for (IWidget widget : visibleRows) {
-            if (widget instanceof SlotsLine) {
-                SlotsLine slotsLine = (SlotsLine) widget;
-                targets.addAll(slotsLine.getPartitionTargets());
             }
         }
 

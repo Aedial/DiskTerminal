@@ -77,6 +77,17 @@ public enum KeyBindings {
     )),
 
     /**
+     * Quick partition into a gas cell.
+     * Note: Useless if MekanismEnergistics mod is not loaded.
+     */
+    QUICK_PARTITION_GAS(new KeyBinding(
+        "key.cellterminal.quick_partition_gas.desc",
+        KeyConflictContext.GUI,
+        Keyboard.KEY_NONE,
+        "key.cellterminal.category"
+    )),
+
+    /**
      * Add hovered item to the selected storage bus partition (Tab 5).
      */
     ADD_TO_STORAGE_BUS(new KeyBinding(

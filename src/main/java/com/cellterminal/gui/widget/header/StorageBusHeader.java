@@ -47,9 +47,6 @@ public class StorageBusHeader extends StorageHeader {
     /** Textured IO mode button (READ_ONLY, WRITE_ONLY, or READ_WRITE) */
     private final SmallButton ioModeButton;
 
-    // IO mode button hover state
-    private boolean ioModeHovered = false;
-
     public StorageBusHeader(int y, FontRenderer fontRenderer, RenderItem itemRender) {
         super(y, fontRenderer, itemRender);
         // IO mode button: type is updated each frame from accessModeSupplier.
@@ -77,7 +74,6 @@ public class StorageBusHeader extends StorageHeader {
 
     @Override
     protected int drawHeaderContent(int mouseX, int mouseY) {
-        ioModeHovered = false;
 
         // Draw location text
         drawLocation();
@@ -127,7 +123,6 @@ public class StorageBusHeader extends StorageHeader {
         // Position at current header Y (since header Y can change per frame)
         ioModeButton.setPosition(GuiConstants.BUTTON_IO_MODE_X, y);
         ioModeButton.draw(mouseX, mouseY);
-        ioModeHovered = ioModeButton.isHovered(mouseX, mouseY);
     }
 
     // ---- Click handling ----

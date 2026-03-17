@@ -212,7 +212,7 @@ public class TabManager {
 
     /** Get the active tab widget. Returns the subnet tab when currentTab is the subnet overview index. */
     public AbstractTabWidget getActiveTab() {
-        if (currentTab == TabStateManager.TabType.SUBNET_OVERVIEW.getIndex() && subnetTab != null) return subnetTab;
+        if (currentTab == GuiConstants.TAB_SUBNETS && subnetTab != null) return subnetTab;
         if (tabWidgets == null || currentTab < 0 || currentTab >= tabWidgets.length) return null;
 
         return tabWidgets[currentTab];
@@ -293,10 +293,10 @@ public class TabManager {
 
     /**
      * Switch to a different tab, firing pre/post switch callbacks.
-     * Also persists the selected tab to client config (skipped for subnet pseudo-tab -1).
-     * Use -1 to switch to the subnet overview pseudo-tab.
+     * Also persists the selected tab to client config (skipped for subnet pseudo-tab).
+     * Use GuiConstants.TAB_SUBNETS to switch to the subnet overview pseudo-tab.
      *
-     * @param newTab The tab index to switch to (-1 for subnet overview, 0+ for real tabs)
+     * @param newTab The tab index to switch to
      */
     public void switchToTab(int newTab) {
         if (newTab == currentTab) return;
@@ -326,7 +326,7 @@ public class TabManager {
         if (newTab >= 0) CellTerminalClientConfig.getInstance().setSelectedTab(newTab);
 
         // Notify subnet tab it's being shown
-        if (newTab == TabStateManager.TabType.SUBNET_OVERVIEW.getIndex() && subnetTab != null) {
+        if (newTab == GuiConstants.TAB_SUBNETS && subnetTab != null) {
             subnetTab.onEnterOverview();
         }
 
