@@ -30,6 +30,7 @@ import com.cellterminal.CellTerminal;
 import com.cellterminal.client.CellContentRow;
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.StorageInfo;
+import com.cellterminal.integration.MekanismEnergisticsIntegration;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketPartitionAction;
@@ -45,7 +46,8 @@ public class QuickPartitionHandler {
         AUTO,
         ITEM,
         FLUID,
-        ESSENTIA
+        ESSENTIA,
+        GAS
     }
 
     /**
@@ -103,6 +105,11 @@ public class QuickPartitionHandler {
             return QuickPartitionResult.error("cellterminal.quick_partition.essentia_unavailable");
         }
 
+        // Check for MekanismEnergistics if trying to partition to gas cell
+        if (type == PartitionType.GAS && !MekanismEnergisticsIntegration.isModLoaded()) {
+            return QuickPartitionResult.error("cellterminal.quick_partition.gas_unavailable");
+        }
+
         // Get the ingredient under cursor from various sources (preserving original type)
         HoveredIngredient hoveredIngredient = getHoveredIngredient();
         if (hoveredIngredient == null || hoveredIngredient.stack.isEmpty()) {
@@ -122,6 +129,8 @@ public class QuickPartitionHandler {
                     return QuickPartitionResult.error("cellterminal.error.fluid_cell_item");
                 case ESSENTIA:
                     return QuickPartitionResult.error("cellterminal.error.essentia_cell_item");
+                case GAS:
+                    return QuickPartitionResult.error("cellterminal.error.gas_cell_item");
                 default:
                     return QuickPartitionResult.error("cellterminal.quick_partition.no_item");
             }
@@ -137,6 +146,8 @@ public class QuickPartitionHandler {
                     return QuickPartitionResult.error("cellterminal.quick_partition.no_cell_fluid");
                 case ESSENTIA:
                     return QuickPartitionResult.error("cellterminal.quick_partition.no_cell_essentia");
+                case GAS:
+                    return QuickPartitionResult.error("cellterminal.quick_partition.no_cell_gas");
                 default:
                     return QuickPartitionResult.error("cellterminal.quick_partition.no_cell_auto");
             }
@@ -248,6 +259,12 @@ public class QuickPartitionHandler {
             if (essentiaResult != null) return essentiaResult;
         }
 
+        // Check for gas (MekanismEnergistics)
+        if (MekanismEnergisticsIntegration.isModLoaded()) {
+            HoveredIngredient gasResult = tryConvertGasIngredient(ingredient);
+            if (gasResult != null) return gasResult;
+        }
+
         CellTerminal.LOGGER.warn("Unknown JEI ingredient type: {}. Report to the author!", ingredient.getClass().getName());
         return null;
     }
@@ -258,6 +275,16 @@ public class QuickPartitionHandler {
         ItemStack essentiaRep = ThaumicEnergisticsIntegration.tryConvertJeiIngredientToEssentia(ingredient);
 
         if (!essentiaRep.isEmpty()) return new HoveredIngredient(essentiaRep, ingredient, PartitionType.ESSENTIA);
+
+        return null;
+    }
+
+    @Nullable
+    private static HoveredIngredient tryConvertGasIngredient(Object ingredient) {
+        // Try to detect gas stacks from MekanismEnergistics
+        ItemStack gasRep = MekanismEnergisticsIntegration.tryConvertJeiIngredientToGas(ingredient);
+
+        if (!gasRep.isEmpty()) return new HoveredIngredient(gasRep, ingredient, PartitionType.GAS);
 
         return null;
     }
@@ -296,6 +323,18 @@ public class QuickPartitionHandler {
                 if (!essentiaRep.isEmpty()) return essentiaRep;
 
                 // Item cannot be converted to essentia - return empty
+                return ItemStack.EMPTY;
+
+            case GAS:
+                // If original was already a gas ingredient, the stack is already converted
+                if (MekanismEnergisticsIntegration.isGasIngredient(originalIngredient)) return stack;
+
+                // Try to extract gas from container
+                ItemStack gasRep = MekanismEnergisticsIntegration.tryConvertGasContainerToGas(stack);
+
+                if (!gasRep.isEmpty()) return gasRep;
+
+                // Item cannot be converted to gas - return empty
                 return ItemStack.EMPTY;
 
             case ITEM:
@@ -358,6 +397,8 @@ public class QuickPartitionHandler {
                 return cell.isFluid();
             case ESSENTIA:
                 return cell.isEssentia();
+            case GAS:
+                return cell.isGas();
             case AUTO:
                 return true;
             default:

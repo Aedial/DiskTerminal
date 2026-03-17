@@ -27,6 +27,7 @@ import mezz.jei.api.gui.IGhostIngredientHandler;
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.gui.widget.AbstractWidget;
+import com.cellterminal.integration.MekanismEnergisticsIntegration;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketPartitionAction;
@@ -216,6 +217,18 @@ public class PopupCellPartition extends Gui {
         if (ingredient instanceof ItemStack) {
             ItemStack itemStack = (ItemStack) ingredient;
 
+            // For gas cells, try to extract gas from containers
+            if (cell.isGas()) {
+                ItemStack gasRep = MekanismEnergisticsIntegration.tryConvertGasContainerToGas(itemStack);
+
+                if (!gasRep.isEmpty()) return gasRep;
+
+                // If it's not a gas container, reject it
+                MessageHelper.error("cellterminal.error.gas_cell_item");
+
+                return ItemStack.EMPTY;
+            }
+
             // For essentia cells, try to extract essentia from containers (phials, jars, etc.)
             if (cell.isEssentia()) {
                 ItemStack essentiaRep = ThaumicEnergisticsIntegration.tryConvertEssentiaContainerToAspect(itemStack);
@@ -251,6 +264,12 @@ public class PopupCellPartition extends Gui {
 
         // FluidStack - from JEI fluid entries
         if (ingredient instanceof FluidStack) {
+            if (cell.isGas()) {
+                MessageHelper.error("cellterminal.error.gas_cell_fluid");
+
+                return ItemStack.EMPTY;
+            }
+
             if (cell.isEssentia()) {
                 MessageHelper.error("cellterminal.error.essentia_cell_fluid");
 
@@ -275,7 +294,10 @@ public class PopupCellPartition extends Gui {
         // EnchantmentData - JEI's deprecated hack for enchanted books (removed in 1.13+)
         if (ingredient instanceof EnchantmentData) {
             if (!cell.isItem()) {
-                MessageHelper.error(cell.isFluid() ? "cellterminal.error.fluid_cell_item" : "cellterminal.error.essentia_cell_item");
+                String errorKey = cell.isFluid() ? "cellterminal.error.fluid_cell_item"
+                    : cell.isGas() ? "cellterminal.error.gas_cell_item"
+                    : "cellterminal.error.essentia_cell_item";
+                MessageHelper.error(errorKey);
 
                 return ItemStack.EMPTY;
             }
@@ -283,6 +305,20 @@ public class PopupCellPartition extends Gui {
             EnchantmentData enchantData = (EnchantmentData) ingredient;
 
             return ItemEnchantedBook.getEnchantedItemStack(enchantData);
+        }
+
+        // Gas ingredients from JEI (GasStack or IAEGasStack from MekanismEnergistics)
+        if (MekanismEnergisticsIntegration.isGasIngredient(ingredient)) {
+            if (!cell.isGas()) {
+                String errorKey = cell.isFluid() ? "cellterminal.error.fluid_cell_gas"
+                    : cell.isEssentia() ? "cellterminal.error.essentia_cell_gas"
+                    : "cellterminal.error.item_cell_gas";
+                MessageHelper.error(errorKey);
+
+                return ItemStack.EMPTY;
+            }
+
+            return MekanismEnergisticsIntegration.tryConvertJeiIngredientToGas(ingredient);
         }
 
         // Unknown ingredient type - reject silently (popup doesn't need logging)

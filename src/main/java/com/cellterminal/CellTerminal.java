@@ -21,6 +21,7 @@ import com.cellterminal.integration.storage.AE2StorageScanner;
 import com.cellterminal.integration.storage.IStorageScanner;
 import com.cellterminal.integration.storage.StorageScannerRegistry;
 import com.cellterminal.integration.storagebus.AE2StorageBusScanner;
+import com.cellterminal.integration.storagebus.MekanismEnergisticsBusScanner;
 import com.cellterminal.integration.storagebus.StorageBusScannerRegistry;
 import com.cellterminal.integration.storagebus.ThaumicEnergisticsBusScanner;
 import com.cellterminal.integration.subnet.AE2SubnetScanner;
@@ -99,6 +100,9 @@ public class CellTerminal {
 
         // Thaumic Energistics essentia buses
         StorageBusScannerRegistry.register(ThaumicEnergisticsBusScanner.INSTANCE);
+
+        // MekanismEnergistics gas buses
+        StorageBusScannerRegistry.register(MekanismEnergisticsBusScanner.INSTANCE);
     }
 
     /**

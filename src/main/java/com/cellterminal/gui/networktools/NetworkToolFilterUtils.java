@@ -15,6 +15,7 @@ import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.SearchFilterMode;
 import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.client.StorageInfo;
+import com.cellterminal.client.StorageType;
 
 
 /**
@@ -106,8 +107,7 @@ public final class NetworkToolFilterUtils {
      * @return List of empty, non-partitioned cells
      */
     public static List<INetworkTool.FilteredCell> getEmptyNonPartitionedCells(
-            Map<Long, StorageInfo> storageMap,
-            boolean includeItem, boolean includeFluid, boolean includeEssentia) {
+            Map<Long, StorageInfo> storageMap, StorageType type) {
 
         List<INetworkTool.FilteredCell> result = new ArrayList<>();
 
@@ -120,13 +120,7 @@ public final class NetworkToolFilterUtils {
                 if (cell.getCellItem().getItem() instanceof IItemCompactingCell) continue;
 
                 // Check cell type matches requested types
-                boolean isFluid = cell.isFluid();
-                boolean isEssentia = cell.isEssentia();
-                boolean isItem = !isFluid && !isEssentia;
-
-                if (isItem && !includeItem) continue;
-                if (isFluid && !includeFluid) continue;
-                if (isEssentia && !includeEssentia) continue;
+                if (cell.getStorageType() != type) continue;
 
                 // Check if empty and non-partitioned
                 boolean isEmpty = cell.getContents().isEmpty() ||
@@ -183,31 +177,7 @@ public final class NetworkToolFilterUtils {
     }
 
     private static boolean checkTypeFilter(CellInfo cell, Map<CellFilter, CellFilter.State> activeFilters) {
-        CellFilter.State itemState = activeFilters.getOrDefault(CellFilter.ITEM_CELLS, CellFilter.State.SHOW_ALL);
-        CellFilter.State fluidState = activeFilters.getOrDefault(CellFilter.FLUID_CELLS, CellFilter.State.SHOW_ALL);
-        CellFilter.State essentiaState = activeFilters.getOrDefault(CellFilter.ESSENTIA_CELLS, CellFilter.State.SHOW_ALL);
-
-        boolean isFluid = cell.isFluid();
-        boolean isEssentia = cell.isEssentia();
-        boolean isItem = !isFluid && !isEssentia;
-
-        // If any filter is set to HIDE and matches this cell, exclude it
-        if (isItem && itemState == CellFilter.State.HIDE) return false;
-        if (isFluid && fluidState == CellFilter.State.HIDE) return false;
-        if (isEssentia && essentiaState == CellFilter.State.HIDE) return false;
-
-        // If any filter is set to SHOW_ONLY, only include matching cells
-        boolean hasShowOnly = (itemState == CellFilter.State.SHOW_ONLY)
-            || (fluidState == CellFilter.State.SHOW_ONLY)
-            || (essentiaState == CellFilter.State.SHOW_ONLY);
-
-        if (hasShowOnly) {
-            if (isItem && itemState != CellFilter.State.SHOW_ONLY) return false;
-            if (isFluid && fluidState != CellFilter.State.SHOW_ONLY) return false;
-            if (isEssentia && essentiaState != CellFilter.State.SHOW_ONLY) return false;
-        }
-
-        return true;
+        return checkStorageTypeFilter(cell.getStorageType(), activeFilters);
     }
 
     private static boolean checkHasItemsFilter(CellInfo cell,
@@ -254,26 +224,36 @@ public final class NetworkToolFilterUtils {
     }
 
     private static boolean checkBusTypeFilter(StorageBusInfo bus, Map<CellFilter, CellFilter.State> activeFilters) {
+        return checkStorageTypeFilter(bus.getStorageType(), activeFilters);
+    }
+
+    /**
+     * Shared type filter check for cells and storage buses.
+     * @param type The storage type to check
+     * @param activeFilters The active filter states
+     * @return true if the type passes all active filters
+     */
+    private static boolean checkStorageTypeFilter(StorageType type, Map<CellFilter, CellFilter.State> activeFilters) {
         CellFilter.State itemState = activeFilters.getOrDefault(CellFilter.ITEM_CELLS, CellFilter.State.SHOW_ALL);
         CellFilter.State fluidState = activeFilters.getOrDefault(CellFilter.FLUID_CELLS, CellFilter.State.SHOW_ALL);
         CellFilter.State essentiaState = activeFilters.getOrDefault(CellFilter.ESSENTIA_CELLS, CellFilter.State.SHOW_ALL);
+        CellFilter.State gasState = activeFilters.getOrDefault(CellFilter.GAS_CELLS, CellFilter.State.SHOW_ALL);
 
-        boolean isFluid = bus.isFluid();
-        boolean isEssentia = bus.isEssentia();
-        boolean isItem = !isFluid && !isEssentia;
-
-        if (isItem && itemState == CellFilter.State.HIDE) return false;
-        if (isFluid && fluidState == CellFilter.State.HIDE) return false;
-        if (isEssentia && essentiaState == CellFilter.State.HIDE) return false;
+        if (type.isItem() && itemState == CellFilter.State.HIDE) return false;
+        if (type.isFluid() && fluidState == CellFilter.State.HIDE) return false;
+        if (type.isEssentia() && essentiaState == CellFilter.State.HIDE) return false;
+        if (type.isGas() && gasState == CellFilter.State.HIDE) return false;
 
         boolean hasShowOnly = (itemState == CellFilter.State.SHOW_ONLY)
             || (fluidState == CellFilter.State.SHOW_ONLY)
-            || (essentiaState == CellFilter.State.SHOW_ONLY);
+            || (essentiaState == CellFilter.State.SHOW_ONLY)
+            || (gasState == CellFilter.State.SHOW_ONLY);
 
         if (hasShowOnly) {
-            if (isItem && itemState != CellFilter.State.SHOW_ONLY) return false;
-            if (isFluid && fluidState != CellFilter.State.SHOW_ONLY) return false;
-            if (isEssentia && essentiaState != CellFilter.State.SHOW_ONLY) return false;
+            if (type.isItem() && itemState != CellFilter.State.SHOW_ONLY) return false;
+            if (type.isFluid() && fluidState != CellFilter.State.SHOW_ONLY) return false;
+            if (type.isEssentia() && essentiaState != CellFilter.State.SHOW_ONLY) return false;
+            if (type.isGas() && gasState != CellFilter.State.SHOW_ONLY) return false;
         }
 
         return true;

@@ -8,7 +8,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
-## [1.5.1] - 2026-03-14
+## [1.5.2] - 2026-03-17
+### Added
+- Add Gas support to the terminal.
+
+
+## [1.5.1] - 2026-03-13
 ### Added
 - Finish moving text placeholders to proper textures.
 - Add proper UX for Inbound/Outbound subnet connections.

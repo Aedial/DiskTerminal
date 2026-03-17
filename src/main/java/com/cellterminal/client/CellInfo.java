@@ -17,15 +17,42 @@ import com.cellterminal.gui.rename.RenameTargetType;
 
 /**
  * Client-side data holder for cell information received from server.
+ * <p>
+ * <b>NBT Data Map</b> (written by {@link com.cellterminal.container.handler.CellDataHandler#createCellData}):
+ * <pre>
+ * CellInfo                              Size (bytes)
+ * ─────────────────────────────────────────────────
+ * "slot"            int                   4
+ * "status"          int                   4
+ * "storageType"     int (ordinal)         4   (StorageType enum ordinal)
+ * "cellItem"        NBTTagCompound        ~I  (cell ItemStack serialization)
+ * "usedBytes"       long                  8
+ * "totalBytes"      long                  8
+ * "usedTypes"       long                  8
+ * "totalTypes"      long                  8
+ * "storedItemCount" long                  8
+ * "upgradeSlotCount" int                  4
+ * "upgrades"        NBTTagList            ~U  (list of upgrade ItemStacks + slot indices)
+ *   └─ each entry: ItemStack NBT + "slot" int
+ * "partition"       NBTTagList            ~P  (config inventory slots)
+ *   └─ each entry: "slot" int (4) + ItemStack NBT (~I per non-empty slot)
+ * "contents"        NBTTagList            S * T  (T = stored item types, capped by slotLimit)
+ *   └─ each entry: ItemStack NBT + "Cnt"/"fluidAmount"/"essentiaAmount" long
+ * ─────────────────────────────────────────────────
+ * Total ≈ 56 + I + U + P + S * T
+ *   where S = average size of one content entry (~50-200 bytes per stack),
+ *         T = number of stored item types (capped by server slotLimit),
+ *         I = cell item NBT size,
+ *         U = total upgrades NBT size,
+ *         P = total partition NBT size
+ * </pre>
  */
 public class CellInfo implements Renameable {
 
     private long parentStorageId;
     private final int slot;
     private final int status;
-    private final boolean isItem;
-    private final boolean isFluid;
-    private final boolean isEssentia;
+    private final StorageType storageType;
     private final ItemStack cellItem;
     private final long usedBytes;
     private final long totalBytes;
@@ -44,10 +71,7 @@ public class CellInfo implements Renameable {
     public CellInfo(NBTTagCompound nbt) {
         this.slot = nbt.getInteger("slot");
         this.status = nbt.getInteger("status");
-        this.isFluid = nbt.getBoolean("isFluid");
-        this.isEssentia = nbt.getBoolean("isEssentia");
-        // Prefer explicit isItem flag; fallback to legacy inference if missing
-        this.isItem = nbt.hasKey("isItem") ? nbt.getBoolean("isItem") : (!this.isFluid && !this.isEssentia);
+        this.storageType = StorageType.fromNBT(nbt);
         this.cellItem = nbt.hasKey("cellItem") ? new ItemStack(nbt.getCompoundTag("cellItem")) : ItemStack.EMPTY;
         this.usedBytes = nbt.getLong("usedBytes");
         this.totalBytes = nbt.getLong("totalBytes");
@@ -115,6 +139,9 @@ public class CellInfo implements Renameable {
                 } else if (stackNbt.hasKey("essentiaAmount")) {
                     // For essentia stacks, count is stored by our integration
                     count = stackNbt.getLong("essentiaAmount");
+                } else if (stackNbt.hasKey("gasAmount")) {
+                    // For gas stacks, count is stored by our integration
+                    count = stackNbt.getLong("gasAmount");
                 } else if (stackNbt.hasKey("Cnt")) {
                     // For item stacks, AE2 stores count as "Cnt"
                     count = stackNbt.getLong("Cnt");
@@ -141,16 +168,24 @@ public class CellInfo implements Renameable {
         return slot;
     }
 
+    public StorageType getStorageType() {
+        return storageType;
+    }
+
     public boolean isFluid() {
-        return isFluid;
+        return storageType.isFluid();
     }
 
     public boolean isEssentia() {
-        return isEssentia;
+        return storageType.isEssentia();
     }
 
     public boolean isItem() {
-        return isItem;
+        return storageType.isItem();
+    }
+
+    public boolean isGas() {
+        return storageType.isGas();
     }
 
     public ItemStack getCellItem() {

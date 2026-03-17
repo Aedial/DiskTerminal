@@ -11,6 +11,7 @@ import appeng.api.networking.IGridNode;
 import appeng.fluids.parts.PartFluidStorageBus;
 import appeng.parts.misc.PartStorageBus;
 
+import com.cellterminal.client.StorageType;
 import com.cellterminal.container.handler.StorageBusDataHandler;
 import com.cellterminal.container.handler.StorageBusDataHandler.StorageBusTracker;
 
@@ -44,7 +45,7 @@ public class AE2StorageBusScanner extends AbstractStorageBusScanner {
             TileEntity hostTile = bus.getHost().getTile();
             if (hostTile == null) continue;
 
-            long busId = StorageBusDataHandler.createBusId(hostTile, bus.getSide().ordinal(), 0);
+            long busId = StorageBusDataHandler.createBusId(hostTile, bus.getSide().ordinal(), StorageType.ITEM.ordinal());
             NBTTagCompound nbt = StorageBusDataHandler.createItemStorageBusData(bus, busId);
             applyCapabilities(nbt);
             applySlotParameters(nbt);
@@ -59,7 +60,7 @@ public class AE2StorageBusScanner extends AbstractStorageBusScanner {
             TileEntity hostTile = bus.getHost().getTile();
             if (hostTile == null) continue;
 
-            long busId = StorageBusDataHandler.createBusId(hostTile, bus.getSide().ordinal(), 1);
+            long busId = StorageBusDataHandler.createBusId(hostTile, bus.getSide().ordinal(), StorageType.FLUID.ordinal());
             NBTTagCompound nbt = StorageBusDataHandler.createFluidStorageBusData(bus, busId);
             applyCapabilities(nbt);
             applySlotParameters(nbt);

@@ -11,10 +11,12 @@ import java.util.Map;
 import java.util.Set;
 
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentTranslation;
 
+import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.items.IItemHandler;
 
@@ -41,11 +43,13 @@ import com.cells.api.IItemCompactingCell;
 
 import com.cellterminal.CellTerminal;
 import com.cellterminal.client.CellFilter;
+import com.cellterminal.client.StorageType;
 import com.cellterminal.container.ContainerCellTerminalBase.StorageTracker;
 import com.cellterminal.container.handler.StorageBusDataHandler.StorageBusTracker;
 import com.cellterminal.gui.networktools.AttributeUniqueTool;
 import com.cellterminal.gui.networktools.MassPartitionBusTool;
 import com.cellterminal.gui.networktools.MassPartitionCellTool;
+import com.cellterminal.integration.MekanismEnergisticsIntegration;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 import com.cellterminal.network.PacketPartitionAction;
 import com.cellterminal.network.PacketStorageBusPartitionAction;
@@ -61,12 +65,6 @@ import com.cellterminal.util.SafeMath;
  */
 public final class NetworkToolActionHandler {
 
-    /**
-     * Cell type enum for tracking separate counts per type.
-     */
-    public enum CellType {
-        ITEM, FLUID, ESSENTIA
-    }
 
     private NetworkToolActionHandler() {}
 
@@ -201,8 +199,8 @@ public final class NetworkToolActionHandler {
                                                EntityPlayer player) {
 
         // Track data separately for each cell type
-        Map<CellType, TypeStats> statsByType = new EnumMap<>(CellType.class);
-        for (CellType type : CellType.values()) statsByType.put(type, new TypeStats());
+        Map<StorageType, TypeStats> statsByType = new EnumMap<>(StorageType.class);
+        for (StorageType type : StorageType.values()) statsByType.put(type, new TypeStats());
 
         // First pass: collect all filtered cells and their contents, grouped by type
         for (StorageTracker tracker : storageById.values()) {
@@ -218,7 +216,7 @@ public final class NetworkToolActionHandler {
                 // Skip compacting cells - they use a special chain mechanism
                 if (cellStack.getItem() instanceof IItemCompactingCell) continue;
 
-                CellType type = getCellType(cellStack);
+                StorageType type = getCellType(cellStack);
                 TypeStats stats = statsByType.get(type);
                 CellTarget target = new CellTarget(tracker, slot, cellStack);
 
@@ -258,7 +256,7 @@ public final class NetworkToolActionHandler {
                 // Skip compacting cells - they use a special chain mechanism
                 if (cellStack.getItem() instanceof IItemCompactingCell) continue;
 
-                CellType type = getCellType(cellStack);
+                StorageType type = getCellType(cellStack);
                 TypeStats stats = statsByType.get(type);
 
                 // Skip if this type has no content to redistribute
@@ -292,7 +290,7 @@ public final class NetworkToolActionHandler {
         List<ITextComponent> warnings = new ArrayList<>();
 
         // Execute redistribution for each cell type with proper simulation
-        for (CellType type : CellType.values()) {
+        for (StorageType type : StorageType.values()) {
             TypeStats stats = statsByType.get(type);
             if (stats.stackTracker.isEmpty()) continue;
 
@@ -378,7 +376,7 @@ public final class NetworkToolActionHandler {
      * 4. Inject items according to assignment
      * 5. Put back any remaining items
      */
-    private static RedistributionResult redistributeCellTypeWithSimulation(CellType type, TypeStats stats,
+    private static RedistributionResult redistributeCellTypeWithSimulation(StorageType type, TypeStats stats,
                                                                             IActionSource source,
                                                                             EntityPlayer player) {
         RedistributionResult result = new RedistributionResult();
@@ -785,7 +783,7 @@ public final class NetworkToolActionHandler {
      * Some modded cells (like Hyper-Density) report small byte capacity but can hold billions.
      * Tests with Integer.MAX_VALUE first, then Long.MAX_VALUE to find the true limit.
      */
-    private static long probeCellCapacity(ItemStack cellStack, CellType type, IActionSource source) {
+    private static long probeCellCapacity(ItemStack cellStack, StorageType type, IActionSource source) {
         // Create a dummy stack for capacity testing
         IAEStack<?> testStack = createDummyStack(type);
         if (testStack == null) return 0;
@@ -807,20 +805,20 @@ public final class NetworkToolActionHandler {
      * Create a dummy stack for capacity testing.
      * Uses a common item/fluid that any cell should be able to accept.
      */
-    private static IAEStack<?> createDummyStack(CellType type) {
-        if (type == CellType.ITEM) {
+    private static IAEStack<?> createDummyStack(StorageType type) {
+        if (type.isItem()) {
             // Use stone as a generic test item
-            ItemStack testItem = new ItemStack(net.minecraft.init.Blocks.STONE);
+            ItemStack testItem = new ItemStack(Blocks.STONE);
             return AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class)
                 .createStack(testItem);
-        } else if (type == CellType.FLUID) {
+        } else if (type.isFluid()) {
             // Use water as a generic test fluid
-            FluidStack testFluid = new FluidStack(net.minecraftforge.fluids.FluidRegistry.WATER, 1000);
+            FluidStack testFluid = new FluidStack(FluidRegistry.WATER, 1000);
             return AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class)
                 .createStack(testFluid);
         }
 
-        // Essentia cells - return null, will use byte capacity
+        // Other cells - return null, will use byte capacity
         return null;
     }
 
@@ -828,9 +826,9 @@ public final class NetworkToolActionHandler {
      * Simulate injection to check how much of a stack can be accepted by a cell.
      * Returns the amount that can be accepted (0 if incompatible or full).
      */
-    private static long simulateInjection(ItemStack cellStack, CellType type,
+    private static long simulateInjection(ItemStack cellStack, StorageType type,
                                            IAEStack<?> stack, IActionSource source) {
-        if (type == CellType.ITEM && stack instanceof IAEItemStack) {
+        if (type.isItem() && stack instanceof IAEItemStack) {
             ICellInventoryHandler<IAEItemStack> handler = getCellHandler(cellStack,
                 AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
             if (handler == null || handler.getCellInv() == null) return 0;
@@ -858,7 +856,7 @@ public final class NetworkToolActionHandler {
 
             return stack.getStackSize() - rejected.getStackSize();
 
-        } else if (type == CellType.FLUID && stack instanceof IAEFluidStack) {
+        } else if (type.isFluid() && stack instanceof IAEFluidStack) {
             ICellInventoryHandler<IAEFluidStack> handler = getCellHandler(cellStack,
                 AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
             if (handler == null || handler.getCellInv() == null) return 0;
@@ -886,8 +884,10 @@ public final class NetworkToolActionHandler {
 
             return stack.getStackSize() - rejected.getStackSize();
 
-        } else if (type == CellType.ESSENTIA && ThaumicEnergisticsIntegration.isModLoaded()) {
+        } else if (type.isEssentia() && ThaumicEnergisticsIntegration.isModLoaded()) {
             return ThaumicEnergisticsIntegration.simulateEssentiaInjection(cellStack, stack, source);
+        } else if (type.isGas() && MekanismEnergisticsIntegration.isModLoaded()) {
+            return MekanismEnergisticsIntegration.simulateGasInjection(cellStack, stack, source);
         }
 
         return 0;
@@ -896,21 +896,23 @@ public final class NetworkToolActionHandler {
     /**
      * Get the total capacity of a cell in bytes.
      */
-    private static long getCellCapacity(ItemStack cellStack, CellType type) {
-        if (type == CellType.ITEM) {
+    private static long getCellCapacity(ItemStack cellStack, StorageType type) {
+        if (type.isItem()) {
             ICellInventoryHandler<IAEItemStack> handler = getCellHandler(cellStack,
                 AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
             if (handler != null && handler.getCellInv() != null) {
                 return handler.getCellInv().getTotalBytes();
             }
-        } else if (type == CellType.FLUID) {
+        } else if (type.isFluid()) {
             ICellInventoryHandler<IAEFluidStack> handler = getCellHandler(cellStack,
                 AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
             if (handler != null && handler.getCellInv() != null) {
                 return handler.getCellInv().getTotalBytes();
             }
-        } else if (type == CellType.ESSENTIA && ThaumicEnergisticsIntegration.isModLoaded()) {
+        } else if (type.isEssentia() && ThaumicEnergisticsIntegration.isModLoaded()) {
             return ThaumicEnergisticsIntegration.getEssentiaCellCapacity(cellStack);
+        } else if (type.isGas() && MekanismEnergisticsIntegration.isModLoaded()) {
+            return MekanismEnergisticsIntegration.getGasCellCapacity(cellStack);
         }
 
         return 0;
@@ -919,14 +921,16 @@ public final class NetworkToolActionHandler {
     /**
      * Get a display name for a stack for error messages.
      */
-    private static String getStackDisplayName(IAEStack<?> stack, CellType type) {
-        if (type == CellType.ITEM && stack instanceof IAEItemStack) {
+    private static String getStackDisplayName(IAEStack<?> stack, StorageType type) {
+        if (type.isItem() && stack instanceof IAEItemStack) {
             return ((IAEItemStack) stack).createItemStack().getDisplayName();
-        } else if (type == CellType.FLUID && stack instanceof IAEFluidStack) {
+        } else if (type.isFluid() && stack instanceof IAEFluidStack) {
             FluidStack fs = ((IAEFluidStack) stack).getFluidStack();
             return fs != null ? fs.getLocalizedName() : "Unknown Fluid";
-        } else if (type == CellType.ESSENTIA && ThaumicEnergisticsIntegration.isModLoaded()) {
+        } else if (type.isEssentia() && ThaumicEnergisticsIntegration.isModLoaded()) {
             return ThaumicEnergisticsIntegration.getEssentiaStackName(stack);
+        } else if (type.isGas() && MekanismEnergisticsIntegration.isModLoaded()) {
+            return MekanismEnergisticsIntegration.getGasStackName(stack);
         }
 
         return "Unknown";
@@ -937,8 +941,8 @@ public final class NetworkToolActionHandler {
      * Unlike collectUniqueItemsForType, this tracks the total count of each item type.
      * Uses BigStackTracker for lossless aggregation of counts exceeding Long.MAX_VALUE.
      */
-    private static void collectItemsWithCountsForType(ItemStack cellStack, CellType type, TypeStats stats) {
-        if (type == CellType.ITEM) {
+    private static void collectItemsWithCountsForType(ItemStack cellStack, StorageType type, TypeStats stats) {
+        if (type.isItem()) {
             ICellInventoryHandler<IAEItemStack> handler = getCellHandler(cellStack,
                 AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
             if (handler == null || handler.getCellInv() == null) return;
@@ -960,7 +964,7 @@ public final class NetworkToolActionHandler {
                 stats.stackTracker.add(key, stack);
             }
 
-        } else if (type == CellType.FLUID) {
+        } else if (type.isFluid()) {
             ICellInventoryHandler<IAEFluidStack> handler = getCellHandler(cellStack,
                 AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
             if (handler == null || handler.getCellInv() == null) return;
@@ -983,8 +987,11 @@ public final class NetworkToolActionHandler {
                 stats.stackTracker.add(key, stack);
             }
 
-        } else if (type == CellType.ESSENTIA && ThaumicEnergisticsIntegration.isModLoaded()) {
+        } else if (type.isEssentia() && ThaumicEnergisticsIntegration.isModLoaded()) {
             ThaumicEnergisticsIntegration.collectEssentiaWithCounts(cellStack, stats.uniqueKeys,
+                stats.uniqueStacks, stats.stackTracker);
+        } else if (type.isGas() && MekanismEnergisticsIntegration.isModLoaded()) {
+            MekanismEnergisticsIntegration.collectGasWithCounts(cellStack, stats.uniqueKeys,
                 stats.uniqueStacks, stats.stackTracker);
         }
     }
@@ -993,7 +1000,7 @@ public final class NetworkToolActionHandler {
      * Refresh all storage devices that were affected by the redistribution.
      * This forces drives to recalculate their cell state by simulating cell removal/reinsertion.
      */
-    private static void refreshAffectedStorage(Map<CellType, TypeStats> statsByType, IGrid grid) {
+    private static void refreshAffectedStorage(Map<StorageType, TypeStats> statsByType, IGrid grid) {
         // Collect all affected cell slots per storage tracker
         Map<StorageTracker, Set<Integer>> affectedSlots = new LinkedHashMap<>();
 
@@ -1041,10 +1048,10 @@ public final class NetworkToolActionHandler {
      * A single extraction may not drain cells with counts exceeding Long.MAX_VALUE,
      * so we must keep extracting until getUsedBytes() reports 0.
      */
-    private static void extractAllFromCellToBigTracker(ItemStack cellStack, CellType type,
+    private static void extractAllFromCellToBigTracker(ItemStack cellStack, StorageType type,
                                                         BigStackTracker tracker,
                                                         IActionSource source) {
-        if (type == CellType.ITEM) {
+        if (type.isItem()) {
             ICellInventoryHandler<IAEItemStack> handler = getCellHandler(cellStack,
                 AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
             if (handler == null || handler.getCellInv() == null) return;
@@ -1077,7 +1084,7 @@ public final class NetworkToolActionHandler {
 
             cellInv.persist();
 
-        } else if (type == CellType.FLUID) {
+        } else if (type.isFluid()) {
             ICellInventoryHandler<IAEFluidStack> handler = getCellHandler(cellStack,
                 AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
             if (handler == null || handler.getCellInv() == null) return;
@@ -1109,10 +1116,13 @@ public final class NetworkToolActionHandler {
 
             cellInv.persist();
 
-        } else if (type == CellType.ESSENTIA && ThaumicEnergisticsIntegration.isModLoaded()) {
+        } else if (type.isEssentia() && ThaumicEnergisticsIntegration.isModLoaded()) {
             // Essentia cells use a different storage channel, delegate to integration
             // Essentia keys remain as String for compatibility with integration layer
             ThaumicEnergisticsIntegration.extractAllEssentiaFromCellToBigTracker(cellStack, tracker);
+        } else if (type.isGas() && MekanismEnergisticsIntegration.isModLoaded()) {
+            // Gas cells use a different storage channel, delegate to integration
+            MekanismEnergisticsIntegration.extractAllGasFromCellToBigTracker(cellStack, tracker);
         }
     }
 
@@ -1120,11 +1130,11 @@ public final class NetworkToolActionHandler {
      * Inject a stack into a cell, returning the amount actually injected.
      * This is critical for tracking - cells may reject items due to capacity or type restrictions.
      */
-    private static long injectIntoCellWithTracking(ItemStack cellStack, CellType type,
+    private static long injectIntoCellWithTracking(ItemStack cellStack, StorageType type,
                                                     IAEStack<?> stack, IActionSource source) {
         long requested = stack.getStackSize();
 
-        if (type == CellType.ITEM && stack instanceof IAEItemStack) {
+        if (type.isItem() && stack instanceof IAEItemStack) {
             ICellInventoryHandler<IAEItemStack> handler = getCellHandler(cellStack,
                 AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
             if (handler == null || handler.getCellInv() == null) return 0;
@@ -1137,7 +1147,7 @@ public final class NetworkToolActionHandler {
 
             return requested - rejected.getStackSize();
 
-        } else if (type == CellType.FLUID && stack instanceof IAEFluidStack) {
+        } else if (type.isFluid() && stack instanceof IAEFluidStack) {
             ICellInventoryHandler<IAEFluidStack> handler = getCellHandler(cellStack,
                 AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
             if (handler == null || handler.getCellInv() == null) return 0;
@@ -1150,10 +1160,15 @@ public final class NetworkToolActionHandler {
 
             return requested - rejected.getStackSize();
 
-        } else if (type == CellType.ESSENTIA && ThaumicEnergisticsIntegration.isModLoaded()) {
+        } else if (type.isEssentia() && ThaumicEnergisticsIntegration.isModLoaded()) {
             // Essentia injection - delegate to integration
             // TODO: Track actual injection for essentia
             ThaumicEnergisticsIntegration.injectEssentiaIntoCell(cellStack, stack);
+            return requested;
+        } else if (type.isGas() && MekanismEnergisticsIntegration.isModLoaded()) {
+            // Gas injection - delegate to integration
+            // TODO: Track actual injection for gas
+            MekanismEnergisticsIntegration.injectGasIntoCell(cellStack, stack);
             return requested;
         }
 
@@ -1163,9 +1178,9 @@ public final class NetworkToolActionHandler {
     /**
      * Inject a stack into a cell.
      */
-    private static void injectIntoCell(ItemStack cellStack, CellType type,
+    private static void injectIntoCell(ItemStack cellStack, StorageType type,
                                         IAEStack<?> stack, IActionSource source) {
-        if (type == CellType.ITEM && stack instanceof IAEItemStack) {
+        if (type.isItem() && stack instanceof IAEItemStack) {
             ICellInventoryHandler<IAEItemStack> handler = getCellHandler(cellStack,
                 AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
             if (handler == null || handler.getCellInv() == null) return;
@@ -1173,7 +1188,7 @@ public final class NetworkToolActionHandler {
             ICellInventory<IAEItemStack> cellInv = handler.getCellInv();
             cellInv.injectItems((IAEItemStack) stack, Actionable.MODULATE, source);
             cellInv.persist();
-        } else if (type == CellType.FLUID && stack instanceof IAEFluidStack) {
+        } else if (type.isFluid() && stack instanceof IAEFluidStack) {
             ICellInventoryHandler<IAEFluidStack> handler = getCellHandler(cellStack,
                 AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
             if (handler == null || handler.getCellInv() == null) return;
@@ -1181,25 +1196,29 @@ public final class NetworkToolActionHandler {
             ICellInventory<IAEFluidStack> cellInv = handler.getCellInv();
             cellInv.injectItems((IAEFluidStack) stack, Actionable.MODULATE, source);
             cellInv.persist();
-        } else if (type == CellType.ESSENTIA && ThaumicEnergisticsIntegration.isModLoaded()) {
+        } else if (type.isEssentia() && ThaumicEnergisticsIntegration.isModLoaded()) {
             // Essentia stacks are stored as Object in the map, delegate to integration
             ThaumicEnergisticsIntegration.injectEssentiaIntoCell(cellStack, stack);
+        } else if (type.isGas() && MekanismEnergisticsIntegration.isModLoaded()) {
+            MekanismEnergisticsIntegration.injectGasIntoCell(cellStack, stack);
         }
     }
 
     /**
      * Get an ItemStack suitable for partition from an IAEStack.
      */
-    private static ItemStack getPartitionItemFromStack(IAEStack<?> stack, CellType type) {
-        if (type == CellType.ITEM && stack instanceof IAEItemStack) {
+    private static ItemStack getPartitionItemFromStack(IAEStack<?> stack, StorageType type) {
+        if (type.isItem() && stack instanceof IAEItemStack) {
             ItemStack result = ((IAEItemStack) stack).createItemStack();
             result.setCount(1);
 
             return result;
-        } else if (type == CellType.FLUID && stack instanceof IAEFluidStack) {
+        } else if (type.isFluid() && stack instanceof IAEFluidStack) {
             return stack.asItemStackRepresentation();
-        } else if (type == CellType.ESSENTIA && ThaumicEnergisticsIntegration.isModLoaded()) {
+        } else if (type.isEssentia() && ThaumicEnergisticsIntegration.isModLoaded()) {
             return ThaumicEnergisticsIntegration.getEssentiaPartitionItem(stack);
+        } else if (type.isGas() && MekanismEnergisticsIntegration.isModLoaded()) {
+            return MekanismEnergisticsIntegration.getGasPartitionItem(stack);
         }
 
         return ItemStack.EMPTY;
@@ -1208,18 +1227,19 @@ public final class NetworkToolActionHandler {
     /**
      * Get the cell type for a cell stack.
      */
-    private static CellType getCellType(ItemStack cellStack) {
-        if (isEssentiaCell(cellStack)) return CellType.ESSENTIA;
-        if (isFluidCell(cellStack)) return CellType.FLUID;
+    private static StorageType getCellType(ItemStack cellStack) {
+        if (isGasCell(cellStack)) return StorageType.GAS;
+        if (isEssentiaCell(cellStack)) return StorageType.ESSENTIA;
+        if (isFluidCell(cellStack)) return StorageType.FLUID;
 
-        return CellType.ITEM;
+        return StorageType.ITEM;
     }
 
     /**
      * Collect unique items from a cell into the TypeStats for that type.
      */
-    private static void collectUniqueItemsForType(ItemStack cellStack, CellType type, TypeStats stats) {
-        if (type == CellType.ITEM) {
+    private static void collectUniqueItemsForType(ItemStack cellStack, StorageType type, TypeStats stats) {
+        if (type.isItem()) {
             ICellInventoryHandler<IAEItemStack> handler = getCellHandler(cellStack,
                 AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
             if (handler == null || handler.getCellInv() == null) return;
@@ -1236,7 +1256,7 @@ public final class NetworkToolActionHandler {
                 }
             }
 
-        } else if (type == CellType.FLUID) {
+        } else if (type.isFluid()) {
             ICellInventoryHandler<IAEFluidStack> handler = getCellHandler(cellStack,
                 AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
             if (handler == null || handler.getCellInv() == null) return;
@@ -1254,8 +1274,10 @@ public final class NetworkToolActionHandler {
                 }
             }
 
-        } else if (type == CellType.ESSENTIA && ThaumicEnergisticsIntegration.isModLoaded()) {
+        } else if (type.isEssentia() && ThaumicEnergisticsIntegration.isModLoaded()) {
             ThaumicEnergisticsIntegration.collectUniqueEssentiaFromCell(cellStack, stats.uniqueKeys, stats.uniqueStacks);
+        } else if (type.isGas() && MekanismEnergisticsIntegration.isModLoaded()) {
+            MekanismEnergisticsIntegration.collectUniqueGasFromCell(cellStack, stats.uniqueKeys, stats.uniqueStacks);
         }
     }
 
@@ -1282,6 +1304,11 @@ public final class NetworkToolActionHandler {
     private static boolean isEssentiaCell(ItemStack cellStack) {
         if (!ThaumicEnergisticsIntegration.isModLoaded()) return false;
         return isEssentiaCellInternal(cellStack);
+    }
+
+    private static boolean isGasCell(ItemStack cellStack) {
+        if (!MekanismEnergisticsIntegration.isModLoaded()) return false;
+        return isGasCellInternal(cellStack);
     }
 
     private static boolean isCellEmptyAndNonPartitioned(ItemStack cellStack) {
@@ -1315,6 +1342,14 @@ public final class NetworkToolActionHandler {
             }
         }
 
+        // Check gas cells (MekanismEnergistics)
+        if (MekanismEnergisticsIntegration.isModLoaded()) {
+            ICellHandler handler = AEApi.instance().registries().cell().getHandler(cellStack);
+            if (handler != null && MekanismEnergisticsIntegration.isGasEmptyAndNonPartitioned(handler, cellStack)) {
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -1334,6 +1369,7 @@ public final class NetworkToolActionHandler {
         // Determine cell type
         boolean isFluid = false;
         boolean isEssentia = false;
+        boolean isGas = false;
 
         ICellInventoryHandler<IAEFluidStack> fluidHandler = getCellHandler(cellStack,
             AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
@@ -1346,25 +1382,35 @@ public final class NetworkToolActionHandler {
             if (isEssentia) isFluid = false;
         }
 
-        boolean isItem = !isFluid && !isEssentia;
+        // Check if it's a gas cell
+        if (MekanismEnergisticsIntegration.isModLoaded()) {
+            isGas = isGasCellInternal(cellStack);
+            if (isGas) isFluid = false;
+        }
+
+        boolean isItem = !isFluid && !isEssentia && !isGas;
 
         // Check type filters
         CellFilter.State itemState = activeFilters.getOrDefault(CellFilter.ITEM_CELLS, CellFilter.State.SHOW_ALL);
         CellFilter.State fluidState = activeFilters.getOrDefault(CellFilter.FLUID_CELLS, CellFilter.State.SHOW_ALL);
         CellFilter.State essentiaState = activeFilters.getOrDefault(CellFilter.ESSENTIA_CELLS, CellFilter.State.SHOW_ALL);
+        CellFilter.State gasState = activeFilters.getOrDefault(CellFilter.GAS_CELLS, CellFilter.State.SHOW_ALL);
 
         if (isItem && itemState == CellFilter.State.HIDE) return false;
         if (isFluid && fluidState == CellFilter.State.HIDE) return false;
         if (isEssentia && essentiaState == CellFilter.State.HIDE) return false;
+        if (isGas && gasState == CellFilter.State.HIDE) return false;
 
         boolean hasShowOnly = (itemState == CellFilter.State.SHOW_ONLY)
             || (fluidState == CellFilter.State.SHOW_ONLY)
-            || (essentiaState == CellFilter.State.SHOW_ONLY);
+            || (essentiaState == CellFilter.State.SHOW_ONLY)
+            || (gasState == CellFilter.State.SHOW_ONLY);
 
         if (hasShowOnly) {
             if (isItem && itemState != CellFilter.State.SHOW_ONLY) return false;
             if (isFluid && fluidState != CellFilter.State.SHOW_ONLY) return false;
             if (isEssentia && essentiaState != CellFilter.State.SHOW_ONLY) return false;
+            if (isGas && gasState != CellFilter.State.SHOW_ONLY) return false;
         }
 
         // Check has items filter
@@ -1392,6 +1438,14 @@ public final class NetworkToolActionHandler {
         if (handler == null) return false;
 
         return ThaumicEnergisticsIntegration.tryPopulateEssentiaCell(handler, cellStack, Integer.MAX_VALUE) != null;
+    }
+
+    private static boolean isGasCellInternal(ItemStack cellStack) {
+        // Check if MekanismEnergisticsIntegration can populate this cell as gas
+        ICellHandler handler = AEApi.instance().registries().cell().getHandler(cellStack);
+        if (handler == null) return false;
+
+        return MekanismEnergisticsIntegration.tryPopulateGasCell(handler, cellStack, Integer.MAX_VALUE) != null;
     }
 
     private static boolean checkCellHasContents(ItemStack cellStack) {
@@ -1448,24 +1502,29 @@ public final class NetworkToolActionHandler {
                                               Map<CellFilter, CellFilter.State> activeFilters) {
         boolean isFluid = tracker.storageBus instanceof PartFluidStorageBus;
         boolean isEssentia = isEssentiaStorageBus(tracker);
-        boolean isItem = tracker.storageBus instanceof PartStorageBus && !isFluid && !isEssentia;
+        boolean isGas = isGasStorageBus(tracker);
+        boolean isItem = tracker.storageBus instanceof PartStorageBus && !isFluid && !isEssentia && !isGas;
 
         CellFilter.State itemState = activeFilters.getOrDefault(CellFilter.ITEM_CELLS, CellFilter.State.SHOW_ALL);
         CellFilter.State fluidState = activeFilters.getOrDefault(CellFilter.FLUID_CELLS, CellFilter.State.SHOW_ALL);
         CellFilter.State essentiaState = activeFilters.getOrDefault(CellFilter.ESSENTIA_CELLS, CellFilter.State.SHOW_ALL);
+        CellFilter.State gasState = activeFilters.getOrDefault(CellFilter.GAS_CELLS, CellFilter.State.SHOW_ALL);
 
         if (isItem && itemState == CellFilter.State.HIDE) return false;
         if (isFluid && fluidState == CellFilter.State.HIDE) return false;
         if (isEssentia && essentiaState == CellFilter.State.HIDE) return false;
+        if (isGas && gasState == CellFilter.State.HIDE) return false;
 
         boolean hasShowOnly = (itemState == CellFilter.State.SHOW_ONLY)
             || (fluidState == CellFilter.State.SHOW_ONLY)
-            || (essentiaState == CellFilter.State.SHOW_ONLY);
+            || (essentiaState == CellFilter.State.SHOW_ONLY)
+            || (gasState == CellFilter.State.SHOW_ONLY);
 
         if (hasShowOnly) {
             if (isItem && itemState != CellFilter.State.SHOW_ONLY) return false;
             if (isFluid && fluidState != CellFilter.State.SHOW_ONLY) return false;
             if (isEssentia && essentiaState != CellFilter.State.SHOW_ONLY) return false;
+            if (isGas && gasState != CellFilter.State.SHOW_ONLY) return false;
         }
 
         CellFilter.State hasItemsState = activeFilters.getOrDefault(CellFilter.HAS_ITEMS, CellFilter.State.SHOW_ALL);
@@ -1492,6 +1551,15 @@ public final class NetworkToolActionHandler {
         if (essentiaClass == null) return false;
 
         return essentiaClass.isInstance(tracker.storageBus);
+    }
+
+    private static boolean isGasStorageBus(StorageBusTracker tracker) {
+        if (!MekanismEnergisticsIntegration.isModLoaded()) return false;
+
+        Class<?> gasClass = MekanismEnergisticsIntegration.getGasStorageBusClass();
+        if (gasClass == null) return false;
+
+        return gasClass.isInstance(tracker.storageBus);
     }
 
     private static boolean checkBusHasContents(StorageBusTracker tracker) {

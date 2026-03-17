@@ -28,6 +28,7 @@ import appeng.api.implementations.IUpgradeableHost;
 import appeng.api.implementations.tiles.IChestOrDrive;
 import appeng.api.implementations.items.IUpgradeModule;
 import appeng.api.networking.IGrid;
+import appeng.api.networking.IGridHost;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.security.IActionHost;
 import appeng.api.parts.IPart;
@@ -110,25 +111,18 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         this.setupToolbox();
     }
 
-    public ContainerCellTerminalBase(
-        InventoryPlayer ip,
-        WirelessTerminalGuiObject guiObject
-    ) {
-
+    public ContainerCellTerminalBase(InventoryPlayer ip, WirelessTerminalGuiObject guiObject) {
         super(ip, guiObject);
 
         if (Platform.isServer()) {
             IGridNode node = guiObject.getActionableNode();
-            if (node != null && node.isActive()) {
-                this.grid = node.getGrid();
-            }
+            if (node != null && node.isActive()) this.grid = node.getGrid();
         }
 
         this.setupToolbox();
     }
 
     public void setupToolbox() {
-
         final IInventory pi = this.getPlayerInv();
         ItemStack toolbox = null;
         for (int x = 0; x < pi.getSizeInventory(); x++) {
@@ -143,11 +137,8 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
         if (toolbox != null) {
             IGridNode node = this.getActionHost().getActionableNode();
-            this.toolboxInventory = new NetworkToolViewer(
-                toolbox,
-                node != null ? node.getMachine() : null
-            );
-
+            IGridHost host = node != null ? node.getMachine() : null;
+            this.toolboxInventory = new NetworkToolViewer(toolbox, host);
 
             for (int v = 0; v < 3; v++) {
                 for (int u = 0; u < 3; u++) {
@@ -167,7 +158,6 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
     }
 
     public boolean hasToolbox() {
-
         return this.toolboxInventory != null;
     }
 
@@ -207,25 +197,20 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
     }
 
     public void checkToolbox() {
-
         if (hasToolbox()) {
             final ItemStack currentItem = this.getPlayerInv().getStackInSlot(this.toolboxSlot);
 
-            if (currentItem != this.toolboxInventory.getItemStack()) {
-                if (!currentItem.isEmpty()) {
-                    if (ItemStack.areItemsEqual(this.toolboxInventory.getItemStack(), currentItem)) {
-                        this
-                            .getPlayerInv()
-                            .setInventorySlotContents(
-                                this.toolboxSlot,
-                                this.toolboxInventory.getItemStack()
-                            );
-                    } else {
-                        this.setValidContainer(false);
-                    }
-                } else {
-                    this.setValidContainer(false);
-                }
+            if (currentItem.isEmpty() || currentItem == this.toolboxInventory.getItemStack()) {
+                this.setValidContainer(false);
+                return;
+            }
+
+            if (ItemStack.areItemsEqual(this.toolboxInventory.getItemStack(), currentItem)) {
+                this.getPlayerInv().setInventorySlotContents(
+                        this.toolboxSlot,
+                        this.toolboxInventory.getItemStack());
+            } else {
+                this.setValidContainer(false);
             }
         }
     }
@@ -1136,8 +1121,8 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
      * Finds the storage bus at (pos, side) within the subnet and modifies its config.
      */
     public void handleSubnetPartitionAction(long subnetId, long pos, int side,
-                                             PacketSubnetPartitionAction.Action action,
-                                             int partitionSlot, ItemStack itemStack) {
+                                            PacketSubnetPartitionAction.Action action,
+                                            int partitionSlot, ItemStack itemStack) {
         if (!CellTerminalServerConfig.getInstance().isPartitionEditEnabled()) {
             PlayerMessageHelper.error(this.getPlayerInv().player, "cellterminal.error.partition_edit_disabled");
 

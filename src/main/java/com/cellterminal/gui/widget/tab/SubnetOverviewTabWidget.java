@@ -19,6 +19,7 @@ import net.minecraftforge.common.util.Constants;
 
 import mezz.jei.api.gui.IGhostIngredientHandler;
 
+import com.cellterminal.client.StorageType;
 import com.cellterminal.client.SubnetConnectionEntry;
 import com.cellterminal.client.SubnetConnectionRow;
 import com.cellterminal.client.SubnetInfo;
@@ -526,7 +527,7 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
                     public void accept(Object ing) {
                         // Subnet connections are always item-based storage buses for now
                         ItemStack stack = JeiGhostHandler.convertJeiIngredientForStorageBus(
-                            ing, false, false);
+                            ing, StorageType.ITEM);
                         if (!stack.isEmpty()) {
                             guiContext.sendPacket(new PacketSubnetPartitionAction(
                                 subnet.getId(), conn.getPos().toLong(), conn.getSide().ordinal(),

@@ -73,7 +73,7 @@ public class TempCellActionHandler {
 
         // Execute the partition action using the same logic as regular cells
         CellActionHandler.executePartitionActionDirect(config.configInv, action, partitionSlot, itemStack,
-            cellHandler, cellStack, config.isFluidCell, config.essentiaData);
+            cellHandler, cellStack, config.isFluidCell, config.essentiaData, config.gasData);
 
         // Update the cell NBT in the temp inventory
         tempInv.setStackInSlot(tempSlotIndex, cellStack);

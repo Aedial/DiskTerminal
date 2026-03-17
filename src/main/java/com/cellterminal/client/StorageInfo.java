@@ -16,6 +16,28 @@ import com.cellterminal.gui.rename.RenameTargetType;
 
 /**
  * Client-side data holder for drive/chest storage information received from server.
+ * <p>
+ * <b>NBT Data Map</b> (written by {@link com.cellterminal.container.handler.CellDataHandler#createStorageData}):
+ * <pre>
+ * StorageInfo                          Size (bytes)
+ * ─────────────────────────────────────────────────
+ * "id"              long                  8
+ * "pos"             long (BlockPos)       8
+ * "dim"             int                   4
+ * "name"            String                ~N  (storage device name or lang key)
+ * "priority"        int                   4   (if IPriorityHost)
+ * "supportsPriority" boolean              1   (from scanner)
+ * "blockItem"       NBTTagCompound        ~B  (optional; block item representation)
+ * "slotCount"       int                   4
+ * "cells"           NBTTagList            S * C  (C = number of occupied cell slots)
+ *   └─ each entry: see {@link CellInfo} data map
+ * ─────────────────────────────────────────────────
+ * Total ≈ 29 + N + B + S * C
+ *   where S = size of one CellInfo compound (see CellInfo),
+ *         C = number of populated cell slots,
+ *         N = name string length,
+ *         B = block item NBT size (0 if absent)
+ * </pre>
  */
 public class StorageInfo implements Renameable, Prioritizable {
 

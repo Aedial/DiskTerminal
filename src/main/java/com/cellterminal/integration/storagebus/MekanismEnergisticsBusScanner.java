@@ -1,6 +1,5 @@
 package com.cellterminal.integration.storagebus;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Map;
 
@@ -16,26 +15,27 @@ import appeng.api.util.AEPartLocation;
 import com.cellterminal.client.StorageType;
 import com.cellterminal.container.handler.StorageBusDataHandler;
 import com.cellterminal.container.handler.StorageBusDataHandler.StorageBusTracker;
-import com.cellterminal.integration.ThaumicEnergisticsIntegration;
+import com.cellterminal.integration.MekanismEnergisticsIntegration;
+
 
 /**
- * Scanner for Thaumic Energistics essentia storage buses.
- * TODO: integrate TC integration more cleanly and avoid reflection where possible.
+ * Scanner for MekanismEnergistics gas storage buses.
+ * Uses PartGasStorageBus's getHost().getTile() and getSide() to identify bus location.
  */
-public class ThaumicEnergisticsBusScanner extends AbstractStorageBusScanner {
+public class MekanismEnergisticsBusScanner extends AbstractStorageBusScanner {
 
-    public static final ThaumicEnergisticsBusScanner INSTANCE = new ThaumicEnergisticsBusScanner();
+    public static final MekanismEnergisticsBusScanner INSTANCE = new MekanismEnergisticsBusScanner();
 
-    private ThaumicEnergisticsBusScanner() {}
+    private MekanismEnergisticsBusScanner() {}
 
     @Override
     public String getId() {
-        return "thaumicenergistics";
+        return "mekanismenergistics";
     }
 
     @Override
     public boolean isAvailable() {
-        return ThaumicEnergisticsIntegration.isModLoaded();
+        return MekanismEnergisticsIntegration.isModLoaded();
     }
 
     @Override
@@ -43,10 +43,10 @@ public class ThaumicEnergisticsBusScanner extends AbstractStorageBusScanner {
     public void scanStorageBuses(IGrid grid, NBTTagList out, Map<Long, StorageBusTracker> trackerMap) {
         if (!isAvailable() || grid == null) return;
 
-        Class<?> essentiaStorageBusClass = ThaumicEnergisticsIntegration.getEssentiaStorageBusClass();
-        if (essentiaStorageBusClass == null) return;
+        Class<?> gasStorageBusClass = MekanismEnergisticsIntegration.getGasStorageBusClass();
+        if (gasStorageBusClass == null) return;
 
-        for (IGridNode gn : grid.getMachines((Class<? extends IGridHost>) essentiaStorageBusClass)) {
+        for (IGridNode gn : grid.getMachines((Class<? extends IGridHost>) gasStorageBusClass)) {
             if (!gn.isActive()) continue;
             Object machine = gn.getMachine();
             if (machine == null) continue;
@@ -55,9 +55,9 @@ public class ThaumicEnergisticsBusScanner extends AbstractStorageBusScanner {
             if (hostTile == null) continue;
 
             int sideOrdinal = getSideOrdinalFromMachine(machine);
-            long busId = StorageBusDataHandler.createBusId(hostTile, sideOrdinal, StorageType.ESSENTIA.ordinal());
+            long busId = StorageBusDataHandler.createBusId(hostTile, sideOrdinal, StorageType.GAS.ordinal());
 
-            NBTTagCompound nbt = ThaumicEnergisticsIntegration.tryCreateEssentiaStorageBusData(machine, busId);
+            NBTTagCompound nbt = MekanismEnergisticsIntegration.tryCreateGasStorageBusData(machine, busId);
             if (nbt == null) continue;
 
             applyCapabilities(nbt);
@@ -68,8 +68,14 @@ public class ThaumicEnergisticsBusScanner extends AbstractStorageBusScanner {
 
     private TileEntity getHostTileFromMachine(Object machine) {
         try {
-            Method getTileMethod = machine.getClass().getMethod("getTile");
-            Object result = getTileMethod.invoke(machine);
+            // PartGasStorageBus extends PartGasUpgradeable which extends PartUpgradeable
+            // getHost().getTile() is the standard way to get the host tile entity
+            Method getHostMethod = machine.getClass().getMethod("getHost");
+            Object host = getHostMethod.invoke(machine);
+            if (host == null) return null;
+
+            Method getTileMethod = host.getClass().getMethod("getTile");
+            Object result = getTileMethod.invoke(host);
             if (result instanceof TileEntity) return (TileEntity) result;
         } catch (Exception ignored) {}
 
@@ -78,8 +84,9 @@ public class ThaumicEnergisticsBusScanner extends AbstractStorageBusScanner {
 
     private int getSideOrdinalFromMachine(Object machine) {
         try {
-            Field sideField = machine.getClass().getField("side");
-            Object result = sideField.get(machine);
+            // PartGasStorageBus inherits getSide() from AEBasePart which returns AEPartLocation
+            Method getSideMethod = machine.getClass().getMethod("getSide");
+            Object result = getSideMethod.invoke(machine);
             if (result instanceof AEPartLocation) return ((AEPartLocation) result).ordinal();
         } catch (Exception ignored) {}
 
@@ -88,6 +95,7 @@ public class ThaumicEnergisticsBusScanner extends AbstractStorageBusScanner {
 
     @Override
     public boolean supportsIOMode() {
-        return false;
+        // Gas storage buses support IO mode (AccessRestriction setting)
+        return true;
     }
 }

@@ -40,8 +40,10 @@ import appeng.parts.automation.PartUpgradeable;
 import appeng.parts.misc.PartStorageBus;
 import appeng.util.helpers.ItemHandlerUtil;
 
+import com.cellterminal.client.StorageType;
 import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.integration.StorageDrawersIntegration;
+import com.cellterminal.integration.MekanismEnergisticsIntegration;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 import com.cellterminal.network.PacketStorageBusPartitionAction;
 import com.cellterminal.network.PacketSubnetPartitionAction;
@@ -109,7 +111,7 @@ public class StorageBusDataHandler {
         busData.setInteger("dim", hostTile.getWorld().provider.getDimension());
         busData.setInteger("side", bus.getSide().ordinal());
         busData.setInteger("priority", bus.getPriority());
-        busData.setBoolean("isItem", true);
+        StorageType.ITEM.writeToNBT(busData);
         // Slot parameters are provided by the scanner implementation
 
         // Access restriction (IO mode)
@@ -147,7 +149,7 @@ public class StorageBusDataHandler {
         busData.setInteger("dim", hostTile.getWorld().provider.getDimension());
         busData.setInteger("side", bus.getSide().ordinal());
         busData.setInteger("priority", bus.getPriority());
-        busData.setBoolean("isFluid", true);
+        StorageType.FLUID.writeToNBT(busData);
         // Slot parameters are provided by the scanner implementation
 
         // Access restriction (IO mode)
@@ -414,6 +416,11 @@ public class StorageBusDataHandler {
             return handleFluidBusPartition((PartFluidStorageBus) tracker.storageBus, action, partitionSlot, itemStack, tracker);
         } else if (ThaumicEnergisticsIntegration.isModLoaded()) {
             ThaumicEnergisticsIntegration.handleEssentiaStorageBusPartition(tracker.storageBus, action, partitionSlot, itemStack);
+            tracker.hostTile.markDirty();
+
+            return true;
+        } else if (MekanismEnergisticsIntegration.isModLoaded()) {
+            MekanismEnergisticsIntegration.handleGasStorageBusPartition(tracker.storageBus, action, partitionSlot, itemStack);
             tracker.hostTile.markDirty();
 
             return true;
@@ -833,6 +840,11 @@ public class StorageBusDataHandler {
             return ThaumicEnergisticsIntegration.essentiaStorageBusHasConnectedInventory(tracker.storageBus);
         }
 
+        // For gas buses, check via integration
+        if (MekanismEnergisticsIntegration.isModLoaded()) {
+            return MekanismEnergisticsIntegration.gasStorageBusHasConnectedInventory(tracker.storageBus);
+        }
+
         return false;
     }
 
@@ -869,6 +881,11 @@ public class StorageBusDataHandler {
         // For essentia buses, check via reflection
         if (ThaumicEnergisticsIntegration.isModLoaded()) {
             return ThaumicEnergisticsIntegration.essentiaStorageBusHasPartition(tracker.storageBus);
+        }
+
+        // For gas buses, check via integration
+        if (MekanismEnergisticsIntegration.isModLoaded()) {
+            return MekanismEnergisticsIntegration.gasStorageBusHasPartition(tracker.storageBus);
         }
 
         return false;

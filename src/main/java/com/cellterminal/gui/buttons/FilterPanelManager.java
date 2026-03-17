@@ -13,6 +13,7 @@ import com.cellterminal.client.CellFilter;
 import com.cellterminal.client.CellFilter.State;
 import com.cellterminal.client.SlotLimit;
 import com.cellterminal.config.CellTerminalClientConfig;
+import com.cellterminal.integration.MekanismEnergisticsIntegration;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketSlotLimitChange;
@@ -111,6 +112,7 @@ public class FilterPanelManager {
             filters.add(CellFilter.FLUID_CELLS);
 
             if (ThaumicEnergisticsIntegration.isModLoaded()) filters.add(CellFilter.ESSENTIA_CELLS);
+            if (MekanismEnergisticsIntegration.isModLoaded()) filters.add(CellFilter.GAS_CELLS);
         }
 
         // Content-based filters

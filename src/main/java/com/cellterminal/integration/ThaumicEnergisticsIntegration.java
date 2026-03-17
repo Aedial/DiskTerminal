@@ -1,13 +1,17 @@
 package com.cellterminal.integration;
 
 import net.minecraft.item.ItemStack;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Optional;
 import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.AEApi;
+import appeng.api.config.Actionable;
+import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.ICellHandler;
 import appeng.api.storage.ICellInventory;
 import appeng.api.storage.ICellInventoryHandler;
@@ -17,9 +21,9 @@ import appeng.util.helpers.ItemHandlerUtil;
 
 import com.cellterminal.CellTerminal;
 import com.cellterminal.client.StorageBusInfo;
-import com.cellterminal.util.BigStackTracker;
-
+import com.cellterminal.client.StorageType;
 import com.cellterminal.config.CellTerminalServerConfig;
+import com.cellterminal.util.BigStackTracker;
 
 
 /**
@@ -83,7 +87,7 @@ public class ThaumicEnergisticsIntegration {
             NBTTagCompound cellData = new NBTTagCompound();
 
             // Mark as Essentia cell
-            cellData.setBoolean("isEssentia", true);
+            StorageType.ESSENTIA.writeToNBT(cellData);
 
             // Basic cell stats
             cellData.setLong("usedBytes", cellInv.getUsedBytes());
@@ -333,7 +337,7 @@ public class ThaumicEnergisticsIntegration {
 
             for (thaumicenergistics.api.storage.IAEEssentiaStack stack : available) {
                 thaumicenergistics.api.storage.IAEEssentiaStack extracted =
-                    cellInv.extractItems(stack.copy(), appeng.api.config.Actionable.MODULATE, null);
+                    cellInv.extractItems(stack.copy(), Actionable.MODULATE, null);
                 if (extracted == null || extracted.getStackSize() <= 0) continue;
 
                 thaumcraft.api.aspects.Aspect aspect = extracted.getAspect();
@@ -379,7 +383,7 @@ public class ThaumicEnergisticsIntegration {
 
             ICellInventory<thaumicenergistics.api.storage.IAEEssentiaStack> cellInv = handler.getCellInv();
             cellInv.injectItems((thaumicenergistics.api.storage.IAEEssentiaStack) essentiaStack,
-                appeng.api.config.Actionable.MODULATE, null);
+                Actionable.MODULATE, null);
             cellInv.persist();
         } catch (Exception e) {
             CellTerminal.LOGGER.debug("Failed to inject essentia into cell: {}", e.getMessage());
@@ -459,8 +463,7 @@ public class ThaumicEnergisticsIntegration {
 
             // Simulate injection
             thaumicenergistics.api.storage.IAEEssentiaStack rejected =
-                cellInv.injectItems(essentiaStack.copy(), appeng.api.config.Actionable.SIMULATE,
-                    (appeng.api.networking.security.IActionSource) source);
+                cellInv.injectItems(essentiaStack.copy(), Actionable.SIMULATE, (IActionSource) source);
 
             if (rejected == null) return essentiaStack.getStackSize();
 
@@ -522,9 +525,7 @@ public class ThaumicEnergisticsIntegration {
                 (thaumicenergistics.api.storage.IAEEssentiaStack) stack;
             thaumcraft.api.aspects.Aspect aspect = essentiaStack.getAspect();
 
-            if (aspect != null) {
-                return aspect.getName();
-            }
+            if (aspect != null) return aspect.getName();
         } catch (Exception e) {
             // Ignored
         }
@@ -796,7 +797,7 @@ public class ThaumicEnergisticsIntegration {
             thaumicenergistics.part.PartEssentiaStorageBus bus =
                 (thaumicenergistics.part.PartEssentiaStorageBus) machine;
 
-            net.minecraft.tileentity.TileEntity hostTile = bus.getTile();
+            TileEntity hostTile = bus.getTile();
             if (hostTile == null) return null;
 
             NBTTagCompound busData = new NBTTagCompound();
@@ -805,11 +806,11 @@ public class ThaumicEnergisticsIntegration {
             busData.setInteger("dim", hostTile.getWorld().provider.getDimension());
             busData.setInteger("side", bus.side.ordinal());
             busData.setInteger("priority", bus.getPriority());
-            busData.setBoolean("isEssentia", true);
+            com.cellterminal.client.StorageType.ESSENTIA.writeToNBT(busData);
             // Essentia uses fixed config slots; provide explicit values
-            busData.setInteger("baseConfigSlots", com.cellterminal.client.StorageBusInfo.MAX_CONFIG_SLOTS);
+            busData.setInteger("baseConfigSlots", StorageBusInfo.MAX_CONFIG_SLOTS);
             busData.setInteger("slotsPerUpgrade", 0);
-            busData.setInteger("maxConfigSlots", com.cellterminal.client.StorageBusInfo.MAX_CONFIG_SLOTS);
+            busData.setInteger("maxConfigSlots", StorageBusInfo.MAX_CONFIG_SLOTS);
 
             // Essentia storage buses don't have the same upgrade types as item storage buses
             // They use speed upgrades only
@@ -820,12 +821,12 @@ public class ThaumicEnergisticsIntegration {
             busData.setInteger("access", 3);  // READ_WRITE
 
             // Connected inventory info - check for IAspectContainer
-            net.minecraft.tileentity.TileEntity targetTile = hostTile.getWorld().getTileEntity(
+            TileEntity targetTile = hostTile.getWorld().getTileEntity(
                 hostTile.getPos().offset(bus.side.getFacing()));
 
             if (targetTile != null) {
                 // Get the block as icon
-                net.minecraft.block.state.IBlockState state = hostTile.getWorld().getBlockState(
+                IBlockState state = hostTile.getWorld().getBlockState(
                     hostTile.getPos().offset(bus.side.getFacing()));
                 ItemStack blockStack = new ItemStack(state.getBlock(), 1, state.getBlock().getMetaFromState(state));
 
@@ -913,7 +914,7 @@ public class ThaumicEnergisticsIntegration {
 
             // Upgrades - get from the upgrades inventory
             NBTTagList upgradeList = new NBTTagList();
-            net.minecraftforge.items.IItemHandler upgradeInv = bus.getInventoryByName("upgrades");
+            IItemHandler upgradeInv = bus.getInventoryByName("upgrades");
             if (upgradeInv != null) {
                 for (int i = 0; i < upgradeInv.getSlots(); i++) {
                     ItemStack upgradeStack = upgradeInv.getStackInSlot(i);
@@ -992,9 +993,9 @@ public class ThaumicEnergisticsIntegration {
                     // Clear all aspects first
                     clearAspectConfig(config);
                     // Get contents from connected IAspectContainer
-                    net.minecraft.tileentity.TileEntity hostTile = bus.getTile();
+                    TileEntity hostTile = bus.getTile();
                     if (hostTile != null && hostTile.getWorld() != null) {
-                        net.minecraft.tileentity.TileEntity targetTile = hostTile.getWorld().getTileEntity(
+                        TileEntity targetTile = hostTile.getWorld().getTileEntity(
                             hostTile.getPos().offset(bus.side.getFacing()));
                         if (targetTile instanceof thaumcraft.api.aspects.IAspectContainer) {
                             thaumcraft.api.aspects.IAspectContainer container =

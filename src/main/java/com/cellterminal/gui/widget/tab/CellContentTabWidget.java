@@ -38,6 +38,7 @@ import com.cellterminal.gui.widget.header.StorageHeader;
 import com.cellterminal.gui.widget.line.CellSlotsLine;
 import com.cellterminal.gui.widget.line.ContinuationLine;
 import com.cellterminal.gui.widget.line.SlotsLine;
+import com.cellterminal.integration.MekanismEnergisticsIntegration;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
 import com.cellterminal.network.PacketExtractUpgrade;
 import com.cellterminal.network.PacketInsertCell;
@@ -143,6 +144,16 @@ public class CellContentTabWidget extends AbstractTabWidget {
                 lines.add(I18n.format("gui.cellterminal.controls.essentia_warning"));
             }
 
+            if (MekanismEnergisticsIntegration.isModLoaded()) {
+                String gasKey = KeyBindings.QUICK_PARTITION_GAS.isBound()
+                    ? KeyBindings.QUICK_PARTITION_GAS.getDisplayName() : notSet;
+                lines.add(I18n.format("gui.cellterminal.controls.key_gas", gasKey));
+
+                if (!gasKey.equals(notSet) && !MekanismEnergisticsIntegration.isModLoaded()) {
+                    lines.add(I18n.format("gui.cellterminal.controls.gas_warning"));
+                }
+            }
+
             lines.add("");
             lines.add(I18n.format("gui.cellterminal.controls.jei_drag"));
             lines.add(I18n.format("gui.cellterminal.controls.click_to_remove"));
@@ -191,6 +202,8 @@ public class CellContentTabWidget extends AbstractTabWidget {
             type = QuickPartitionHandler.PartitionType.FLUID;
         } else if (KeyBindings.QUICK_PARTITION_ESSENTIA.isActiveAndMatches(keyCode)) {
             type = QuickPartitionHandler.PartitionType.ESSENTIA;
+        } else if (KeyBindings.QUICK_PARTITION_GAS.isActiveAndMatches(keyCode)) {
+            type = QuickPartitionHandler.PartitionType.GAS;
         }
 
         if (type == null) return false;
@@ -236,7 +249,7 @@ public class CellContentTabWidget extends AbstractTabWidget {
                     @Override
                     public void accept(Object ing) {
                         ItemStack stack = JeiGhostHandler.convertJeiIngredientToItemStack(
-                            ing, cell.isFluid(), cell.isEssentia());
+                            ing, cell.getStorageType());
                         if (!stack.isEmpty()) {
                             guiContext.sendPacket(new PacketPartitionAction(
                                 cell.getParentStorageId(), cell.getSlot(),
@@ -424,9 +437,16 @@ public class CellContentTabWidget extends AbstractTabWidget {
                 boolean slotOccupied = slotIndex < partition.size() && !partition.get(slotIndex).isEmpty();
 
                 if (!heldStack.isEmpty()) {
+                    // For gas cells, convert gas containers (tanks) to gas representation
+                    ItemStack stackToSend = heldStack;
+                    if (cell.isGas()) {
+                        stackToSend = MekanismEnergisticsIntegration.tryConvertGasContainerToGas(heldStack);
+                        if (stackToSend.isEmpty()) return;
+                    }
+
                     guiContext.sendPacket(new PacketPartitionAction(
                         cell.getParentStorageId(), cell.getSlot(),
-                        PacketPartitionAction.Action.ADD_ITEM, slotIndex, heldStack));
+                        PacketPartitionAction.Action.ADD_ITEM, slotIndex, stackToSend));
                 } else if (slotOccupied) {
                     guiContext.sendPacket(new PacketPartitionAction(
                         cell.getParentStorageId(), cell.getSlot(),
