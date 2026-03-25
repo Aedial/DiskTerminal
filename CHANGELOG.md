@@ -8,6 +8,10 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.5.3] - 2026-03-25
+- Fix regression with AE2's Network Tool (Upgrade cards inventory).
+
+
 ## [1.5.2] - 2026-03-17
 ### Added
 - Add Gas support to the terminal.

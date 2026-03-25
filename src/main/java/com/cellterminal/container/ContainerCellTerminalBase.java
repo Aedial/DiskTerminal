@@ -197,21 +197,23 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
     }
 
     public void checkToolbox() {
-        if (hasToolbox()) {
-            final ItemStack currentItem = this.getPlayerInv().getStackInSlot(this.toolboxSlot);
+        if (!hasToolbox()) return;
 
-            if (currentItem.isEmpty() || currentItem == this.toolboxInventory.getItemStack()) {
-                this.setValidContainer(false);
-                return;
-            }
+        final ItemStack currentItem = this.getPlayerInv().getStackInSlot(this.toolboxSlot);
 
-            if (ItemStack.areItemsEqual(this.toolboxInventory.getItemStack(), currentItem)) {
-                this.getPlayerInv().setInventorySlotContents(
-                        this.toolboxSlot,
-                        this.toolboxInventory.getItemStack());
-            } else {
-                this.setValidContainer(false);
-            }
+        if (currentItem == this.toolboxInventory.getItemStack()) return;
+
+        if (currentItem.isEmpty()) {
+            this.setValidContainer(false);
+            return;
+        }
+
+        if (ItemStack.areItemsEqual(this.toolboxInventory.getItemStack(), currentItem)) {
+            this.getPlayerInv().setInventorySlotContents(
+                    this.toolboxSlot,
+                    this.toolboxInventory.getItemStack());
+        } else {
+            this.setValidContainer(false);
         }
     }
 
