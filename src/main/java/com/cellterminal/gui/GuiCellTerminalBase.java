@@ -119,6 +119,17 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     // Search field click handler (right-click clear, double-click modal)
     protected SearchFieldHandler searchFieldHandler = null;
 
+    /**
+     * Tracks whether AE2's JEI bookmark ghost handler consumed the current click via
+     * handleMouseClick. When this is true, mouseClicked skips the activeTab.handleClick
+     * call to prevent double-fire: AE2's bookmark mechanism sends an ADD_ITEM via accept()
+     * using the current mouse position, while our click callback would send a conflicting
+     * action (potentially REMOVE_ITEM) using the stale hoveredSlotIndex from the previous
+     * frame's draw. If the mouse moved vertically between frames, these target different rows
+     * in the same column, setting one slot while clearing another in a neighboring row.
+     */
+    private boolean ghostDropConsumedClick = false;
+
     // Guard to prevent style button from being retriggered while mouse is still down
     private long lastStyleButtonClickTime = 0;
     private static final long STYLE_BUTTON_COOLDOWN = 100;  // ms
@@ -713,7 +724,18 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             }
         }
 
+        // Detect when AE2's JEI bookmark ghost handler consumes the click.
+        // AE2 processes bookmark drops in handleMouseClick when clicking outside real slots
+        // (slot == null). If it consumed the click, the cursor item changes (cleared or replaced
+        // with next bookmark). We must suppress our subsequent activeTab.handleClick to prevent
+        // sending a conflicting REMOVE_ITEM for a stale hoveredSlotIndex from the previous draw.
+        ItemStack cursorBefore = slot == null ? mc.player.inventory.getItemStack().copy() : ItemStack.EMPTY;
+
         super.handleMouseClick(slot, slotIdx, mouseButton, clickType);
+
+        if (slot == null && !ItemStack.areItemStacksEqual(cursorBefore, mc.player.inventory.getItemStack())) {
+            ghostDropConsumedClick = true;
+        }
     }
 
     @Override
@@ -767,7 +789,13 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         // Handle tab header clicks via TabManager
         if (tabManager.handleClick(mouseX, mouseY, guiLeft, guiTop)) return;
 
+        ghostDropConsumedClick = false;
+
         super.mouseClicked(mouseX, mouseY, mouseButton);
+
+        // If AE2's JEI bookmark ghost handler already processed this click (via handleMouseClick),
+        // skip our widget handler to avoid sending a conflicting partition action
+        if (ghostDropConsumedClick) return;
 
         // Delegate content area clicks to the active tab widget
         int relMouseX = mouseX - guiLeft;
@@ -833,11 +861,11 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         int relMouseY = mouseY - guiTop;
         Object hoveredData = activeTab.getDataForHoveredRow(relMouseX, relMouseY);
 
-        // Don't intercept upgrade clicks on content/partition rows - the partition
-        // slot click handler should take priority, allowing upgrades to be set as partition items.
-        // Upgrade insertion is only supported via headers, cell icons, and terminal lines.
+        // When hovering a content/partition row, only skip upgrade insertion if the mouse
+        // is over the actual slot grid (where partition clicks take priority). If the mouse
+        // is in the pre-slot area (cell icon, upgrade cards), allow the upgrade click.
         if (hoveredData instanceof CellContentRow || hoveredData instanceof StorageBusContentRow) {
-            return false;
+            if (activeTab.isMouseOverSlotGrid(relMouseX, relMouseY)) return false;
         }
 
         return activeTab.handleUpgradeClick(hoveredData, heldStack, false);
@@ -1239,5 +1267,24 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     @Override
     public Set<Integer> getSelectedTempCellSlots() {
         return selectedTempCellSlots;
+    }
+
+    /**
+     * Get the ItemStack under the mouse from our virtual slot widgets.
+     * Used by the JEI plugin to support recipe/usage lookups (R/U keybinds)
+     * on items displayed in virtual slots that JEI cannot detect normally.
+     *
+     * @param screenMouseX Mouse X in screen coordinates
+     * @param screenMouseY Mouse Y in screen coordinates
+     * @return The hovered ItemStack, or ItemStack.EMPTY if none
+     */
+    public ItemStack getVirtualHoveredItemStack(int screenMouseX, int screenMouseY) {
+        AbstractTabWidget activeTab = tabManager != null ? tabManager.getActiveTab() : null;
+        if (activeTab == null) return ItemStack.EMPTY;
+
+        int relMouseX = screenMouseX - guiLeft;
+        int relMouseY = screenMouseY - guiTop;
+
+        return activeTab.getHoveredItemStack(relMouseX, relMouseY);
     }
 }

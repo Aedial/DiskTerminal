@@ -459,6 +459,9 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
         line.setSlotClickCallback((slotIndex, mouseButton) -> {
             if (mouseButton != 0) return;
 
+            // Defensive: verify slotIndex is within the valid range
+            if (slotIndex < 0 || slotIndex >= conn.getMaxPartitionSlots()) return;
+
             if (mode == SlotsLine.SlotMode.CONTENT) {
                 // Content slot: toggle partition for that item
                 List<ItemStack> contents = row.usesSubnetInventory()

@@ -24,6 +24,7 @@ import com.cellterminal.gui.widget.AbstractWidget;
 import com.cellterminal.gui.widget.CardsDisplay;
 import com.cellterminal.gui.widget.IWidget;
 import com.cellterminal.gui.widget.line.AbstractLine;
+import com.cellterminal.gui.widget.line.SlotsLine;
 import com.cellterminal.gui.widget.header.AbstractHeader;
 import com.cellterminal.network.PacketUpgradeCell;
 
@@ -367,6 +368,28 @@ public abstract class AbstractTabWidget extends AbstractWidget {
         }
 
         return null;
+    }
+
+    /**
+     * Check if the mouse is over the slot grid area of the hovered line widget.
+     * Returns true when the cursor is over a content/partition slot (where partition
+     * click handling should take priority over upgrade insertion). Returns false
+     * when the cursor is in the pre-slot area (cell icon, upgrade cards) or when
+     * no SlotsLine is hovered at all.
+     */
+    public boolean isMouseOverSlotGrid(int mouseX, int mouseY) {
+        for (int i = visibleRows.size() - 1; i >= 0; i--) {
+            IWidget widget = visibleRows.get(i);
+            if (!widget.isHovered(mouseX, mouseY)) continue;
+
+            if (widget instanceof SlotsLine) {
+                return mouseX >= ((SlotsLine) widget).getSlotsXOffset();
+            }
+
+            return false;
+        }
+
+        return false;
     }
 
     /**

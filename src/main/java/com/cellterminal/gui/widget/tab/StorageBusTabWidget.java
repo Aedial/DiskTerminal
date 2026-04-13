@@ -418,6 +418,9 @@ public class StorageBusTabWidget extends AbstractTabWidget {
         line.setSlotClickCallback((slotIndex, mouseButton) -> {
             if (mouseButton != 0) return;
 
+            // Defensive: verify slotIndex is within the valid range
+            if (slotIndex < 0 || slotIndex >= GuiConstants.MAX_STORAGE_BUS_PARTITION_SLOTS) return;
+
             if (isPartitionMode) {
                 ItemStack heldStack = guiContext.getHeldStack();
                 List<ItemStack> partition = bus.getPartition();

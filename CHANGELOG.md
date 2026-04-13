@@ -8,7 +8,15 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.5.4] - 2026-04-14
+### Fixed
+- Potential fix for setting partition clearing the slot in another row, in some cases, due to a race condition in cell state between clicks (usually when world was just loaded and the cell state was not fully synced yet).
+- Fix upgrades not being clickable directly on cells.
+- Fix (virtual) slots not being interactible with JEI.
+
+
 ## [1.5.3] - 2026-03-25
+### Fixed
 - Fix regression with AE2's Network Tool (Upgrade cards inventory).
 
 

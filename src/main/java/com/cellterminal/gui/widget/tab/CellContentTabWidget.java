@@ -248,6 +248,9 @@ public class CellContentTabWidget extends AbstractTabWidget {
 
                     @Override
                     public void accept(Object ing) {
+                        // Defensive: verify the target index is still valid for this cell's type limit
+                        if (slot.absoluteIndex < 0 || slot.absoluteIndex >= cell.getTotalTypes()) return;
+
                         ItemStack stack = JeiGhostHandler.convertJeiIngredientToItemStack(
                             ing, cell.getStorageType());
                         if (!stack.isEmpty()) {
@@ -430,6 +433,11 @@ public class CellContentTabWidget extends AbstractTabWidget {
 
         line.setSlotClickCallback((slotIndex, mouseButton) -> {
             if (mouseButton != 0) return;
+
+            // Defensive: verify slotIndex is within the cell's actual type limit.
+            // Prevents stale index values from sending wrong slot indices to the server,
+            // which could happen if GUI data changed between draw (index computed) and click.
+            if (slotIndex < 0 || slotIndex >= cell.getTotalTypes()) return;
 
             if (isPartitionMode) {
                 ItemStack heldStack = guiContext.getHeldStack();

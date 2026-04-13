@@ -31,5 +31,3 @@ plugins {
 
 // Different repo name from mod name
 rootProject.name = 'cell-terminal'
-
-

@@ -9,7 +9,7 @@ import mezz.jei.api.JEIPlugin;
 import mezz.jei.api.gui.IAdvancedGuiHandler;
 
 import com.cellterminal.config.CellTerminalServerConfig;
-import com.cellterminal.gui.GuiCellTerminal;
+import com.cellterminal.gui.GuiCellTerminalBase;
 import com.cellterminal.gui.handler.QuickPartitionHandler;
 
 
@@ -45,18 +45,22 @@ public class CellTerminalJEIPlugin implements IModPlugin {
 
     /**
      * Advanced GUI handler for Cell Terminal GUIs.
-     * Can be extended to provide exclusion areas for JEI.
+     * Provides ingredient detection for virtual slots so JEI keybinds
+     * (Show Recipes, Show Uses, Bookmark) work on items displayed in
+     * our custom slot widgets (not real MC inventory slots).
      */
-    private static class CellTerminalGuiHandler implements IAdvancedGuiHandler<GuiCellTerminal> {
+    private static class CellTerminalGuiHandler implements IAdvancedGuiHandler<GuiCellTerminalBase> {
 
         @Override
-        public Class<GuiCellTerminal> getGuiContainerClass() {
-            return GuiCellTerminal.class;
+        public Class<GuiCellTerminalBase> getGuiContainerClass() {
+            return GuiCellTerminalBase.class;
         }
 
         @Override
-        public ItemStack getIngredientUnderMouse(GuiCellTerminal gui, int mouseX, int mouseY) {
-            // Return null to use default behavior
+        public ItemStack getIngredientUnderMouse(GuiCellTerminalBase gui, int mouseX, int mouseY) {
+            ItemStack stack = gui.getVirtualHoveredItemStack(mouseX, mouseY);
+            if (stack != null && !stack.isEmpty()) return stack;
+
             return null;
         }
     }
