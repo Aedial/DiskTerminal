@@ -128,8 +128,9 @@ public class StorageBusDataHandler {
         int capacityUpgrades = bus.getInstalledUpgrades(Upgrades.CAPACITY);
         addPartitionData(busData, bus.getInventoryByName("config"), capacityUpgrades);
 
-        // Contents from the connected inventory
-        addItemContentsData(busData, hostTile, bus.getSide().getFacing(), capacityUpgrades);
+        // Contents from the connected inventory (not limited by capacity upgrades,
+        // those only affect partition slots; content display is limited client-side by the SlotLimit button)
+        addItemContentsData(busData, hostTile, bus.getSide().getFacing());
 
         // Upgrades list
         addUpgradesData(busData, bus.getInventoryByName("upgrades"));
@@ -166,8 +167,9 @@ public class StorageBusDataHandler {
         int capacityUpgrades = bus.getInstalledUpgrades(Upgrades.CAPACITY);
         addFluidPartitionData(busData, bus, capacityUpgrades);
 
-        // Fluid contents from connected tank
-        addFluidContentsData(busData, hostTile, bus.getSide().getFacing(), capacityUpgrades);
+        // Fluid contents from connected tank (not limited by capacity upgrades,
+        // those only affect partition slots; content display is limited client-side by the SlotLimit button)
+        addFluidContentsData(busData, hostTile, bus.getSide().getFacing());
 
         // Upgrades list
         addUpgradesData(busData, bus.getInventoryByName("upgrades"));
@@ -250,29 +252,23 @@ public class StorageBusDataHandler {
         busData.setTag("partition", partitionList);
     }
 
-    private static void addItemContentsData(NBTTagCompound busData, TileEntity hostTile, EnumFacing facing,
-                                              int capacityUpgrades) {
+    private static void addItemContentsData(NBTTagCompound busData, TileEntity hostTile, EnumFacing facing) {
         TileEntity target = hostTile.getWorld().getTileEntity(hostTile.getPos().offset(facing));
         if (target == null) return;
 
         EnumFacing targetSide = facing.getOpposite();
         NBTTagList contentsList = new NBTTagList();
 
-        int slotsLimit = computeAvailableSlotsFrom(busData, capacityUpgrades);
-
         // Try to use IItemRepository (Storage Drawers) first
         List<StorageDrawersIntegration.ItemRecordData> repoContents =
             StorageDrawersIntegration.tryGetItemRepositoryContents(target, targetSide);
 
         if (repoContents != null) {
-            int count = 0;
             for (StorageDrawersIntegration.ItemRecordData record : repoContents) {
-                if (count >= slotsLimit) break;
                 NBTTagCompound stackNbt = new NBTTagCompound();
                 record.itemPrototype.writeToNBT(stackNbt);
                 stackNbt.setLong("Cnt", record.count);
                 contentsList.appendTag(stackNbt);
-                count++;
             }
 
             busData.setTag("contents", contentsList);
@@ -310,21 +306,17 @@ public class StorageBusDataHandler {
             }
         }
 
-        int count = 0;
         for (Map.Entry<ItemStack, Long> entry : itemCounts.entrySet()) {
-            if (count >= slotsLimit) break;
             NBTTagCompound stackNbt = new NBTTagCompound();
             entry.getKey().writeToNBT(stackNbt);
             stackNbt.setLong("Cnt", entry.getValue());
             contentsList.appendTag(stackNbt);
-            count++;
         }
 
         busData.setTag("contents", contentsList);
     }
 
-    private static void addFluidContentsData(NBTTagCompound busData, TileEntity hostTile, EnumFacing facing,
-                                               int capacityUpgrades) {
+    private static void addFluidContentsData(NBTTagCompound busData, TileEntity hostTile, EnumFacing facing) {
         TileEntity targetTile = hostTile.getWorld().getTileEntity(hostTile.getPos().offset(facing));
         if (targetTile == null) return;
 
@@ -347,10 +339,7 @@ public class StorageBusDataHandler {
             fluidCounts.merge(fluidName, (long) fluid.amount, Long::sum);
         }
 
-        int count = 0;
-        int slotsLimit = computeAvailableSlotsFrom(busData, capacityUpgrades);
         for (Map.Entry<String, Long> entry : fluidCounts.entrySet()) {
-            if (count >= slotsLimit) break;
 
             FluidStack fluid = FluidRegistry.getFluidStack(entry.getKey(), 1000);
             if (fluid == null) continue;
@@ -366,7 +355,6 @@ public class StorageBusDataHandler {
             fluidRep.writeToNBT(stackNbt);
             stackNbt.setLong("Cnt", entry.getValue());
             contentsList.appendTag(stackNbt);
-            count++;
         }
 
         busData.setTag("contents", contentsList);

@@ -879,17 +879,14 @@ public class ThaumicEnergisticsIntegration {
                 NBTTagList contentsList = new NBTTagList();
 
                 if (aspects != null) {
-                    int count = 0;
                     IStorageChannel<thaumicenergistics.api.storage.IAEEssentiaStack> essentiaChannel =
                         AEApi.instance().storage().getStorageChannel(
                             thaumicenergistics.api.storage.IEssentiaStorageChannel.class);
 
-                    int limit = busData.hasKey("maxConfigSlots") ? busData.getInteger("maxConfigSlots")
-                        : StorageBusInfo.MAX_CONFIG_SLOTS;
-
+                    // Content items are not limited by config/partition slots;
+                    // display limiting is handled client-side by the SlotLimit button
                     for (thaumcraft.api.aspects.Aspect aspect : aspects.getAspects()) {
                         if (aspect == null) break;
-                        if (count >= limit) break;
 
                         int amount = aspects.getAmount(aspect);
                         if (amount <= 0) continue;
@@ -903,7 +900,6 @@ public class ThaumicEnergisticsIntegration {
                                 itemRep.writeToNBT(stackNbt);
                                 stackNbt.setLong("Cnt", amount);
                                 contentsList.appendTag(stackNbt);
-                                count++;
                             }
                         }
                     }
