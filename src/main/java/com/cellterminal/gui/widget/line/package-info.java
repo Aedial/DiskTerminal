@@ -7,16 +7,16 @@
  * <p>
  * <b>Line implementations:</b>
  * <ul>
- *   <li>{@link com.cellterminal.gui.widget.line.AbstractLine} — Base class with tree connector
+ *   <li>{@link com.cellterminal.gui.widget.line.AbstractLine}: Base class with tree connector
  *       rendering, tree line button support, and cut point tracking.</li>
- *   <li>{@link com.cellterminal.gui.widget.line.TerminalLine} — Cell row displaying icon,
+ *   <li>{@link com.cellterminal.gui.widget.line.TerminalLine}: Cell row displaying icon,
  *       renameable name, byte/type usage bars, upgrade cards, and action buttons (eject,
  *       inventory, partition).</li>
- *   <li>{@link com.cellterminal.gui.widget.line.CellSlotsLine} — Grid of cell slots showing
+ *   <li>{@link com.cellterminal.gui.widget.line.CellSlotsLine}: Grid of cell slots showing
  *       cell inventory items from drives or temporary area.</li>
- *   <li>{@link com.cellterminal.gui.widget.line.SlotsLine} — Generic slot grid for displaying
+ *   <li>{@link com.cellterminal.gui.widget.line.SlotsLine}: Generic slot grid for displaying
  *       item/fluid stacks with customizable rendering and hover behavior.</li>
- *   <li>{@link com.cellterminal.gui.widget.line.ContinuationLine} — SlotLine variant for continuing
+ *   <li>{@link com.cellterminal.gui.widget.line.ContinuationLine}: SlotLine variant for continuing
  *       a multi-line slots grid with seamless tree connectors.</li>
  * </ul>
  *

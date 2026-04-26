@@ -1,6 +1,7 @@
 package com.cellterminal.gui.handler;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashSet;
@@ -12,9 +13,7 @@ import java.util.Set;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.math.BlockPos;
-import net.minecraftforge.common.util.Constants;
 
 import com.cellterminal.client.AdvancedSearchParser;
 import com.cellterminal.client.CellContentRow;
@@ -30,6 +29,8 @@ import com.cellterminal.client.StorageInfo;
 import com.cellterminal.client.TabStateManager;
 import com.cellterminal.client.TempCellInfo;
 import com.cellterminal.config.CellTerminalClientConfig;
+import com.cellterminal.network.chunked.DeltaApplier;
+import com.cellterminal.network.chunked.PayloadMode;
 
 
 /**
@@ -47,6 +48,9 @@ public class TerminalDataManager {
 
     private final Map<Long, StorageInfo> storageMap = new LinkedHashMap<>();
     private final Map<Long, StorageBusInfo> storageBusMap = new LinkedHashMap<>();
+    // Raw NBT per temp-cell slot, keyed by slot index (also used as the delta ID).
+    // Owned by applyTempCells / rebuildTempAreaLines.
+    private final Map<Long, NBTTagCompound> tempCellSlotData = new LinkedHashMap<>();
     private final List<Object> lines = new ArrayList<>();
     private final List<Object> inventoryLines = new ArrayList<>();
     private final List<Object> partitionLines = new ArrayList<>();
@@ -110,46 +114,62 @@ public class TerminalDataManager {
         return tempAreaLines;
     }
 
-    public void processUpdate(NBTTagCompound data) {
+    /**
+     * Apply the META channel payload (always FULL).
+     * Carries terminalPos / terminalDim / networkId so the client can verify its current
+     * network context.
+     *
+     * @return the {@code networkId} field if present, or {@link Long#MIN_VALUE} if absent
+     */
+    public long applyMeta(PayloadMode mode, NBTTagCompound data) {
         if (data.hasKey("terminalPos")) {
             this.terminalPos = BlockPos.fromLong(data.getLong("terminalPos"));
             this.terminalDimension = data.getInteger("terminalDim");
         }
+        return data.hasKey("networkId") ? data.getLong("networkId") : Long.MIN_VALUE;
+    }
 
-        boolean hasStorages = data.hasKey("storages");
-        boolean hasStorageBuses = data.hasKey("storageBuses");
-        boolean hasTempCells = data.hasKey("tempCells");
+    /**
+     * Apply the STORAGES channel payload (FULL or DELTA).
+     */
+    public void applyStorages(PayloadMode mode, NBTTagCompound data) {
+        DeltaApplier.apply(mode, data, this.storageMap, StorageInfo::new, StorageInfo::getId);
+        finishUpdate();
+    }
 
-        if (!hasStorages && !hasStorageBuses && !hasTempCells) return;
+    /**
+     * Apply the BUSES channel payload (FULL or DELTA).
+     */
+    public void applyBuses(PayloadMode mode, NBTTagCompound data) {
+        DeltaApplier.apply(mode, data, this.storageBusMap, StorageBusInfo::new, StorageBusInfo::getId);
+        finishUpdate();
+    }
 
-        if (hasStorages) {
-            this.storageMap.clear();
-            NBTTagList storageList = data.getTagList("storages", Constants.NBT.TAG_COMPOUND);
+    /**
+     * Apply the TEMP_CELLS channel payload (FULL or DELTA).
+     * Temp cell entries use {@code id == tempSlot} so DELTA application can be uniform.
+     */
+    public void applyTempCells(PayloadMode mode, NBTTagCompound data) {
+        // Maintain a slot -> NBT raw map. We rebuild tempAreaLines from that map after each apply.
+        DeltaApplier.applyRaw(mode, data, "id", "tempCells",
+            this.tempCellSlotData::clear,
+            (id, entry) -> {
+                if (entry == null) {
+                    this.tempCellSlotData.remove(id);
+                } else {
+                    this.tempCellSlotData.put(id, entry);
+                }
+                return null;
+            });
 
-            for (int i = 0; i < storageList.tagCount(); i++) {
-                NBTTagCompound storageNbt = storageList.getCompoundTagAt(i);
-                StorageInfo storage = new StorageInfo(storageNbt);
-                this.storageMap.put(storage.getId(), storage);
-            }
-        }
+        rebuildTempAreaLines();
+        finishUpdate();
+    }
 
-        if (hasStorageBuses) {
-            this.storageBusMap.clear();
-            NBTTagList busList = data.getTagList("storageBuses", Constants.NBT.TAG_COMPOUND);
-
-            for (int i = 0; i < busList.tagCount(); i++) {
-                NBTTagCompound busNbt = busList.getCompoundTagAt(i);
-                StorageBusInfo bus = new StorageBusInfo(busNbt);
-                this.storageBusMap.put(bus.getId(), bus);
-            }
-        }
-
-        if (hasTempCells) {
-            processTempCellUpdate(data.getTagList("tempCells", Constants.NBT.TAG_COMPOUND));
-        }
-
-        // On first data receive, do a full rebuild to initialize snapshots
-        // On subsequent updates, rebuild using the existing snapshot (non-realtime filtering)
+    /**
+     * Common bookkeeping after any section channel update.
+     */
+    private void finishUpdate() {
         if (!hasInitialData) {
             hasInitialData = true;
             rebuildLines();
@@ -159,14 +179,19 @@ public class TerminalDataManager {
     }
 
     /**
-     * Process temp cell update from server.
-     * Rebuilds the tempAreaLines list with TempCellInfo and CellContentRow objects.
+     * Rebuild {@link #tempAreaLines} from the current {@link #tempCellSlotData} map.
+     * Slots are visited in increasing order of their tempSlot index.
      */
-    private void processTempCellUpdate(NBTTagList tempCellList) {
+    private void rebuildTempAreaLines() {
         this.tempAreaLines.clear();
 
-        for (int i = 0; i < tempCellList.tagCount(); i++) {
-            NBTTagCompound slotData = tempCellList.getCompoundTagAt(i);
+        // Sort by tempSlot ascending so insert order matches the GUI layout regardless of
+        // which delta order entries arrived in.
+        List<Long> slots = new ArrayList<>(this.tempCellSlotData.keySet());
+        Collections.sort(slots);
+
+        for (Long slotKey : slots) {
+            NBTTagCompound slotData = this.tempCellSlotData.get(slotKey);
             int tempSlot = slotData.getInteger("tempSlot");
 
             if (slotData.hasKey("cellData")) {
@@ -873,6 +898,15 @@ public class TerminalDataManager {
         this.visibleCellSnapshotPartition.clear();
         this.visibleBusSnapshotInventory.clear();
         this.visibleBusSnapshotPartition.clear();
+
+        // Clear per-channel raw state so the next FULL payload starts from a clean slate.
+        // Note: storageMap / storageBusMap are also cleared by their next FULL payload, but
+        // clearing them here removes any flash of stale data while the new network's payload
+        // is in transit.
+        this.storageMap.clear();
+        this.storageBusMap.clear();
+        this.tempCellSlotData.clear();
+        this.tempAreaLines.clear();
     }
 
     /**

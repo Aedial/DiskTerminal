@@ -4,6 +4,7 @@ import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -13,9 +14,6 @@ import net.minecraft.client.renderer.RenderItem;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
-
-import net.minecraftforge.common.util.Constants;
 
 import mezz.jei.api.gui.IGhostIngredientHandler;
 
@@ -39,6 +37,8 @@ import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketHighlightBlock;
 import com.cellterminal.network.PacketSubnetAction;
 import com.cellterminal.network.PacketSubnetPartitionAction;
+import com.cellterminal.network.chunked.DeltaApplier;
+import com.cellterminal.network.chunked.PayloadMode;
 import com.cellterminal.gui.overlay.MessageHelper;
 
 
@@ -65,6 +65,9 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
     private static final int SLOTS_X_OFFSET = GuiConstants.CELL_INDENT + 4;
 
     // Subnet data
+    // subnetById is the canonical state map (kept across delta updates).
+    // subnetList is rebuilt from subnetById whenever the data changes (sorted display order).
+    private final Map<Long, SubnetInfo> subnetById = new LinkedHashMap<>();
     private final List<SubnetInfo> subnetList = new ArrayList<>();
     private final List<Object> subnetLines = new ArrayList<>();
 
@@ -127,20 +130,32 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
      * Parses the NBT data, sorts subnets, and rebuilds flattened display lines.
      */
     public void handleSubnetListUpdate(NBTTagCompound data) {
+        applySubnetPayload(PayloadMode.FULL, data);
+    }
+
+    /**
+     * Apply a chunked subnet payload (FULL or DELTA).
+     * Maintains {@link #subnetById} as the canonical state, then rebuilds the sorted display
+     * list and flattened lines.
+     */
+    public void applySubnetPayload(PayloadMode mode, NBTTagCompound data) {
+        DeltaApplier.applyRaw(mode, data, "id", "subnets",
+            this.subnetById::clear,
+            (id, entry) -> {
+                if (entry == null) {
+                    this.subnetById.remove(id);
+                } else {
+                    this.subnetById.put(id, new SubnetInfo(entry));
+                }
+                return null;
+            });
+
+        // Rebuild display list: main network first, then sorted subnets.
         this.subnetList.clear();
-
-        // Always add the main network as first entry
         this.subnetList.add(SubnetInfo.createMainNetwork());
-
-        if (data.hasKey("subnets")) {
-            NBTTagList subnetNbtList = data.getTagList("subnets", Constants.NBT.TAG_COMPOUND);
-            for (int i = 0; i < subnetNbtList.tagCount(); i++) {
-                NBTTagCompound subnetNbt = subnetNbtList.getCompoundTagAt(i);
-                this.subnetList.add(new SubnetInfo(subnetNbt));
-            }
-        }
-
+        this.subnetList.addAll(this.subnetById.values());
         this.subnetList.sort(SUBNET_COMPARATOR);
+
         buildSubnetLines();
     }
 

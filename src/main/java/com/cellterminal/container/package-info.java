@@ -7,13 +7,13 @@
  * <p>
  * <b>Key classes:</b>
  * <ul>
- *   <li>{@link com.cellterminal.container.ContainerCellTerminalBase} — Base container that
+ *   <li>{@link com.cellterminal.container.ContainerCellTerminalBase}: Base container that
  *       orchestrates periodic grid scanning, NBT serialization via data handlers, and
  *       packet dispatch to clients. Manages tracker maps for cells, buses, and subnets.</li>
- *   <li>{@link com.cellterminal.container.ContainerCellTerminal} — Wired terminal container.</li>
- *   <li>{@link com.cellterminal.container.ContainerWirelessCellTerminal} — Wireless terminal
+ *   <li>{@link com.cellterminal.container.ContainerCellTerminal}: Wired terminal container.</li>
+ *   <li>{@link com.cellterminal.container.ContainerWirelessCellTerminal}: Wireless terminal
  *       container with range/power checks.</li>
- *   <li>{@link com.cellterminal.container.WirelessTempCellInventory} — Temporary cell storage
+ *   <li>{@link com.cellterminal.container.WirelessTempCellInventory}: Temporary cell storage
  *       for wireless terminals.</li>
  * </ul>
  * <p>

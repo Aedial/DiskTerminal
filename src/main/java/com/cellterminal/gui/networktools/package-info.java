@@ -7,23 +7,23 @@
  * <p>
  * <b>Framework:</b>
  * <ul>
- *   <li>{@link com.cellterminal.gui.networktools.INetworkTool} — Interface defining tool
+ *   <li>{@link com.cellterminal.gui.networktools.INetworkTool}: Interface defining tool
  *       metadata, target selection, preview generation, and execution.</li>
- *   <li>{@link com.cellterminal.gui.networktools.NetworkToolRegistry} — Singleton registry
+ *   <li>{@link com.cellterminal.gui.networktools.NetworkToolRegistry}: Singleton registry
  *       managing available tools.</li>
- *   <li>{@link com.cellterminal.gui.networktools.GuiToolConfirmationModal} — Modal overlay
+ *   <li>{@link com.cellterminal.gui.networktools.GuiToolConfirmationModal}: Modal overlay
  *       confirming tool execution with preview of affected cells/buses.</li>
- *   <li>{@link com.cellterminal.gui.networktools.NetworkToolFilterUtils} — Shared utility
+ *   <li>{@link com.cellterminal.gui.networktools.NetworkToolFilterUtils}: Shared utility
  *       methods for applying type and state filters when selecting tool targets.</li>
  * </ul>
  * <p>
  * <b>Tool implementations:</b>
  * <ul>
- *   <li>{@link com.cellterminal.gui.networktools.MassPartitionCellTool} — Partitions multiple
+ *   <li>{@link com.cellterminal.gui.networktools.MassPartitionCellTool}: Partitions multiple
  *       cells at once based on their current contents.</li>
- *   <li>{@link com.cellterminal.gui.networktools.MassPartitionBusTool} — Partitions multiple
+ *   <li>{@link com.cellterminal.gui.networktools.MassPartitionBusTool}: Partitions multiple
  *       storage buses based on connected inventory contents.</li>
- *   <li>{@link com.cellterminal.gui.networktools.AttributeUniqueTool} — Distributes items
+ *   <li>{@link com.cellterminal.gui.networktools.AttributeUniqueTool}: Distributes items
  *       across cells ensuring each cell contains items with unique attributes.</li>
  * </ul>
  *

@@ -49,6 +49,7 @@ import com.cellterminal.client.CellFilter;
 import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.container.handler.CellActionHandler;
 import com.cellterminal.container.handler.CellDataHandler;
+import com.cellterminal.container.handler.DeltaSnapshot;
 import com.cellterminal.container.handler.NetworkToolActionHandler;
 import com.cellterminal.container.handler.StorageBusDataHandler;
 import com.cellterminal.container.handler.StorageBusDataHandler.StorageBusTracker;
@@ -57,15 +58,15 @@ import com.cellterminal.container.handler.SubnetDataHandler.SubnetTracker;
 import com.cellterminal.container.handler.TempCellActionHandler;
 import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.integration.storage.StorageScannerRegistry;
-import com.cellterminal.network.CellTerminalNetwork;
-import com.cellterminal.network.PacketCellTerminalUpdate;
 import com.cellterminal.network.PacketExtractUpgrade;
 import com.cellterminal.network.PacketPartitionAction;
 import com.cellterminal.network.PacketStorageBusPartitionAction;
-import com.cellterminal.network.PacketSubnetListUpdate;
 import com.cellterminal.network.PacketSubnetPartitionAction;
 import com.cellterminal.network.PacketTempCellAction;
 import com.cellterminal.network.PacketTempCellPartitionAction;
+import com.cellterminal.network.chunked.ChunkedNBTSender;
+import com.cellterminal.network.chunked.PayloadMode;
+import com.cellterminal.network.chunked.TerminalChannels;
 import com.cellterminal.util.PlayerMessageHelper;
 
 
@@ -80,10 +81,19 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
     protected final Map<Long, StorageBusTracker> storageBusById = new LinkedHashMap<>();
     protected final Map<Long, SubnetTracker> subnetById = new LinkedHashMap<>();
     protected IGrid grid;
-    protected NBTTagCompound pendingData = new NBTTagCompound();
     protected boolean needsFullRefresh = true;
     protected boolean needsStorageBusRefresh = false;
     protected boolean needsSubnetRefresh = false;
+
+    // Tick counter for throttling full refreshes; rate-limited via
+    // CellTerminalServerConfig.getMinRefreshIntervalTicks().
+    protected int tickCounter = 0;
+    protected int lastFullRefreshTick = 0;
+    protected boolean firstFullRefreshDone = false;
+
+    // Per-channel server-side snapshot for delta updates. Reset on network switch so the
+    // first payload after a switch is always a full snapshot.
+    protected final DeltaSnapshot deltaSnapshot = new DeltaSnapshot();
 
     // Current active tab on client - determines whether to poll storage bus data
     protected int activeTab = GuiConstants.TAB_TERMINAL;
@@ -168,29 +178,50 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
         if (!canSendUpdates()) return;
 
-        if (needsFullRefresh) {
-            this.regenStorageList();
-            this.regenStorageBusList();  // Also refresh storage bus data to prevent blank tabs on initial open
-            this.regenTempCellList();  // Also refresh temp cell data
+        this.tickCounter++;
+
+        // Throttle full refreshes: don't regen storages/buses/temp more often than the configured
+        // interval, even if many trigger events fire in quick succession. The very first refresh
+        // bypasses the throttle so the GUI populates immediately on open.
+        int minInterval = CellTerminalServerConfig.getInstance().getMinRefreshIntervalTicks();
+        boolean throttleSatisfied = !firstFullRefreshDone || (this.tickCounter - this.lastFullRefreshTick) >= minInterval;
+
+        if (needsFullRefresh && throttleSatisfied) {
+            sendMeta();
+
+            // Active-tab priority: send the section the player is currently viewing first so it
+            // appears in the GUI as soon as possible. Other sections follow.
+            switch (this.activeTab) {
+                case GuiConstants.TAB_STORAGE_BUS_INVENTORY:
+                case GuiConstants.TAB_STORAGE_BUS_PARTITION:
+                    regenStorageBusList();
+                    regenStorageList();
+                    regenTempCellList();
+                    break;
+                case GuiConstants.TAB_TEMP_AREA:
+                    regenTempCellList();
+                    regenStorageList();
+                    regenStorageBusList();
+                    break;
+                default:
+                    regenStorageList();
+                    regenStorageBusList();
+                    regenTempCellList();
+                    break;
+            }
+
             needsFullRefresh = false;
+            this.lastFullRefreshTick = this.tickCounter;
+            this.firstFullRefreshDone = true;
         }
 
-        // Handle storage bus polling when on storage bus tabs
+        // Handle storage bus polling when on storage bus tabs (independent of full-refresh path)
         handleStorageBusPolling();
 
         // Handle subnet refresh when requested
         if (needsSubnetRefresh) {
             this.regenSubnetList();
             needsSubnetRefresh = false;
-        }
-
-        if (!this.pendingData.isEmpty()) {
-            CellTerminalNetwork.INSTANCE.sendTo(
-                new PacketCellTerminalUpdate(this.pendingData),
-                (EntityPlayerMP) this.getPlayerInv().player
-            );
-
-            this.pendingData = new NBTTagCompound();
         }
 
         this.checkToolbox();
@@ -322,7 +353,6 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
         NBTTagCompound data = new NBTTagCompound();
         NBTTagList storageList = new NBTTagList();
-        addTerminalPosition(data);
 
         IGrid effectiveGrid = getEffectiveGrid();
         if (effectiveGrid != null) {
@@ -339,9 +369,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         }
 
         data.setTag("storages", storageList);
-        // Include current network ID so client can verify data is for the expected network
-        data.setLong("networkId", this.currentNetworkId);
-        this.pendingData = data;
+        sendChunked(TerminalChannels.STORAGES, data, "storages", "id");
     }
 
     /**
@@ -352,11 +380,8 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         this.storageBusById.clear();
 
         NBTTagCompound data = new NBTTagCompound();
-
-        // Add terminal position for sorting
-        addTerminalPosition(data);
         data.setTag("storageBuses", StorageBusDataHandler.collectStorageBuses(getEffectiveGrid(), this.storageBusById));
-        mergeIntoPendingData(data);
+        sendChunked(TerminalChannels.BUSES, data, "storageBuses", "id");
     }
 
     /**
@@ -388,6 +413,8 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
             ItemStack cellStack = tempInv.getStackInSlot(i);
             NBTTagCompound slotData = new NBTTagCompound();
             slotData.setInteger("tempSlot", i);
+            // Use tempSlot as the synthetic delta key so DeltaSnapshot can diff per-slot.
+            slotData.setLong("id", i);
 
             if (!cellStack.isEmpty()) {
                 // Create cell data using the same serialization as regular cells
@@ -400,14 +427,60 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
         NBTTagCompound data = new NBTTagCompound();
         data.setTag("tempCells", tempCellList);
-        mergeIntoPendingData(data);
+        // Temp cells are tiny (<=16 slots) but we still go through chunking + delta for protocol
+        // uniformity and to benefit from the no-change skip when nothing has changed.
+        sendChunked(TerminalChannels.TEMP_CELLS, data, "tempCells", "id");
     }
 
     /**
-     * Merge additional data into pending data (for incremental updates).
+     * Send the META channel: terminalPos / terminalDim / networkId. Always sent at the start of
+     * a full refresh (before sections) so the client has up-to-date context to apply incoming
+     * payloads against.
      */
-    protected void mergeIntoPendingData(NBTTagCompound data) {
-        for (String key : data.getKeySet()) this.pendingData.setTag(key, data.getTag(key));
+    protected void sendMeta() {
+        EntityPlayerMP player = getServerPlayer();
+        if (player == null) return;
+
+        NBTTagCompound meta = new NBTTagCompound();
+        meta.setLong("networkId", this.currentNetworkId);
+        addTerminalPosition(meta);
+
+        // META is small and stateless; always send as FULL.
+        ChunkedNBTSender.send(player, TerminalChannels.META, PayloadMode.FULL, meta);
+    }
+
+    /**
+     * Compute (FULL or DELTA) for the channel and send it via the chunked protocol.
+     */
+    protected void sendChunked(String channel, NBTTagCompound fullPayload, String listKey, String idKey) {
+        EntityPlayerMP player = getServerPlayer();
+        if (player == null) return;
+
+        // Stamp every section payload with the network ID it belongs to. The client uses this
+        // to drop in-flight payloads from the previous network after a switch (otherwise stale
+        // data could briefly overwrite the new network's state while the new META arrives).
+        fullPayload.setLong("networkId", this.currentNetworkId);
+
+        boolean deltaEnabled = CellTerminalServerConfig.getInstance().isDeltaUpdatesEnabled();
+        DeltaSnapshot.DeltaResult result;
+
+        if (deltaEnabled) {
+            result = this.deltaSnapshot.buildDelta(channel, fullPayload, listKey, idKey);
+        } else {
+            this.deltaSnapshot.reset(channel);
+            result = new DeltaSnapshot.DeltaResult(fullPayload, true);
+        }
+
+        ChunkedNBTSender.send(player, channel,
+            result.isFull ? PayloadMode.FULL : PayloadMode.DELTA, result.payload);
+    }
+
+    /**
+     * Convenience: extract the EntityPlayerMP for sending packets.
+     */
+    protected EntityPlayerMP getServerPlayer() {
+        EntityPlayer player = this.getPlayerInv().player;
+        return (player instanceof EntityPlayerMP) ? (EntityPlayerMP) player : null;
     }
 
     /**
@@ -1091,13 +1164,8 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         NBTTagCompound data = new NBTTagCompound();
         data.setTag("subnets", SubnetDataHandler.collectSubnets(this.grid, this.subnetById, playerId, this.subnetSlotLimit));
 
-        // Send subnet list as a separate packet
-        if (this.getPlayerInv().player instanceof EntityPlayerMP) {
-            CellTerminalNetwork.INSTANCE.sendTo(
-                new PacketSubnetListUpdate(data),
-                (EntityPlayerMP) this.getPlayerInv().player
-            );
-        }
+        // Send subnet list as a separate chunked stream on its own channel.
+        sendChunked(TerminalChannels.SUBNETS, data, "subnets", "id");
     }
 
     /**
@@ -1173,6 +1241,11 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
             this.currentNetworkId = networkId;
             this.currentNetworkGrid = tracker.targetGrid;
         }
+
+        // Network identity changed under us: invalidate per-channel server-side snapshots so
+        // the next payload on each channel is a full rebuild on the client. Otherwise the
+        // client would try to apply a delta against a different network's state.
+        this.deltaSnapshot.resetAll();
 
         // Trigger full refresh with new network context
         requestFullRefresh();

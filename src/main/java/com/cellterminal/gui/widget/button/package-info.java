@@ -6,11 +6,11 @@
  * <p>
  * <b>Classes:</b>
  * <ul>
- *   <li>{@link com.cellterminal.gui.widget.button.ButtonType} — Enum identifying button
+ *   <li>{@link com.cellterminal.gui.widget.button.ButtonType}: Enum identifying button
  *       function (DO_PARTITION, READ_ONLY, etc) and mapping to texture coordinates.</li>
- *   <li>{@link com.cellterminal.gui.widget.button.SmallButton} — Fixed-size textured button
+ *   <li>{@link com.cellterminal.gui.widget.button.SmallButton}: Fixed-size textured button
  *       with hover highlight and click callback.</li>
- *   <li>{@link com.cellterminal.gui.widget.button.SmallSwitchingButton} — Toggle variant
+ *   <li>{@link com.cellterminal.gui.widget.button.SmallSwitchingButton}: Toggle variant
  *       cycling through multiple states on click (e.g., I/O mode).</li>
  * </ul>
  *

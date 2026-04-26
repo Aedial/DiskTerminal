@@ -62,6 +62,9 @@ import com.cellterminal.network.PacketHighlightBlock;
 import com.cellterminal.network.PacketSwitchNetwork;
 import com.cellterminal.network.PacketSlotLimitChange;
 import com.cellterminal.network.PacketTabChange;
+import com.cellterminal.network.chunked.PayloadDispatcher;
+import com.cellterminal.network.chunked.PayloadMode;
+import com.cellterminal.network.chunked.TerminalChannels;
 import com.cellterminal.gui.rename.InlineRenameManager;
 
 
@@ -162,6 +165,97 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         // Subnet IDs are ephemeral (change between logins), so always start on the main network
         // FIXME: the Id is not restored when using Wireless Terminal
         this.currentNetworkId = 0;
+
+        registerPayloadHandlers();
+    }
+
+    /**
+     * Register chunked-payload handlers for all data channels this GUI consumes.
+     * <p>
+     * Handlers are registered statically in {@link PayloadDispatcher} but the registration is
+     * idempotent: re-registering with the same channel name overwrites the previous binding.
+     * Since only one Cell Terminal GUI can be open at a time, this is safe.
+     * <p>
+     * The {@code networkId} field embedded in every section payload is used to gate updates
+     * during a network switch: payloads from the previous network (still in flight when the
+     * client requested the switch) are discarded.
+     */
+    protected void registerPayloadHandlers() {
+        // META: terminalPos / terminalDim / networkId. Used to confirm network-switch completion.
+        PayloadDispatcher.register(TerminalChannels.META, this::onMetaPayload);
+
+        // STORAGES / BUSES / TEMP_CELLS: data sections, gated by networkId.
+        PayloadDispatcher.register(TerminalChannels.STORAGES, (mode, data) -> {
+            if (!acceptForCurrentNetwork(data)) return;
+            dataManager.applyStorages(mode, data);
+            updateScrollbarForCurrentTab();
+            restoreInitialScrollIfNeeded();
+        });
+        PayloadDispatcher.register(TerminalChannels.BUSES, (mode, data) -> {
+            if (!acceptForCurrentNetwork(data)) return;
+            dataManager.applyBuses(mode, data);
+            updateScrollbarForCurrentTab();
+            restoreInitialScrollIfNeeded();
+        });
+        PayloadDispatcher.register(TerminalChannels.TEMP_CELLS, (mode, data) -> {
+            if (!acceptForCurrentNetwork(data)) return;
+            dataManager.applyTempCells(mode, data);
+            updateScrollbarForCurrentTab();
+            restoreInitialScrollIfNeeded();
+        });
+
+        // SUBNETS: routed to the subnet overview tab widget. Not gated by networkId since the
+        // subnet list is global per main grid, not per current view.
+        PayloadDispatcher.register(TerminalChannels.SUBNETS, (mode, data) -> {
+            tabManager.getSubnetTab().applySubnetPayload(mode, data);
+            updateScrollbarForCurrentTab();
+        });
+    }
+
+    /**
+     * Handle the META channel payload. Mirrors the network-switch verification logic that used
+     * to live in the old monolithic postUpdate().
+     */
+    protected void onMetaPayload(PayloadMode mode, NBTTagCompound data) {
+        if (data.hasKey("networkId")) {
+            long incomingNetworkId = data.getLong("networkId");
+
+            if (this.awaitingNetworkSwitch) {
+                // Stale META from the old network: drop and keep waiting.
+                if (incomingNetworkId != this.currentNetworkId) return;
+
+                // Server has acknowledged the switch.
+                this.awaitingNetworkSwitch = false;
+            }
+        }
+
+        dataManager.applyMeta(mode, data);
+    }
+
+    /**
+     * Returns true if a section payload should be applied given the current network gating state.
+     * Drops payloads stamped with a different network ID than what the client is currently
+     * showing (or, when awaiting a switch, anything that doesn't match the requested ID).
+     */
+    protected boolean acceptForCurrentNetwork(NBTTagCompound data) {
+        if (!data.hasKey("networkId")) return true;
+        long incoming = data.getLong("networkId");
+
+        if (this.awaitingNetworkSwitch) return incoming == this.currentNetworkId;
+        return incoming == this.currentNetworkId;
+    }
+
+    /**
+     * Restore saved scroll position once we have at least one section payload.
+     * Centralized so each section handler can call it without duplicating the flag logic.
+     */
+    protected void restoreInitialScrollIfNeeded() {
+        if (this.initialScrollRestored) return;
+
+        TabStateManager.TabType tabType = TabStateManager.TabType.fromIndex(tabManager.getCurrentTab());
+        int saved = TabStateManager.getInstance().getScrollPosition(tabType);
+        scrollToLine(saved);
+        this.initialScrollRestored = true;
     }
 
     /**
@@ -1010,30 +1104,8 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     }
 
     public void postUpdate(NBTTagCompound data) {
-        // Check if we're awaiting a network switch - verify the data is for the expected network
-        if (data.hasKey("networkId")) {
-            long incomingNetworkId = data.getLong("networkId");
-
-            // If awaiting a switch, only accept data from the expected network
-            if (this.awaitingNetworkSwitch) {
-                // Data is from the old network - discard it
-                if (incomingNetworkId != this.currentNetworkId) return;
-
-                // Received data for the correct network - switch complete
-                this.awaitingNetworkSwitch = false;
-            }
-        }
-
-        dataManager.processUpdate(data);
         updateScrollbarForCurrentTab();
-
-        // Restore saved scroll after the first update that provides line counts.
-        if (!this.initialScrollRestored) {
-            TabStateManager.TabType tabType = TabStateManager.TabType.fromIndex(tabManager.getCurrentTab());
-            int saved = TabStateManager.getInstance().getScrollPosition(tabType);
-            scrollToLine(saved);
-            this.initialScrollRestored = true;
-        }
+        restoreInitialScrollIfNeeded();
     }
 
     // --- Subnet overview delegation ---
@@ -1100,6 +1172,14 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     public void onGuiClosed() {
         // Persist the current scroll position for the active tab so it is restored when the GUI is reopened.
         tabManager.saveCurrentScrollPosition();
+
+        // Unregister our chunked-payload handlers so any straggling packets after the GUI closes
+        // are dropped instead of being applied to a stale data manager / tab widget.
+        PayloadDispatcher.unregister(TerminalChannels.META);
+        PayloadDispatcher.unregister(TerminalChannels.STORAGES);
+        PayloadDispatcher.unregister(TerminalChannels.BUSES);
+        PayloadDispatcher.unregister(TerminalChannels.TEMP_CELLS);
+        PayloadDispatcher.unregister(TerminalChannels.SUBNETS);
 
         super.onGuiClosed();
     }

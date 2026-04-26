@@ -7,13 +7,13 @@
  * <p>
  * <b>Classes:</b>
  * <ul>
- *   <li>{@link com.cellterminal.integration.subnet.ISubnetScanner} — Interface defining
+ *   <li>{@link com.cellterminal.integration.subnet.ISubnetScanner}: Interface defining
  *       how to discover subnets on a grid.</li>
- *   <li>{@link com.cellterminal.integration.subnet.AbstractSubnetScanner} — Base
+ *   <li>{@link com.cellterminal.integration.subnet.AbstractSubnetScanner}: Base
  *       implementation with shared scanning utilities.</li>
- *   <li>{@link com.cellterminal.integration.subnet.AE2SubnetScanner} — Default scanner
+ *   <li>{@link com.cellterminal.integration.subnet.AE2SubnetScanner}: Default scanner
  *       for vanilla AE2 network interface subnets.</li>
- *   <li>{@link com.cellterminal.integration.subnet.SubnetScannerRegistry} — Singleton
+ *   <li>{@link com.cellterminal.integration.subnet.SubnetScannerRegistry}: Singleton
  *       registry managing all available subnet scanners; queried by
  *       {@code SubnetDataHandler}.</li>
  * </ul>

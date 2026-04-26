@@ -27,6 +27,7 @@ public class CellTerminalServerConfig {
     private static final String CATEGORY_CELL_OPERATIONS = "cell_operations";
     private static final String CATEGORY_MISC = "misc";
     private static final String CATEGORY_INTEGRATION = "integration";
+    private static final String CATEGORY_NETWORK = "network";
 
     private static CellTerminalServerConfig instance;
 
@@ -95,6 +96,19 @@ public class CellTerminalServerConfig {
     private boolean integrationThaumicEnergisticsEnabled = true;
     private boolean integrationMekanismEnergisticsEnabled = true;
     private boolean integrationJeiEnabled = true;
+
+    // Network / data-streaming settings
+    private final Property maxChunkBytesProperty;
+    private final Property minRefreshIntervalTicksProperty;
+    private final Property enableDeltaUpdatesProperty;
+
+    // Default 512 KiB: stays well under vanilla's S2C custom-payload cap of 1 MiB
+    // even after framing/varint overhead and the wrapping FMLProxyPacket header.
+    // The vanilla cap (Short.MAX_VALUE * 4 in PacketBuffer.readByteArray) is hardcoded
+    // and not exposed at runtime, so we treat this as the user's escape hatch.
+    private int maxChunkBytes = 524288;
+    private int minRefreshIntervalTicks = 10;
+    private boolean enableDeltaUpdates = true;
 
     private CellTerminalServerConfig(File configDir) {
         File configFile = new File(configDir, CONFIG_FILE);
@@ -273,6 +287,35 @@ public class CellTerminalServerConfig {
         this.integrationJeiProperty.setLanguageKey("config.cellterminal.config.server.integration.enable_jei");
         this.integrationJeiEnabled = this.integrationJeiProperty.getBoolean();
 
+        // Network / data-streaming settings
+        config.setCategoryComment(CATEGORY_NETWORK,
+            "Settings controlling how the Cell Terminal streams data from server to client.");
+        config.setCategoryLanguageKey(CATEGORY_NETWORK, "config.cellterminal.config.server.network");
+
+        this.maxChunkBytesProperty = config.get(CATEGORY_NETWORK, "maxChunkBytes", 524288,
+            "Maximum payload size (in bytes) per network chunk packet.\n" +
+            "Larger values mean fewer round-trips but risk exceeding the engine's packet limit.\n" +
+            "Default 524288 (512 KiB) stays safely under vanilla's ~1 MiB hardcoded S2C cap.\n" +
+            "Lower this if you observe disconnects with messages like 'Payload may not be larger than'.\n" +
+            "Range: 4096 (4 KiB) - 10485760 (10 MiB).", 4096, 10485760);
+        this.maxChunkBytesProperty.setLanguageKey("config.cellterminal.config.server.network.max_chunk_bytes");
+        this.maxChunkBytes = this.maxChunkBytesProperty.getInt();
+
+        this.minRefreshIntervalTicksProperty = config.get(CATEGORY_NETWORK, "minRefreshIntervalTicks", 10,
+            "Minimum number of ticks between full data refreshes (20 ticks = 1 second).\n" +
+            "Throttles regen of storages/buses/subnets when many trigger events fire in quick succession.\n" +
+            "Lower for snappier updates, higher to reduce server load on large networks.\n" +
+            "Range: 1 - 200.", 1, 200);
+        this.minRefreshIntervalTicksProperty.setLanguageKey("config.cellterminal.config.server.network.min_refresh_interval_ticks");
+        this.minRefreshIntervalTicks = this.minRefreshIntervalTicksProperty.getInt();
+
+        this.enableDeltaUpdatesProperty = config.get(CATEGORY_NETWORK, "enableDeltaUpdates", true,
+            "Enable delta updates: after the first full payload, send only changed entries.\n" +
+            "Greatly reduces bandwidth on large networks where most state is static between ticks.\n" +
+            "Disable to always send full payloads (useful for debugging desync issues).");
+        this.enableDeltaUpdatesProperty.setLanguageKey("config.cellterminal.config.server.network.enable_delta_updates");
+        this.enableDeltaUpdates = this.enableDeltaUpdatesProperty.getBoolean();
+
         if (config.hasChanged()) config.save();
     }
 
@@ -331,6 +374,10 @@ public class CellTerminalServerConfig {
         this.integrationThaumicEnergisticsEnabled = this.integrationThaumicEnergisticsProperty.getBoolean();
         this.integrationMekanismEnergisticsEnabled = this.integrationMekanismEnergisticsProperty.getBoolean();
         this.integrationJeiEnabled = this.integrationJeiProperty.getBoolean();
+
+        this.maxChunkBytes = this.maxChunkBytesProperty.getInt();
+        this.minRefreshIntervalTicks = this.minRefreshIntervalTicksProperty.getInt();
+        this.enableDeltaUpdates = this.enableDeltaUpdatesProperty.getBoolean();
 
         if (config.hasChanged()) config.save();
     }
@@ -483,5 +530,19 @@ public class CellTerminalServerConfig {
 
     public boolean isIntegrationJeiEnabled() {
         return integrationJeiEnabled;
+    }
+
+    // Network getters
+
+    public int getMaxChunkBytes() {
+        return maxChunkBytes;
+    }
+
+    public int getMinRefreshIntervalTicks() {
+        return minRefreshIntervalTicks;
+    }
+
+    public boolean isDeltaUpdatesEnabled() {
+        return enableDeltaUpdates;
     }
 }

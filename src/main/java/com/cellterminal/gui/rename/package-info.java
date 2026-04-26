@@ -7,12 +7,12 @@
  * <p>
  * <b>Classes:</b>
  * <ul>
- *   <li>{@link com.cellterminal.gui.rename.Renameable} — Interface for objects that can be
+ *   <li>{@link com.cellterminal.gui.rename.Renameable}: Interface for objects that can be
  *       renamed (implemented by {@code SubnetInfo}, {@code StorageInfo}, {@code CellInfo},
  *       {@code StorageBusInfo}).</li>
- *   <li>{@link com.cellterminal.gui.rename.InlineRenameManager} — Singleton managing the
+ *   <li>{@link com.cellterminal.gui.rename.InlineRenameManager}: Singleton managing the
  *       active rename text field, persisting across frame rebuilds.</li>
- *   <li>{@link com.cellterminal.gui.rename.RenameTargetType} — Enum identifying the rename
+ *   <li>{@link com.cellterminal.gui.rename.RenameTargetType}: Enum identifying the rename
  *       target type (STORAGE, CELL, STORAGE_BUS, SUBNET) for server-side packet routing.</li>
  * </ul>
  *

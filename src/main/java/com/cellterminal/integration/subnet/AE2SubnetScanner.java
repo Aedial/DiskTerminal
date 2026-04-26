@@ -132,7 +132,7 @@ public class AE2SubnetScanner extends AbstractSubnetScanner {
             TileEntity ifaceTile = iface.getTileEntity();
             if (ifaceTile == null) continue;
 
-            // PartInterface faces one specific direction — only check that side
+            // PartInterface faces one specific direction, only check that side
             EnumFacing facing = iface.getSide().getFacing();
             if (facing == null) continue;
 

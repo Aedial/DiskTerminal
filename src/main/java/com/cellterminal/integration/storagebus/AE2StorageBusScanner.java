@@ -68,5 +68,4 @@ public class AE2StorageBusScanner extends AbstractStorageBusScanner {
             trackerMap.put(busId, new StorageBusTracker(busId, bus, hostTile));
         }
     }
-
 }

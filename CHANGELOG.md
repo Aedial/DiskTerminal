@@ -8,6 +8,14 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.6.0-beta] - 2026-04-24
+### Added
+- New chunked + delta network protocol for terminal data: large grids no longer hit the vanilla packet size cap, and idle refreshes only send what changed.
+- Configurable in server config under `network`:
+  `maxChunkBytes` (default 524288), `minRefreshIntervalTicks` (default 10), `enableDeltaUpdates` (default true).
+- Refreshes are throttled and prioritize the tab the player is currently viewing.
+
+
 ## [1.5.4] - 2026-04-14
 ### Fixed
 - Potential fix for setting partition clearing the slot in another row, in some cases, due to a race condition in cell state between clicks (usually when world was just loaded and the cell state was not fully synced yet).

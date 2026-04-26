@@ -7,7 +7,7 @@
  * <p>
  * <b>Classes:</b>
  * <ul>
- *   <li>{@link com.cellterminal.part.PartCellTerminal} — Cable-attachable part implementing
+ *   <li>{@link com.cellterminal.part.PartCellTerminal}: Cable-attachable part implementing
  *       the Cell Terminal display. Stores a temporary cell inventory for pre-partitioning
  *       and manages the part's AE2 power and channel requirements.</li>
  * </ul>
