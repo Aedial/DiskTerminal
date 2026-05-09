@@ -8,6 +8,36 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.6.1-beta] - 2026-05-01
+### Added
+- Add CELLS integration for import/export interfaces and subnet proxies, as direct storage-bus and subnet overview.
+- Add strict no-duplicates check for storage bus filters, with user feedback on attempted duplicates.
+
+### Fixed
+- Fix wireless terminals reopening on the main network instead of restoring the last viewed subnet during the current connection.
+
+
+## [1.6.0-beta] - 2026-04-24
+### Added
+- New chunked + delta network protocol for terminal data: large grids no longer hit the vanilla packet size cap, and idle refreshes only send what changed.
+- Configurable in server config under `network`:
+  `maxChunkBytes` (default 524288), `minRefreshIntervalTicks` (default 10), `enableDeltaUpdates` (default true).
+- Refreshes are throttled and prioritize the tab the player is currently viewing.
+
+
+## [1.5.4] - 2026-04-14
+### Fixed
+- Potential fix for setting partition clearing the slot in another row, in some cases, due to a race condition in cell state between clicks (usually when world was just loaded and the cell state was not fully synced yet).
+- Fix upgrades not being clickable directly on cells.
+- Fix (virtual) slots not being interactible with JEI.
+- Fix storage bus contents being truncated to the partition slot count
+
+
+## [1.5.3] - 2026-03-25
+### Fixed
+- Fix regression with AE2's Network Tool (Upgrade cards inventory).
+
+
 ## [1.5.2] - 2026-03-17
 ### Added
 - Add Gas support to the terminal.

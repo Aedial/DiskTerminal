@@ -1,6 +1,5 @@
 package com.cellterminal.integration;
 
-import com.cellterminal.container.ContainerWirelessCellTerminal;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.common.util.Constants;
@@ -20,6 +19,7 @@ import com.circulation.ae2wut.recipes.AllWUTRecipe;
 
 import com.cellterminal.ItemRegistry;
 import com.cellterminal.config.CellTerminalServerConfig;
+import com.cellterminal.container.ContainerWirelessCellTerminal;
 import com.cellterminal.gui.GuiWirelessCellTerminal;
 
 

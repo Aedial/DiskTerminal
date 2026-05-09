@@ -621,6 +621,45 @@ public class ThaumicEnergisticsIntegration {
         return tryConvertEssentiaContainerToAspectInternal(itemStack);
     }
 
+    /**
+     * Normalize any essentia-representing stack to a canonical DummyAspect stack.
+     */
+    public static ItemStack normalizeEssentiaStack(ItemStack itemStack) {
+        if (!isModLoaded() || itemStack.isEmpty()) return itemStack;
+
+        return normalizeEssentiaStackInternal(itemStack);
+    }
+
+    /**
+     * Compare two essentia stacks by aspect identity only.
+     */
+    public static boolean matchesEssentiaStack(ItemStack left, ItemStack right) {
+        if (!isModLoaded()) return ItemStack.areItemStacksEqual(left, right);
+        if (left.isEmpty() || right.isEmpty()) return left.isEmpty() && right.isEmpty();
+
+        return matchesEssentiaStackInternal(left, right);
+    }
+
+    @Optional.Method(modid = MODID)
+    private static ItemStack normalizeEssentiaStackInternal(ItemStack itemStack) {
+        try {
+            return tryConvertEssentiaContainerToAspectInternal(itemStack);
+        } catch (Exception e) {
+            CellTerminal.LOGGER.debug("Failed to normalize essentia stack: {}", e.getMessage());
+
+            return ItemStack.EMPTY;
+        }
+    }
+
+    @Optional.Method(modid = MODID)
+    private static boolean matchesEssentiaStackInternal(ItemStack left, ItemStack right) {
+        thaumcraft.api.aspects.Aspect leftAspect = getAspectFromItem(left);
+        thaumcraft.api.aspects.Aspect rightAspect = getAspectFromItem(right);
+        if (leftAspect == null || rightAspect == null) return false;
+
+        return leftAspect.equals(rightAspect);
+    }
+
     @Optional.Method(modid = MODID)
     private static ItemStack tryConvertEssentiaContainerToAspectInternal(ItemStack itemStack) {
         try {
@@ -879,17 +918,14 @@ public class ThaumicEnergisticsIntegration {
                 NBTTagList contentsList = new NBTTagList();
 
                 if (aspects != null) {
-                    int count = 0;
                     IStorageChannel<thaumicenergistics.api.storage.IAEEssentiaStack> essentiaChannel =
                         AEApi.instance().storage().getStorageChannel(
                             thaumicenergistics.api.storage.IEssentiaStorageChannel.class);
 
-                    int limit = busData.hasKey("maxConfigSlots") ? busData.getInteger("maxConfigSlots")
-                        : StorageBusInfo.MAX_CONFIG_SLOTS;
-
+                    // Content items are not limited by config/partition slots;
+                    // display limiting is handled client-side by the SlotLimit button
                     for (thaumcraft.api.aspects.Aspect aspect : aspects.getAspects()) {
                         if (aspect == null) break;
-                        if (count >= limit) break;
 
                         int amount = aspects.getAmount(aspect);
                         if (amount <= 0) continue;
@@ -903,7 +939,6 @@ public class ThaumicEnergisticsIntegration {
                                 itemRep.writeToNBT(stackNbt);
                                 stackNbt.setLong("Cnt", amount);
                                 contentsList.appendTag(stackNbt);
-                                count++;
                             }
                         }
                     }
@@ -940,6 +975,43 @@ public class ThaumicEnergisticsIntegration {
      * Handle partition action for essentia storage buses.
      * This method dispatches to the internal handler if Thaumic Energistics is loaded.
      */
+    public static boolean hasDuplicateEssentiaStorageBusFilter(Object storageBus,
+                                                                int partitionSlot,
+                                                                ItemStack itemStack) {
+        if (!isModLoaded()) return false;
+
+        return hasDuplicateEssentiaStorageBusFilterInternal(storageBus, partitionSlot, itemStack);
+    }
+
+    @Optional.Method(modid = MODID)
+    private static boolean hasDuplicateEssentiaStorageBusFilterInternal(Object storageBus,
+                                                                         int partitionSlot,
+                                                                         ItemStack itemStack) {
+        try {
+            if (!(storageBus instanceof thaumicenergistics.part.PartEssentiaStorageBus)) return false;
+            if (partitionSlot < 0 || itemStack.isEmpty()) return false;
+
+            thaumicenergistics.part.PartEssentiaStorageBus bus =
+                (thaumicenergistics.part.PartEssentiaStorageBus) storageBus;
+
+            thaumicenergistics.util.EssentiaFilter config = bus.getConfig();
+            if (config == null) return false;
+
+            int slotCount = getAspectSlotCount(config);
+            if (partitionSlot >= slotCount) return false;
+
+            thaumcraft.api.aspects.Aspect aspectFromItem = getAspectFromItem(itemStack);
+            if (aspectFromItem == null) return false;
+
+            int existingSlot = findAspectInConfig(config, aspectFromItem);
+            return existingSlot >= 0 && existingSlot != partitionSlot;
+        } catch (Exception e) {
+            CellTerminal.LOGGER.debug("Failed to check essentia storage bus duplicate filter: {}", e.getMessage());
+
+            return false;
+        }
+    }
+
     public static void handleEssentiaStorageBusPartition(Object storageBus,
                                                           com.cellterminal.network.PacketStorageBusPartitionAction.Action action,
                                                           int partitionSlot,
@@ -1057,6 +1129,14 @@ public class ThaumicEnergisticsIntegration {
         }
 
         return -1;
+    }
+
+    @Optional.Method(modid = MODID)
+    private static int getAspectSlotCount(thaumicenergistics.util.EssentiaFilter config) {
+        int slotCount = 0;
+        for (thaumcraft.api.aspects.Aspect ignored : config) slotCount++;
+
+        return slotCount;
     }
 
     @Optional.Method(modid = MODID)

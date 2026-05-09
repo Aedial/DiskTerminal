@@ -477,6 +477,9 @@ public class TempAreaTabWidget extends AbstractTabWidget {
         line.setSlotClickCallback((slotIndex, mouseButton) -> {
             if (mouseButton != 0 || tempSlotIndex < 0) return;
 
+            // Defensive: verify slotIndex is within the cell's actual type limit
+            if (slotIndex < 0 || slotIndex >= cell.getTotalTypes()) return;
+
             if (mode == SlotsLine.SlotMode.CONTENT) {
                 // Content slot: toggle partition for that item
                 List<ItemStack> contents = cell.getContents();

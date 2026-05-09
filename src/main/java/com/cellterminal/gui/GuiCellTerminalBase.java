@@ -62,6 +62,9 @@ import com.cellterminal.network.PacketHighlightBlock;
 import com.cellterminal.network.PacketSwitchNetwork;
 import com.cellterminal.network.PacketSlotLimitChange;
 import com.cellterminal.network.PacketTabChange;
+import com.cellterminal.network.chunked.PayloadDispatcher;
+import com.cellterminal.network.chunked.PayloadMode;
+import com.cellterminal.network.chunked.TerminalChannels;
 import com.cellterminal.gui.rename.InlineRenameManager;
 
 
@@ -119,6 +122,17 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     // Search field click handler (right-click clear, double-click modal)
     protected SearchFieldHandler searchFieldHandler = null;
 
+    /**
+     * Tracks whether AE2's JEI bookmark ghost handler consumed the current click via
+     * handleMouseClick. When this is true, mouseClicked skips the activeTab.handleClick
+     * call to prevent double-fire: AE2's bookmark mechanism sends an ADD_ITEM via accept()
+     * using the current mouse position, while our click callback would send a conflicting
+     * action (potentially REMOVE_ITEM) using the stale hoveredSlotIndex from the previous
+     * frame's draw. If the mouse moved vertically between frames, these target different rows
+     * in the same column, setting one slot while clearing another in a neighboring row.
+     */
+    private boolean ghostDropConsumedClick = false;
+
     // Guard to prevent style button from being retriggered while mouse is still down
     private long lastStyleButtonClickTime = 0;
     private static final long STYLE_BUTTON_COOLDOWN = 100;  // ms
@@ -148,9 +162,100 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         this.currentSearchMode = config.getSearchMode();
         this.currentSubnetVisibility = config.getSubnetVisibility();
 
-        // Subnet IDs are ephemeral (change between logins), so always start on the main network
-        // FIXME: the Id is not restored when using Wireless Terminal
-        this.currentNetworkId = 0;
+        // Restore the last viewed subnet for this client connection. ClientProxy clears the
+        // saved ID on connect/disconnect so ephemeral subnet IDs do not leak across sessions.
+        this.currentNetworkId = config.getLastViewedNetworkId();
+
+        registerPayloadHandlers();
+    }
+
+    /**
+     * Register chunked-payload handlers for all data channels this GUI consumes.
+     * <p>
+     * Handlers are registered statically in {@link PayloadDispatcher} but the registration is
+     * idempotent: re-registering with the same channel name overwrites the previous binding.
+     * Since only one Cell Terminal GUI can be open at a time, this is safe.
+     * <p>
+     * The {@code networkId} field embedded in every section payload is used to gate updates
+     * during a network switch: payloads from the previous network (still in flight when the
+     * client requested the switch) are discarded.
+     */
+    protected void registerPayloadHandlers() {
+        // META: terminalPos / terminalDim / networkId. Used to confirm network-switch completion.
+        PayloadDispatcher.register(TerminalChannels.META, this::onMetaPayload);
+
+        // STORAGES / BUSES / TEMP_CELLS: data sections, gated by networkId.
+        PayloadDispatcher.register(TerminalChannels.STORAGES, (mode, data) -> {
+            if (!acceptForCurrentNetwork(data)) return;
+            dataManager.applyStorages(mode, data);
+            updateScrollbarForCurrentTab();
+            restoreInitialScrollIfNeeded();
+        });
+        PayloadDispatcher.register(TerminalChannels.BUSES, (mode, data) -> {
+            if (!acceptForCurrentNetwork(data)) return;
+            dataManager.applyBuses(mode, data);
+            updateScrollbarForCurrentTab();
+            restoreInitialScrollIfNeeded();
+        });
+        PayloadDispatcher.register(TerminalChannels.TEMP_CELLS, (mode, data) -> {
+            if (!acceptForCurrentNetwork(data)) return;
+            dataManager.applyTempCells(mode, data);
+            updateScrollbarForCurrentTab();
+            restoreInitialScrollIfNeeded();
+        });
+
+        // SUBNETS: routed to the subnet overview tab widget. Not gated by networkId since the
+        // subnet list is global per main grid, not per current view.
+        PayloadDispatcher.register(TerminalChannels.SUBNETS, (mode, data) -> {
+            tabManager.getSubnetTab().applySubnetPayload(mode, data);
+            updateScrollbarForCurrentTab();
+        });
+    }
+
+    /**
+     * Handle the META channel payload. Mirrors the network-switch verification logic that used
+     * to live in the old monolithic postUpdate().
+     */
+    protected void onMetaPayload(PayloadMode mode, NBTTagCompound data) {
+        if (data.hasKey("networkId")) {
+            long incomingNetworkId = data.getLong("networkId");
+
+            if (this.awaitingNetworkSwitch) {
+                // Stale META from the old network: drop and keep waiting.
+                if (incomingNetworkId != this.currentNetworkId) return;
+
+                // Server has acknowledged the switch.
+                this.awaitingNetworkSwitch = false;
+            }
+        }
+
+        dataManager.applyMeta(mode, data);
+    }
+
+    /**
+     * Returns true if a section payload should be applied given the current network gating state.
+     * Drops payloads stamped with a different network ID than what the client is currently
+     * showing (or, when awaiting a switch, anything that doesn't match the requested ID).
+     */
+    protected boolean acceptForCurrentNetwork(NBTTagCompound data) {
+        if (!data.hasKey("networkId")) return true;
+        long incoming = data.getLong("networkId");
+
+        if (this.awaitingNetworkSwitch) return incoming == this.currentNetworkId;
+        return incoming == this.currentNetworkId;
+    }
+
+    /**
+     * Restore saved scroll position once we have at least one section payload.
+     * Centralized so each section handler can call it without duplicating the flag logic.
+     */
+    protected void restoreInitialScrollIfNeeded() {
+        if (this.initialScrollRestored) return;
+
+        TabStateManager.TabType tabType = TabStateManager.TabType.fromIndex(tabManager.getCurrentTab());
+        int saved = TabStateManager.getInstance().getScrollPosition(tabType);
+        scrollToLine(saved);
+        this.initialScrollRestored = true;
     }
 
     /**
@@ -713,7 +818,18 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             }
         }
 
+        // Detect when AE2's JEI bookmark ghost handler consumes the click.
+        // AE2 processes bookmark drops in handleMouseClick when clicking outside real slots
+        // (slot == null). If it consumed the click, the cursor item changes (cleared or replaced
+        // with next bookmark). We must suppress our subsequent activeTab.handleClick to prevent
+        // sending a conflicting REMOVE_ITEM for a stale hoveredSlotIndex from the previous draw.
+        ItemStack cursorBefore = slot == null ? mc.player.inventory.getItemStack().copy() : ItemStack.EMPTY;
+
         super.handleMouseClick(slot, slotIdx, mouseButton, clickType);
+
+        if (slot == null && !ItemStack.areItemStacksEqual(cursorBefore, mc.player.inventory.getItemStack())) {
+            ghostDropConsumedClick = true;
+        }
     }
 
     @Override
@@ -767,7 +883,13 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         // Handle tab header clicks via TabManager
         if (tabManager.handleClick(mouseX, mouseY, guiLeft, guiTop)) return;
 
+        ghostDropConsumedClick = false;
+
         super.mouseClicked(mouseX, mouseY, mouseButton);
+
+        // If AE2's JEI bookmark ghost handler already processed this click (via handleMouseClick),
+        // skip our widget handler to avoid sending a conflicting partition action
+        if (ghostDropConsumedClick) return;
 
         // Delegate content area clicks to the active tab widget
         int relMouseX = mouseX - guiLeft;
@@ -833,11 +955,11 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         int relMouseY = mouseY - guiTop;
         Object hoveredData = activeTab.getDataForHoveredRow(relMouseX, relMouseY);
 
-        // Don't intercept upgrade clicks on content/partition rows - the partition
-        // slot click handler should take priority, allowing upgrades to be set as partition items.
-        // Upgrade insertion is only supported via headers, cell icons, and terminal lines.
+        // When hovering a content/partition row, only skip upgrade insertion if the mouse
+        // is over the actual slot grid (where partition clicks take priority). If the mouse
+        // is in the pre-slot area (cell icon, upgrade cards), allow the upgrade click.
         if (hoveredData instanceof CellContentRow || hoveredData instanceof StorageBusContentRow) {
-            return false;
+            if (activeTab.isMouseOverSlotGrid(relMouseX, relMouseY)) return false;
         }
 
         return activeTab.handleUpgradeClick(hoveredData, heldStack, false);
@@ -982,30 +1104,8 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     }
 
     public void postUpdate(NBTTagCompound data) {
-        // Check if we're awaiting a network switch - verify the data is for the expected network
-        if (data.hasKey("networkId")) {
-            long incomingNetworkId = data.getLong("networkId");
-
-            // If awaiting a switch, only accept data from the expected network
-            if (this.awaitingNetworkSwitch) {
-                // Data is from the old network - discard it
-                if (incomingNetworkId != this.currentNetworkId) return;
-
-                // Received data for the correct network - switch complete
-                this.awaitingNetworkSwitch = false;
-            }
-        }
-
-        dataManager.processUpdate(data);
         updateScrollbarForCurrentTab();
-
-        // Restore saved scroll after the first update that provides line counts.
-        if (!this.initialScrollRestored) {
-            TabStateManager.TabType tabType = TabStateManager.TabType.fromIndex(tabManager.getCurrentTab());
-            int saved = TabStateManager.getInstance().getScrollPosition(tabType);
-            scrollToLine(saved);
-            this.initialScrollRestored = true;
-        }
+        restoreInitialScrollIfNeeded();
     }
 
     // --- Subnet overview delegation ---
@@ -1047,6 +1147,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     @Override
     public void switchToNetwork(long networkId) {
         this.currentNetworkId = networkId;
+        CellTerminalClientConfig.getInstance().setLastViewedNetworkId(networkId);
 
         // Exit subnet overview if it was active (e.g. clicking a Load button in overview)
         if (isInSubnetOverviewMode()) tabManager.switchToTab(tabManager.getPreviousRealTab());
@@ -1072,6 +1173,15 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     public void onGuiClosed() {
         // Persist the current scroll position for the active tab so it is restored when the GUI is reopened.
         tabManager.saveCurrentScrollPosition();
+        CellTerminalClientConfig.getInstance().setLastViewedNetworkId(this.currentNetworkId);
+
+        // Unregister our chunked-payload handlers so any straggling packets after the GUI closes
+        // are dropped instead of being applied to a stale data manager / tab widget.
+        PayloadDispatcher.unregister(TerminalChannels.META);
+        PayloadDispatcher.unregister(TerminalChannels.STORAGES);
+        PayloadDispatcher.unregister(TerminalChannels.BUSES);
+        PayloadDispatcher.unregister(TerminalChannels.TEMP_CELLS);
+        PayloadDispatcher.unregister(TerminalChannels.SUBNETS);
 
         super.onGuiClosed();
     }
@@ -1239,5 +1349,24 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     @Override
     public Set<Integer> getSelectedTempCellSlots() {
         return selectedTempCellSlots;
+    }
+
+    /**
+     * Get the ItemStack under the mouse from our virtual slot widgets.
+     * Used by the JEI plugin to support recipe/usage lookups (R/U keybinds)
+     * on items displayed in virtual slots that JEI cannot detect normally.
+     *
+     * @param screenMouseX Mouse X in screen coordinates
+     * @param screenMouseY Mouse Y in screen coordinates
+     * @return The hovered ItemStack, or ItemStack.EMPTY if none
+     */
+    public ItemStack getVirtualHoveredItemStack(int screenMouseX, int screenMouseY) {
+        AbstractTabWidget activeTab = tabManager != null ? tabManager.getActiveTab() : null;
+        if (activeTab == null) return ItemStack.EMPTY;
+
+        int relMouseX = screenMouseX - guiLeft;
+        int relMouseY = screenMouseY - guiTop;
+
+        return activeTab.getHoveredItemStack(relMouseX, relMouseY);
     }
 }

@@ -486,6 +486,12 @@ public class CellActionHandler {
     public static void forceCellHandlerRefresh(IItemHandler cellInventory, int cellSlot, ItemStack cellStack) {
         if (cellInventory instanceof IItemHandlerModifiable) {
             ((IItemHandlerModifiable) cellInventory).setStackInSlot(cellSlot, cellStack);
+        } else {
+            // Fallback for inventories that don't implement IItemHandlerModifiable
+            // (e.g. TileChestCellInventoryWrapper). Without this, the storage device's
+            // cell handler cache wouldn't be refreshed after a partition modification,
+            // potentially causing stale partition data on the next read.
+            cellInventory.extractItem(cellSlot, 1, true);  // Force a persist() call
         }
     }
 

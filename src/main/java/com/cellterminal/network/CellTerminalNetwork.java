@@ -5,6 +5,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 import net.minecraftforge.fml.relauncher.Side;
 
 import com.cellterminal.Tags;
+import com.cellterminal.network.chunked.PacketNBTChunk;
 
 
 /**
@@ -17,10 +18,11 @@ public class CellTerminalNetwork {
     private static int packetId = 0;
 
     public static void init() {
-        // Server -> Client: Update cell terminal GUI
+        // Server -> Client: Generic chunked NBT payload (terminal data, subnet data, etc).
+        // See com.cellterminal.network.chunked package.
         INSTANCE.registerMessage(
-            PacketCellTerminalUpdate.Handler.class,
-            PacketCellTerminalUpdate.class,
+            PacketNBTChunk.Handler.class,
+            PacketNBTChunk.class,
             packetId++,
             Side.CLIENT
         );
@@ -151,14 +153,6 @@ public class CellTerminalNetwork {
             PacketSubnetListRequest.class,
             packetId++,
             Side.SERVER
-        );
-
-        // Server -> Client: Subnet list update
-        INSTANCE.registerMessage(
-            PacketSubnetListUpdate.Handler.class,
-            PacketSubnetListUpdate.class,
-            packetId++,
-            Side.CLIENT
         );
 
         // Client -> Server: Subnet action (rename, favorite)

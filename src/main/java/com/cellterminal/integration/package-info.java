@@ -15,19 +15,19 @@
  * <p>
  * <b>Direct integrations:</b>
  * <ul>
- *   <li>{@link com.cellterminal.integration.AE2WUTIntegration} — Wireless Universal Terminal
+ *   <li>{@link com.cellterminal.integration.AE2WUTIntegration}: Wireless Universal Terminal
  *       mode registration for AE2UEL-WUT.</li>
- *   <li>{@link com.cellterminal.integration.CellTerminalJEIPlugin} — JEI ghost ingredient
+ *   <li>{@link com.cellterminal.integration.CellTerminalJEIPlugin}: JEI ghost ingredient
  *       handlers and runtime access for partition drag-and-drop.</li>
- *   <li>{@link com.cellterminal.integration.CrazyAEIntegration} — Crazy AE mod storage
+ *   <li>{@link com.cellterminal.integration.CrazyAEIntegration}: Crazy AE mod storage
  *       device support.</li>
- *   <li>{@link com.cellterminal.integration.ECOAEExtensionIntegration} — ECO AE Extension
+ *   <li>{@link com.cellterminal.integration.ECOAEExtensionIntegration}: ECO AE Extension
  *       mod support.</li>
- *   <li>{@link com.cellterminal.integration.StorageDrawersIntegration} — Storage Drawers mod
+ *   <li>{@link com.cellterminal.integration.StorageDrawersIntegration}: Storage Drawers mod
  *       support for storage bus connected inventories.</li>
- *   <li>{@link com.cellterminal.integration.ThaumicEnergisticsIntegration} — Thaumic
+ *   <li>{@link com.cellterminal.integration.ThaumicEnergisticsIntegration}: Thaumic
  *       Energistics essentia cell and bus support.</li>
- *   <li>{@link com.cellterminal.integration.WUTModeSwitcher} — Helper for managing Cell
+ *   <li>{@link com.cellterminal.integration.WUTModeSwitcher}: Helper for managing Cell
  *       Terminal mode within the Wireless Universal Terminal.</li>
  * </ul>
  * <p>

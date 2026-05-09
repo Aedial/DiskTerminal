@@ -7,13 +7,13 @@
  * <p>
  * <b>Classes:</b>
  * <ul>
- *   <li>{@link com.cellterminal.integration.storage.IStorageScanner} — Interface defining
+ *   <li>{@link com.cellterminal.integration.storage.IStorageScanner}: Interface defining
  *       how to discover storage devices on a grid.</li>
- *   <li>{@link com.cellterminal.integration.storage.AbstractStorageScanner} — Base
+ *   <li>{@link com.cellterminal.integration.storage.AbstractStorageScanner}: Base
  *       implementation with shared scanning utilities.</li>
- *   <li>{@link com.cellterminal.integration.storage.AE2StorageScanner} — Default scanner
+ *   <li>{@link com.cellterminal.integration.storage.AE2StorageScanner}: Default scanner
  *       for vanilla AE2 ME Drives and ME Chests.</li>
- *   <li>{@link com.cellterminal.integration.storage.StorageScannerRegistry} — Singleton
+ *   <li>{@link com.cellterminal.integration.storage.StorageScannerRegistry}: Singleton
  *       registry managing all available storage scanners; queried by
  *       {@code CellDataHandler}.</li>
  * </ul>

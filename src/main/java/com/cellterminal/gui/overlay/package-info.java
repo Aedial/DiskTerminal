@@ -14,13 +14,13 @@
  * <p>
  * <b>Classes:</b>
  * <ul>
- *   <li>{@link com.cellterminal.gui.overlay.MessageHelper} — Client-side entry point that
+ *   <li>{@link com.cellterminal.gui.overlay.MessageHelper}: Client-side entry point that
  *       receives messages from packets and queues them for rendering.</li>
- *   <li>{@link com.cellterminal.gui.overlay.MessageType} — Enum for message severity/color
+ *   <li>{@link com.cellterminal.gui.overlay.MessageType}: Enum for message severity/color
  *       (SUCCESS=green, ERROR=red, WARNING=yellow).</li>
- *   <li>{@link com.cellterminal.gui.overlay.OverlayMessage} — Data class holding message text,
+ *   <li>{@link com.cellterminal.gui.overlay.OverlayMessage}: Data class holding message text,
  *       type, creation time, and fade timing.</li>
- *   <li>{@link com.cellterminal.gui.overlay.OverlayMessageRenderer} — Renders the active
+ *   <li>{@link com.cellterminal.gui.overlay.OverlayMessageRenderer}: Renders the active
  *       message list on screen each frame.</li>
  * </ul>
  *

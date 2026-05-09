@@ -50,7 +50,7 @@ public class AE2StorageBusScanner extends AbstractStorageBusScanner {
             applyCapabilities(nbt);
             applySlotParameters(nbt);
             out.appendTag(nbt);
-            trackerMap.put(busId, new StorageBusTracker(busId, bus, hostTile));
+            trackerMap.put(busId, new StorageBusTracker(busId, bus, hostTile, bus.getSide().ordinal(), StorageType.ITEM));
         }
 
         // Fluid storage buses
@@ -65,8 +65,7 @@ public class AE2StorageBusScanner extends AbstractStorageBusScanner {
             applyCapabilities(nbt);
             applySlotParameters(nbt);
             out.appendTag(nbt);
-            trackerMap.put(busId, new StorageBusTracker(busId, bus, hostTile));
+            trackerMap.put(busId, new StorageBusTracker(busId, bus, hostTile, bus.getSide().ordinal(), StorageType.FLUID));
         }
     }
-
 }

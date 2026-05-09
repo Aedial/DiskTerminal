@@ -164,6 +164,15 @@ public class SlotsLine extends AbstractLine {
         this.selectedSupplier = supplier;
     }
 
+    /**
+     * Get the X offset where the slot grid starts.
+     * Used by the tab widget to distinguish clicks on the cell/card area
+     * (before the slots) from clicks on the content/partition slot area.
+     */
+    public int getSlotsXOffset() {
+        return slotsXOffset;
+    }
+
     public void setMaxSlots(int maxSlots) {
         this.maxSlots = maxSlots;
     }

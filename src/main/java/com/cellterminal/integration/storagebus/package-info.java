@@ -7,15 +7,15 @@
  * <p>
  * <b>Classes:</b>
  * <ul>
- *   <li>{@link com.cellterminal.integration.storagebus.IStorageBusScanner} — Interface defining
+ *   <li>{@link com.cellterminal.integration.storagebus.IStorageBusScanner}: Interface defining
  *       how to discover storage buses on a grid.</li>
- *   <li>{@link com.cellterminal.integration.storagebus.AbstractStorageBusScanner} — Base
+ *   <li>{@link com.cellterminal.integration.storagebus.AbstractStorageBusScanner}: Base
  *       implementation with shared scanning utilities.</li>
- *   <li>{@link com.cellterminal.integration.storagebus.AE2StorageBusScanner} — Default scanner
+ *   <li>{@link com.cellterminal.integration.storagebus.AE2StorageBusScanner}: Default scanner
  *       for vanilla AE2 item and fluid storage buses.</li>
- *   <li>{@link com.cellterminal.integration.storagebus.ThaumicEnergisticsBusScanner} — Scanner
+ *   <li>{@link com.cellterminal.integration.storagebus.ThaumicEnergisticsBusScanner}: Scanner
  *       for Thaumic Energistics essentia storage buses.</li>
- *   <li>{@link com.cellterminal.integration.storagebus.StorageBusScannerRegistry} — Singleton
+ *   <li>{@link com.cellterminal.integration.storagebus.StorageBusScannerRegistry}: Singleton
  *       registry managing all available storage bus scanners; queried by
  *       {@code StorageBusDataHandler}.</li>
  * </ul>

@@ -1500,10 +1500,15 @@ public final class NetworkToolActionHandler {
      */
     private static boolean matchesBusFilters(StorageBusTracker tracker,
                                               Map<CellFilter, CellFilter.State> activeFilters) {
-        boolean isFluid = tracker.storageBus instanceof PartFluidStorageBus;
-        boolean isEssentia = isEssentiaStorageBus(tracker);
-        boolean isGas = isGasStorageBus(tracker);
-        boolean isItem = tracker.storageBus instanceof PartStorageBus && !isFluid && !isEssentia && !isGas;
+        StorageType trackerType = tracker.storageType;
+        boolean isFluid = trackerType == StorageType.FLUID
+            || (trackerType == null && tracker.storageBus instanceof PartFluidStorageBus);
+        boolean isEssentia = trackerType == StorageType.ESSENTIA
+            || (trackerType == null && isEssentiaStorageBus(tracker));
+        boolean isGas = trackerType == StorageType.GAS
+            || (trackerType == null && isGasStorageBus(tracker));
+        boolean isItem = trackerType == StorageType.ITEM
+            || (trackerType == null && tracker.storageBus instanceof PartStorageBus && !isFluid && !isEssentia && !isGas);
 
         CellFilter.State itemState = activeFilters.getOrDefault(CellFilter.ITEM_CELLS, CellFilter.State.SHOW_ALL);
         CellFilter.State fluidState = activeFilters.getOrDefault(CellFilter.FLUID_CELLS, CellFilter.State.SHOW_ALL);

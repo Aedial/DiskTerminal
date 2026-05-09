@@ -40,8 +40,11 @@ import appeng.parts.misc.PartStorageBus;
 import appeng.tile.misc.TileInterface;
 import appeng.util.helpers.ItemHandlerUtil;
 
+import com.cells.api.ISubnetProxy;
+import com.cellterminal.integration.CellsIntegration;
 import com.cellterminal.integration.subnet.SubnetScannerRegistry;
 import com.cellterminal.network.PacketSubnetPartitionAction;
+import com.cellterminal.network.PacketStorageBusPartitionAction;
 
 
 /**
@@ -298,6 +301,8 @@ public class SubnetDataHandler {
         } else if (busPart instanceof PartFluidStorageBus) {
             return StorageBusDataHandler.executeSubnetFluidPartitionAction(
                 (PartFluidStorageBus) busPart, action, partitionSlot, itemStack);
+        } else if (busPart instanceof ISubnetProxy) {
+            return handleExternalSubnetProxyPartition((ISubnetProxy) busPart, action, partitionSlot, itemStack);
         }
 
         return false;
@@ -326,6 +331,10 @@ public class SubnetDataHandler {
         Object busPart = findBusForConnection(tracker, pos, side);
         if (busPart == null) return false;
 
+        if (busPart instanceof ISubnetProxy) {
+            return fillExternalSubnetProxyFromSubnetInventory((ISubnetProxy) busPart, tracker.targetGrid);
+        }
+
         IGrid subnetGrid = tracker.targetGrid;
         IStorageGrid storageGrid = subnetGrid.getCache(IStorageGrid.class);
         if (storageGrid == null) return false;
@@ -337,6 +346,60 @@ public class SubnetDataHandler {
         }
 
         return false;
+    }
+
+    private static boolean handleExternalSubnetProxyPartition(ISubnetProxy proxy,
+                                                              PacketSubnetPartitionAction.Action action,
+                                                              int partitionSlot,
+                                                              ItemStack itemStack) {
+        boolean modified = StorageBusDataHandler.executeExternalPartitionAction(
+            proxy,
+            null,
+            toStorageBusPartitionAction(action),
+            partitionSlot,
+            itemStack
+        );
+
+        if (!modified) return false;
+
+        TileEntity hostTile = CellsIntegration.getHostTile(proxy);
+        if (hostTile != null) hostTile.markDirty();
+
+        return true;
+    }
+
+    private static PacketStorageBusPartitionAction.Action toStorageBusPartitionAction(
+        PacketSubnetPartitionAction.Action action) {
+        switch (action) {
+            case ADD_ITEM:
+                return PacketStorageBusPartitionAction.Action.ADD_ITEM;
+            case REMOVE_ITEM:
+                return PacketStorageBusPartitionAction.Action.REMOVE_ITEM;
+            case TOGGLE_ITEM:
+                return PacketStorageBusPartitionAction.Action.TOGGLE_ITEM;
+            case SET_ALL_FROM_SUBNET_INVENTORY:
+                return PacketStorageBusPartitionAction.Action.SET_ALL_FROM_CONTENTS;
+            case CLEAR_ALL:
+            default:
+                return PacketStorageBusPartitionAction.Action.CLEAR_ALL;
+        }
+    }
+
+    private static boolean fillExternalSubnetProxyFromSubnetInventory(ISubnetProxy proxy, IGrid targetGrid) {
+        boolean modified = StorageBusDataHandler.executeExternalPartitionAction(
+            proxy,
+            CellsIntegration.collectGridPreviewEntries(targetGrid, Integer.MAX_VALUE),
+            PacketStorageBusPartitionAction.Action.SET_ALL_FROM_CONTENTS,
+            -1,
+            ItemStack.EMPTY
+        );
+
+        if (!modified) return false;
+
+        TileEntity hostTile = CellsIntegration.getHostTile(proxy);
+        if (hostTile != null) hostTile.markDirty();
+
+        return true;
     }
 
     /**
@@ -422,6 +485,23 @@ public class SubnetDataHandler {
         for (int i = 0; i < tracker.connectionParts.size(); i++) {
             Object part = tracker.connectionParts.get(i);
             boolean outbound = i < tracker.isOutbound.size() && tracker.isOutbound.get(i);
+
+            if (part instanceof ISubnetProxy) {
+                ISubnetProxy proxy = (ISubnetProxy) part;
+                TileEntity hostTile = i < tracker.hostTiles.size()
+                    ? tracker.hostTiles.get(i)
+                    : CellsIntegration.getHostTile(proxy);
+                EnumFacing connectionSide = i < tracker.connectionSides.size()
+                    ? tracker.connectionSides.get(i)
+                    : proxy.getPrimaryFacing();
+
+                if (hostTile != null && hostTile.getPos().equals(targetPos)
+                    && connectionSide != null && connectionSide.ordinal() == side) {
+                    return proxy;
+                }
+
+                continue;
+            }
 
             if (outbound && part instanceof PartStorageBus) {
                 PartStorageBus bus = (PartStorageBus) part;

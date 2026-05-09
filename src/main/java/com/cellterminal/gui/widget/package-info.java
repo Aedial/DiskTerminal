@@ -19,13 +19,13 @@
  * <p>
  * <b>Core classes:</b>
  * <ul>
- *   <li>{@link com.cellterminal.gui.widget.IWidget} — Base interface defining draw, click,
+ *   <li>{@link com.cellterminal.gui.widget.IWidget}: Base interface defining draw, click,
  *       key, hover, and tooltip methods.</li>
- *   <li>{@link com.cellterminal.gui.widget.AbstractWidget} — Common base with position, size,
+ *   <li>{@link com.cellterminal.gui.widget.AbstractWidget}: Common base with position, size,
  *       visibility, hover detection, and rendering utilities.</li>
- *   <li>{@link com.cellterminal.gui.widget.WidgetContainer} — Ordered child list with event
+ *   <li>{@link com.cellterminal.gui.widget.WidgetContainer}: Ordered child list with event
  *       propagation to children in appropriate order.</li>
- *   <li>{@link com.cellterminal.gui.widget.DoubleClickTracker} — Utility for detecting
+ *   <li>{@link com.cellterminal.gui.widget.DoubleClickTracker}: Utility for detecting
  *       double-clicks (used by headers for in-world position highlighting).</li>
  * </ul>
  *

@@ -12,8 +12,15 @@ public abstract class AbstractStorageBusScanner implements IStorageBusScanner {
      * Apply common capability flags to the provided NBT payload.
      */
     protected void applyCapabilities(NBTTagCompound nbt) {
-        nbt.setBoolean("supportsPriority", supportsPriority());
-        nbt.setBoolean("supportsIOMode", supportsIOMode());
+        applyCapabilities(nbt, supportsPriority(), supportsIOMode());
+    }
+
+    /**
+     * Apply capability flags to the provided NBT payload.
+     */
+    protected void applyCapabilities(NBTTagCompound nbt, boolean supportsPriority, boolean supportsIOMode) {
+        nbt.setBoolean("supportsPriority", supportsPriority);
+        nbt.setBoolean("supportsIOMode", supportsIOMode);
     }
 
     /**
@@ -41,8 +48,15 @@ public abstract class AbstractStorageBusScanner implements IStorageBusScanner {
      * Apply slot limit parameters to the provided NBT payload.
      */
     protected void applySlotParameters(NBTTagCompound nbt) {
-        nbt.setInteger("baseConfigSlots", getBaseConfigSlots());
-        nbt.setInteger("slotsPerUpgrade", getSlotsPerCapacityUpgrade());
-        nbt.setInteger("maxConfigSlots", getMaxConfigSlots());
+        applySlotParameters(nbt, getBaseConfigSlots(), getSlotsPerCapacityUpgrade(), getMaxConfigSlots());
+    }
+
+    /**
+     * Apply slot limit parameters to the provided NBT payload.
+     */
+    protected void applySlotParameters(NBTTagCompound nbt, int baseConfigSlots, int slotsPerUpgrade, int maxConfigSlots) {
+        nbt.setInteger("baseConfigSlots", baseConfigSlots);
+        nbt.setInteger("slotsPerUpgrade", slotsPerUpgrade);
+        nbt.setInteger("maxConfigSlots", maxConfigSlots);
     }
 }

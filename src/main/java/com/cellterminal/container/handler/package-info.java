@@ -8,21 +8,21 @@
  * <p>
  * <b>Data handlers (server → client):</b>
  * <ul>
- *   <li>{@link com.cellterminal.container.handler.CellDataHandler} — Gathers cell NBT data
+ *   <li>{@link com.cellterminal.container.handler.CellDataHandler}: Gathers cell NBT data
  *       (bytes, types, partition, contents, upgrades) via storage scanner registries.</li>
- *   <li>{@link com.cellterminal.container.handler.StorageBusDataHandler} — Gathers storage bus
+ *   <li>{@link com.cellterminal.container.handler.StorageBusDataHandler}: Gathers storage bus
  *       NBT data (partition, I/O mode, priority) via storage bus scanner registries.</li>
- *   <li>{@link com.cellterminal.container.handler.SubnetDataHandler} — Gathers subnet list data
+ *   <li>{@link com.cellterminal.container.handler.SubnetDataHandler}: Gathers subnet list data
  *       for the subnet overview tab.</li>
  * </ul>
  * <p>
  * <b>Action handlers (client → server):</b>
  * <ul>
- *   <li>{@link com.cellterminal.container.handler.CellActionHandler} — Eject, insert, extract
+ *   <li>{@link com.cellterminal.container.handler.CellActionHandler}: Eject, insert, extract
  *       upgrade, pickup cell operations.</li>
- *   <li>{@link com.cellterminal.container.handler.NetworkToolActionHandler} — Batch operations
+ *   <li>{@link com.cellterminal.container.handler.NetworkToolActionHandler}: Batch operations
  *       (mass partition, attribute unique distribution) across cells and storage buses.</li>
- *   <li>{@link com.cellterminal.container.handler.TempCellActionHandler} — Temporary cell area
+ *   <li>{@link com.cellterminal.container.handler.TempCellActionHandler}: Temporary cell area
  *       operations (add, remove, partition preview).</li>
  * </ul>
  *

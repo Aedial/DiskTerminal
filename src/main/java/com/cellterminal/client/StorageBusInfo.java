@@ -40,6 +40,7 @@ import com.cellterminal.gui.rename.RenameTargetType;
  * "slotsPerUpgrade"  int                  4   (optional; per-impl slot params)
  * "maxConfigSlots"   int                  4   (optional; per-impl slot params)
  * "customName"      String                ~N  (optional; user-set bus name)
+ * "namePrefixKey"   String                ~N  (optional; translation key prepended to the display name)
  * "connectedName"   String                ~N  (optional; connected block name)
  * "connectedIcon"   NBTTagCompound        ~I  (optional; connected block icon)
  * "upgrades"        NBTTagList            ~U  (list of upgrade ItemStacks + slot indices)
@@ -95,6 +96,7 @@ public class StorageBusInfo implements Renameable, Prioritizable {
     private final StorageType storageType;
     private final int accessRestriction;  // 0=NO_ACCESS, 1=READ, 2=WRITE, 3=READ_WRITE
     private final String customName;      // Storage bus custom name (takes priority over connectedName)
+    private final String namePrefixKey;   // Optional translated prefix prepended to the resolved display name
     private final String connectedName;
     private final ItemStack connectedIcon;
     private final List<ItemStack> partition = new ArrayList<>();
@@ -129,6 +131,7 @@ public class StorageBusInfo implements Renameable, Prioritizable {
 
         // Storage bus custom name (takes priority over connected block name)
         this.customName = nbt.hasKey("customName") ? nbt.getString("customName") : null;
+        this.namePrefixKey = nbt.hasKey("namePrefixKey") ? nbt.getString("namePrefixKey") : null;
 
         // Connected inventory info
         this.connectedName = nbt.hasKey("connectedName") ? nbt.getString("connectedName") : null;
@@ -313,13 +316,23 @@ public class StorageBusInfo implements Renameable, Prioritizable {
      * Priority: custom name > connected inventory name > "Air".
      */
     public String getLocalizedName() {
+        String baseName;
+
         // Custom name takes highest priority
-        if (customName != null && !customName.isEmpty()) return customName;
+        if (customName != null && !customName.isEmpty()) {
+            baseName = customName;
 
         // Fall back to connected inventory name
-        if (connectedName != null && !connectedName.isEmpty()) return connectedName;
+        } else if (connectedName != null && !connectedName.isEmpty()) {
+            baseName = connectedName;
 
-        return I18n.format("gui.cellterminal.storage_bus.air");
+        } else {
+            baseName = I18n.format("gui.cellterminal.storage_bus.air");
+        }
+
+        if (namePrefixKey == null || namePrefixKey.isEmpty()) return baseName;
+
+        return I18n.format(namePrefixKey) + " " + baseName;
     }
 
     /**
