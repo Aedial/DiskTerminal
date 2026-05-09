@@ -164,6 +164,8 @@ public class PacketRenameAction implements IMessage {
             StorageBusTracker tracker = container.getStorageBusTracker(storageBusId);
             if (tracker == null) return;
 
+            String trimmed = newName.trim();
+
             // The storageBus object could be a PartStorageBus or other part type
             if (!(tracker.storageBus instanceof ICustomNameObject)) {
                 CellTerminal.LOGGER.debug("Storage bus {} does not implement ICustomNameObject", storageBusId);
@@ -171,7 +173,6 @@ public class PacketRenameAction implements IMessage {
             }
 
             ICustomNameObject nameable = (ICustomNameObject) tracker.storageBus;
-            String trimmed = newName.trim();
             nameable.setCustomName(trimmed.isEmpty() ? null : trimmed);
 
             if (tracker.hostTile != null) tracker.hostTile.markDirty();

@@ -21,10 +21,12 @@ import com.cellterminal.integration.storage.AE2StorageScanner;
 import com.cellterminal.integration.storage.IStorageScanner;
 import com.cellterminal.integration.storage.StorageScannerRegistry;
 import com.cellterminal.integration.storagebus.AE2StorageBusScanner;
+import com.cellterminal.integration.storagebus.CellsStorageBusScanner;
 import com.cellterminal.integration.storagebus.MekanismEnergisticsBusScanner;
 import com.cellterminal.integration.storagebus.StorageBusScannerRegistry;
 import com.cellterminal.integration.storagebus.ThaumicEnergisticsBusScanner;
 import com.cellterminal.integration.subnet.AE2SubnetScanner;
+import com.cellterminal.integration.subnet.CellsSubnetScanner;
 import com.cellterminal.integration.subnet.SubnetScannerRegistry;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.proxy.CommonProxy;
@@ -103,6 +105,9 @@ public class CellTerminal {
 
         // MekanismEnergistics gas buses
         StorageBusScannerRegistry.register(MekanismEnergisticsBusScanner.INSTANCE);
+
+        // CELLS hosts exposed through its public API
+        StorageBusScannerRegistry.register(CellsStorageBusScanner.INSTANCE);
     }
 
     /**
@@ -111,6 +116,9 @@ public class CellTerminal {
     private void registerSubnetScanners() {
         // AE2 subnet detection via Storage Bus -> Interface connections
         SubnetScannerRegistry.register(AE2SubnetScanner.INSTANCE);
+
+        // CELLS subnet proxies exposed through its public API
+        SubnetScannerRegistry.register(CellsSubnetScanner.INSTANCE);
     }
 
     @EventHandler

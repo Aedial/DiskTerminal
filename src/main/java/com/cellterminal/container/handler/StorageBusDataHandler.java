@@ -40,8 +40,14 @@ import appeng.parts.automation.PartUpgradeable;
 import appeng.parts.misc.PartStorageBus;
 import appeng.util.helpers.ItemHandlerUtil;
 
+import com.cells.api.FilterHostUtil;
+import com.cells.api.IFilterHost;
+import com.cells.api.IInterfaceHost;
+import com.cells.api.ResourcePreviewEntry;
+
 import com.cellterminal.client.StorageType;
 import com.cellterminal.client.StorageBusInfo;
+import com.cellterminal.integration.CellsIntegration;
 import com.cellterminal.integration.StorageDrawersIntegration;
 import com.cellterminal.integration.MekanismEnergisticsIntegration;
 import com.cellterminal.integration.ThaumicEnergisticsIntegration;
@@ -62,13 +68,29 @@ public class StorageBusDataHandler {
      */
     public static class StorageBusTracker {
         public final long id;
-        public final Object storageBus;  // Can be PartStorageBus, PartFluidStorageBus, or essentia bus
+        public final Object storageBus;  // Can be a storage bus part or a storage-bus like machine.
         public final TileEntity hostTile;
+        public final int sideOrdinal;
+        public final StorageType storageType;
+        public final IInterfaceHost externalInterfaceHost;
 
         public StorageBusTracker(long id, Object storageBus, TileEntity hostTile) {
+            this(id, storageBus, hostTile, -1, null, null);
+        }
+
+        public StorageBusTracker(long id, Object storageBus, TileEntity hostTile, int sideOrdinal,
+                                 StorageType storageType) {
+            this(id, storageBus, hostTile, sideOrdinal, storageType, null);
+        }
+
+        public StorageBusTracker(long id, Object storageBus, TileEntity hostTile, int sideOrdinal,
+                                 StorageType storageType, IInterfaceHost externalInterfaceHost) {
             this.id = id;
             this.storageBus = storageBus;
             this.hostTile = hostTile;
+            this.sideOrdinal = sideOrdinal;
+            this.storageType = storageType;
+            this.externalInterfaceHost = externalInterfaceHost;
         }
     }
 
@@ -398,10 +420,16 @@ public class StorageBusDataHandler {
     public static boolean handlePartitionAction(StorageBusTracker tracker,
                                                   PacketStorageBusPartitionAction.Action action,
                                                   int partitionSlot, ItemStack itemStack) {
+        if (isDuplicateFilterAdd(tracker, action, partitionSlot, itemStack)) return false;
+
+        IInterfaceHost externalInterfaceHost = getExternalInterfaceHost(tracker);
+
         if (tracker.storageBus instanceof PartStorageBus) {
             return handleItemBusPartition((PartStorageBus) tracker.storageBus, action, partitionSlot, itemStack, tracker);
         } else if (tracker.storageBus instanceof PartFluidStorageBus) {
             return handleFluidBusPartition((PartFluidStorageBus) tracker.storageBus, action, partitionSlot, itemStack, tracker);
+        } else if (externalInterfaceHost != null) {
+            return handleExternalInterfacePartition(externalInterfaceHost, action, partitionSlot, itemStack, tracker);
         } else if (ThaumicEnergisticsIntegration.isModLoaded()) {
             ThaumicEnergisticsIntegration.handleEssentiaStorageBusPartition(tracker.storageBus, action, partitionSlot, itemStack);
             tracker.hostTile.markDirty();
@@ -415,6 +443,249 @@ public class StorageBusDataHandler {
         }
 
         return false;
+    }
+
+    /**
+     * Check whether an ADD_ITEM request would create a duplicate filter entry.
+     */
+    public static boolean isDuplicateFilterAdd(StorageBusTracker tracker,
+                                                PacketStorageBusPartitionAction.Action action,
+                                                int partitionSlot,
+                                                ItemStack itemStack) {
+        if (tracker == null) return false;
+        if (action != PacketStorageBusPartitionAction.Action.ADD_ITEM) return false;
+        if (partitionSlot < 0 || itemStack.isEmpty()) return false;
+
+        IInterfaceHost externalInterfaceHost = getExternalInterfaceHost(tracker);
+        if (externalInterfaceHost != null) {
+            return isDuplicateExternalFilterAdd(externalInterfaceHost, partitionSlot, itemStack);
+        }
+
+        if (tracker.storageBus instanceof PartStorageBus) {
+            return isDuplicateItemBusFilterAdd((PartStorageBus) tracker.storageBus, partitionSlot, itemStack);
+        }
+
+        if (tracker.storageBus instanceof PartFluidStorageBus) {
+            return isDuplicateFluidBusFilterAdd((PartFluidStorageBus) tracker.storageBus, partitionSlot, itemStack);
+        }
+
+        if (tracker.storageType == StorageType.ESSENTIA) {
+            return ThaumicEnergisticsIntegration.hasDuplicateEssentiaStorageBusFilter(
+                tracker.storageBus,
+                partitionSlot,
+                itemStack
+            );
+        }
+
+        if (tracker.storageType == StorageType.GAS) {
+            return MekanismEnergisticsIntegration.hasDuplicateGasStorageBusFilter(
+                tracker.storageBus,
+                partitionSlot,
+                itemStack
+            );
+        }
+
+        return false;
+    }
+
+    private static boolean isDuplicateExternalFilterAdd(IInterfaceHost host,
+                                                         int partitionSlot,
+                                                         ItemStack itemStack) {
+        int slotCount = Math.max(0, host.getFilterSlots());
+        if (partitionSlot >= slotCount) return false;
+
+        ItemStack normalized = normalizeExternalFilterStack(host, itemStack);
+        if (normalized.isEmpty()) return false;
+
+        int existingSlot = findExternalFilterSlot(host, normalized);
+        return existingSlot >= 0 && existingSlot != partitionSlot;
+    }
+
+    private static boolean isDuplicateItemBusFilterAdd(PartStorageBus bus,
+                                                        int partitionSlot,
+                                                        ItemStack itemStack) {
+        IItemHandler configInv = bus.getInventoryByName("config");
+        if (configInv == null) return false;
+
+        int slotsToUse = StorageBusInfo.calculateAvailableSlots(bus.getInstalledUpgrades(Upgrades.CAPACITY));
+        if (partitionSlot >= slotsToUse) return false;
+
+        int existingSlot = findItemInConfig(configInv, itemStack, slotsToUse);
+        return existingSlot >= 0 && existingSlot != partitionSlot;
+    }
+
+    private static boolean isDuplicateFluidBusFilterAdd(PartFluidStorageBus bus,
+                                                         int partitionSlot,
+                                                         ItemStack itemStack) {
+        IFluidHandler configInv = bus.getFluidInventoryByName("config");
+        if (configInv == null) return false;
+
+        int slotsToUse = StorageBusInfo.calculateAvailableSlots(bus.getInstalledUpgrades(Upgrades.CAPACITY));
+        if (partitionSlot >= slotsToUse) return false;
+
+        FluidStack normalizedFluid = normalizeFluid(extractFluidFromItem(itemStack));
+        if (normalizedFluid == null) return false;
+
+        int existingSlot = findFluidInConfig(configInv, normalizedFluid, slotsToUse);
+        return existingSlot >= 0 && existingSlot != partitionSlot;
+    }
+
+    public static boolean executeExternalPartitionAction(IFilterHost host,
+                                                         List<ResourcePreviewEntry> previewEntries,
+                                                         PacketStorageBusPartitionAction.Action action,
+                                                         int partitionSlot,
+                                                         ItemStack itemStack) {
+        if (host == null || action == null) return false;
+
+        int slotCount = Math.max(0, host.getFilterSlots());
+        IInterfaceHost interfaceHost = host instanceof IInterfaceHost ? (IInterfaceHost) host : null;
+        ItemStack normalized = interfaceHost != null
+            ? normalizeExternalFilterStack(interfaceHost, itemStack)
+            : CellsIntegration.normalizeStack(itemStack);
+
+        switch (action) {
+            case ADD_ITEM:
+                if (partitionSlot < 0 || partitionSlot >= slotCount || normalized.isEmpty()) return false;
+
+                if (interfaceHost != null) {
+                    int existingSlot = findExternalFilterSlot(interfaceHost, normalized);
+                    if (existingSlot >= 0) return existingSlot == partitionSlot ? false : false;
+                } else if (FilterHostUtil.matchesFilter(host.getFilter(partitionSlot), normalized)) return false;
+
+                host.setFilter(partitionSlot, normalized);
+                return true;
+
+            case REMOVE_ITEM:
+                if (partitionSlot < 0 || partitionSlot >= slotCount) return false;
+                if (host.getFilter(partitionSlot).isEmpty()) return false;
+
+                host.setFilter(partitionSlot, ItemStack.EMPTY);
+                return true;
+
+            case TOGGLE_ITEM:
+                if (normalized.isEmpty()) return false;
+
+                if (interfaceHost != null) return toggleExternalFilter(interfaceHost, normalized);
+
+                return FilterHostUtil.toggleFilter(host, normalized);
+
+            case SET_ALL_FROM_CONTENTS:
+                boolean modified = CellsIntegration.hasPartition(host);
+                host.clearFilters();
+
+                if (previewEntries != null) {
+                    for (ResourcePreviewEntry previewEntry : previewEntries) {
+                        if (previewEntry == null) continue;
+                        if (interfaceHost != null) {
+                            if (addExternalFilter(interfaceHost, previewEntry.getDisplayStack())) modified = true;
+                        } else if (FilterHostUtil.addFilter(host, previewEntry.getDisplayStack())) {
+                            modified = true;
+                        }
+                    }
+                }
+
+                return modified;
+
+            case CLEAR_ALL:
+                if (!CellsIntegration.hasPartition(host)) return false;
+                host.clearFilters();
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    private static ItemStack normalizeExternalFilterStack(IInterfaceHost host, ItemStack itemStack) {
+        if (host == null || itemStack.isEmpty()) return ItemStack.EMPTY;
+
+        switch (host.getResourceType()) {
+            case FLUID:
+                return normalizeExternalFluidFilterStack(itemStack);
+            case GAS:
+                return MekanismEnergisticsIntegration.normalizeGasStack(itemStack);
+            case ESSENTIA:
+                return ThaumicEnergisticsIntegration.normalizeEssentiaStack(itemStack);
+            case ITEM:
+            default:
+                return CellsIntegration.normalizeStack(itemStack);
+        }
+    }
+
+    private static ItemStack normalizeExternalFluidFilterStack(ItemStack itemStack) {
+        FluidStack fluid = normalizeFluid(extractFluidFromItem(itemStack));
+        if (fluid == null) return ItemStack.EMPTY;
+
+        IAEFluidStack aeFluid = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class).createStack(fluid);
+        return aeFluid != null ? aeFluid.asItemStackRepresentation() : ItemStack.EMPTY;
+    }
+
+    private static int findExternalFilterSlot(IInterfaceHost host, ItemStack itemStack) {
+        ItemStack normalized = normalizeExternalFilterStack(host, itemStack);
+        if (normalized.isEmpty()) return -1;
+
+        int slotCount = Math.max(0, host.getFilterSlots());
+        for (int slot = 0; slot < slotCount; slot++) {
+            if (matchesExternalFilter(host, host.getFilter(slot), normalized)) return slot;
+        }
+
+        return -1;
+    }
+
+    private static boolean matchesExternalFilter(IInterfaceHost host, ItemStack left, ItemStack right) {
+        if (host == null) return FilterHostUtil.matchesFilter(left, right);
+
+        switch (host.getResourceType()) {
+            case FLUID:
+                return matchesFluidFilter(left, right);
+            case GAS:
+                return MekanismEnergisticsIntegration.matchesGasStack(left, right);
+            case ESSENTIA:
+                return ThaumicEnergisticsIntegration.matchesEssentiaStack(left, right);
+            case ITEM:
+            default:
+                return FilterHostUtil.matchesFilter(left, right);
+        }
+    }
+
+    private static boolean matchesFluidFilter(ItemStack left, ItemStack right) {
+        if (left.isEmpty() || right.isEmpty()) return left.isEmpty() && right.isEmpty();
+
+        FluidStack leftFluid = extractFluidFromItem(left);
+        FluidStack rightFluid = extractFluidFromItem(right);
+        if (leftFluid == null || rightFluid == null) return false;
+        if (leftFluid.getFluid() == null || rightFluid.getFluid() == null) return false;
+
+        return leftFluid.getFluid() == rightFluid.getFluid();
+    }
+
+    private static boolean toggleExternalFilter(IInterfaceHost host, ItemStack itemStack) {
+        int existingSlot = findExternalFilterSlot(host, itemStack);
+        if (existingSlot >= 0) {
+            host.setFilter(existingSlot, ItemStack.EMPTY);
+            return true;
+        }
+
+        return addExternalFilter(host, itemStack);
+    }
+
+    private static boolean addExternalFilter(IInterfaceHost host, ItemStack itemStack) {
+        ItemStack normalized = normalizeExternalFilterStack(host, itemStack);
+        if (normalized.isEmpty()) return false;
+
+        int slotCount = Math.max(0, host.getFilterSlots());
+        int emptySlot = -1;
+
+        for (int slot = 0; slot < slotCount; slot++) {
+            ItemStack existing = host.getFilter(slot);
+            if (matchesExternalFilter(host, existing, normalized)) return false;
+            if (emptySlot < 0 && existing.isEmpty()) emptySlot = slot;
+        }
+
+        if (emptySlot < 0) return false;
+
+        host.setFilter(emptySlot, normalized);
+        return true;
     }
 
     /**
@@ -521,6 +792,33 @@ public class StorageBusDataHandler {
         tracker.hostTile.markDirty();
 
         return true;
+    }
+
+    private static boolean handleExternalInterfacePartition(IInterfaceHost bus,
+                                                            PacketStorageBusPartitionAction.Action action,
+                                                            int partitionSlot, ItemStack itemStack,
+                                                            StorageBusTracker tracker) {
+        int previewLimit = Math.max(0, bus.getFilterSlots());
+
+        boolean modified = executeExternalPartitionAction(
+            bus,
+            CellsIntegration.collectInterfacePreviewEntries(bus, previewLimit),
+            action,
+            partitionSlot,
+            itemStack
+        );
+
+        if (modified && tracker.hostTile != null) tracker.hostTile.markDirty();
+
+        return modified;
+    }
+
+    private static IInterfaceHost getExternalInterfaceHost(StorageBusTracker tracker) {
+        if (tracker == null) return null;
+        if (tracker.externalInterfaceHost != null) return tracker.externalInterfaceHost;
+        if (tracker.storageBus instanceof IInterfaceHost) return (IInterfaceHost) tracker.storageBus;
+
+        return null;
     }
 
     private static void executeItemPartitionAction(IItemHandler configInv, int slotsToUse,
@@ -801,6 +1099,21 @@ public class StorageBusDataHandler {
      * @return true if the bus has a connected inventory
      */
     public static boolean busHasConnectedInventory(StorageBusTracker tracker) {
+        IInterfaceHost externalInterfaceHost = getExternalInterfaceHost(tracker);
+        if (externalInterfaceHost != null) {
+            List<ResourcePreviewEntry> previewEntries = CellsIntegration.collectInterfacePreviewEntries(
+                externalInterfaceHost,
+                1
+            );
+            if (previewEntries == null) return false;
+
+            for (ResourcePreviewEntry entry : previewEntries) {
+                if (entry != null && !entry.getDisplayStack().isEmpty() && entry.getAmount() > 0) return true;
+            }
+
+            return false;
+        }
+
         if (tracker.storageBus instanceof PartStorageBus) {
             PartStorageBus bus = (PartStorageBus) tracker.storageBus;
             TileEntity facing = getFacingTile(bus);
@@ -842,6 +1155,11 @@ public class StorageBusDataHandler {
      * @return true if the bus has at least one item in its config inventory
      */
     public static boolean busHasPartition(StorageBusTracker tracker) {
+        IInterfaceHost externalInterfaceHost = getExternalInterfaceHost(tracker);
+        if (externalInterfaceHost != null) {
+            return CellsIntegration.hasPartition(externalInterfaceHost);
+        }
+
         if (tracker.storageBus instanceof PartStorageBus) {
             PartStorageBus bus = (PartStorageBus) tracker.storageBus;
             IItemHandler configInv = bus.getInventoryByName("config");

@@ -8,6 +8,15 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.6.1-beta] - 2026-05-01
+### Added
+- Add CELLS integration for import/export interfaces and subnet proxies, as direct storage-bus and subnet overview.
+- Add strict no-duplicates check for storage bus filters, with user feedback on attempted duplicates.
+
+### Fixed
+- Fix wireless terminals reopening on the main network instead of restoring the last viewed subnet during the current connection.
+
+
 ## [1.6.0-beta] - 2026-04-24
 ### Added
 - New chunked + delta network protocol for terminal data: large grids no longer hit the vanilla packet size cap, and idle refreshes only send what changed.

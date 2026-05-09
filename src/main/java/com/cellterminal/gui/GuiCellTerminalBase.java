@@ -162,9 +162,9 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
         this.currentSearchMode = config.getSearchMode();
         this.currentSubnetVisibility = config.getSubnetVisibility();
 
-        // Subnet IDs are ephemeral (change between logins), so always start on the main network
-        // FIXME: the Id is not restored when using Wireless Terminal
-        this.currentNetworkId = 0;
+        // Restore the last viewed subnet for this client connection. ClientProxy clears the
+        // saved ID on connect/disconnect so ephemeral subnet IDs do not leak across sessions.
+        this.currentNetworkId = config.getLastViewedNetworkId();
 
         registerPayloadHandlers();
     }
@@ -1147,6 +1147,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     @Override
     public void switchToNetwork(long networkId) {
         this.currentNetworkId = networkId;
+        CellTerminalClientConfig.getInstance().setLastViewedNetworkId(networkId);
 
         // Exit subnet overview if it was active (e.g. clicking a Load button in overview)
         if (isInSubnetOverviewMode()) tabManager.switchToTab(tabManager.getPreviousRealTab());
@@ -1172,6 +1173,7 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
     public void onGuiClosed() {
         // Persist the current scroll position for the active tab so it is restored when the GUI is reopened.
         tabManager.saveCurrentScrollPosition();
+        CellTerminalClientConfig.getInstance().setLastViewedNetworkId(this.currentNetworkId);
 
         // Unregister our chunked-payload handlers so any straggling packets after the GUI closes
         // are dropped instead of being applied to a stale data manager / tab widget.

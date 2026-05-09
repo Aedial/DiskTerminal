@@ -747,6 +747,26 @@ public class MekanismEnergisticsIntegration {
         return normalizeGasStackInternal(stack);
     }
 
+    /**
+     * Compare two gas stacks by gas identity only.
+     */
+    public static boolean matchesGasStack(ItemStack left, ItemStack right) {
+        if (!isModLoaded()) return ItemStack.areItemStacksEqual(left, right);
+        if (left.isEmpty() || right.isEmpty()) return left.isEmpty() && right.isEmpty();
+
+        return matchesGasStackInternal(left, right);
+    }
+
+    @Optional.Method(modid = MODID)
+    private static boolean matchesGasStackInternal(ItemStack left, ItemStack right) {
+        mekanism.api.gas.GasStack leftGas = getGasFromItem(left);
+        mekanism.api.gas.GasStack rightGas = getGasFromItem(right);
+        if (leftGas == null || rightGas == null) return false;
+        if (leftGas.getGas() == null || rightGas.getGas() == null) return false;
+
+        return leftGas.getGas() == rightGas.getGas();
+    }
+
     @Optional.Method(modid = MODID)
     private static ItemStack normalizeGasStackInternal(ItemStack stack) {
         try {
@@ -1063,6 +1083,43 @@ public class MekanismEnergisticsIntegration {
     // ========================================
     // Storage Bus Partition Handling
     // ========================================
+
+    /**
+     * Check whether a gas storage bus add request would duplicate an existing filter.
+     */
+    public static boolean hasDuplicateGasStorageBusFilter(Object storageBus,
+                                                           int partitionSlot,
+                                                           ItemStack itemStack) {
+        if (!isModLoaded()) return false;
+
+        return hasDuplicateGasStorageBusFilterInternal(storageBus, partitionSlot, itemStack);
+    }
+
+    @Optional.Method(modid = MODID)
+    private static boolean hasDuplicateGasStorageBusFilterInternal(Object storageBus,
+                                                                    int partitionSlot,
+                                                                    ItemStack itemStack) {
+        try {
+            if (!(storageBus instanceof com.mekeng.github.common.part.PartGasStorageBus)) return false;
+            if (partitionSlot < 0 || itemStack.isEmpty()) return false;
+
+            com.mekeng.github.common.part.PartGasStorageBus bus =
+                (com.mekeng.github.common.part.PartGasStorageBus) storageBus;
+
+            com.mekeng.github.common.me.inventory.IGasInventory config = bus.getConfig();
+            if (config == null || partitionSlot >= config.size()) return false;
+
+            mekanism.api.gas.GasStack gasFromItem = getGasFromItem(itemStack);
+            if (gasFromItem == null || gasFromItem.getGas() == null) return false;
+
+            int existingSlot = findGasInConfig(config, gasFromItem.getGas());
+            return existingSlot >= 0 && existingSlot != partitionSlot;
+        } catch (Exception e) {
+            CellTerminal.LOGGER.debug("Failed to check gas storage bus duplicate filter: {}", e.getMessage());
+
+            return false;
+        }
+    }
 
     /**
      * Handle partition action for gas storage buses.

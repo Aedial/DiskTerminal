@@ -62,7 +62,7 @@ public class ThaumicEnergisticsBusScanner extends AbstractStorageBusScanner {
 
             applyCapabilities(nbt);
             out.appendTag(nbt);
-            trackerMap.put(busId, new StorageBusTracker(busId, machine, hostTile));
+            trackerMap.put(busId, new StorageBusTracker(busId, machine, hostTile, sideOrdinal, StorageType.ESSENTIA));
         }
     }
 

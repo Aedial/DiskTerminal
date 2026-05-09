@@ -5,9 +5,11 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.network.FMLNetworkEvent;
 
 import com.cellterminal.ItemRegistry;
 import com.cellterminal.client.BlockHighlightRenderer;
+import com.cellterminal.config.CellTerminalClientConfig;
 import com.cellterminal.client.KeyBindings;
 import com.cellterminal.client.KeyInputHandler;
 import com.cellterminal.client.UpgradeTooltipHandler;
@@ -31,6 +33,20 @@ public class ClientProxy extends CommonProxy {
     @SubscribeEvent
     public void onModelRegistry(ModelRegistryEvent event) {
         ItemRegistry.registerModels();
+    }
+
+    /**
+     * Subnet IDs are only stable for the current client connection, so clear the saved restore
+     * target at connection boundaries and only restore across GUI closes in the same session.
+     */
+    @SubscribeEvent
+    public void onClientConnected(FMLNetworkEvent.ClientConnectedToServerEvent event) {
+        CellTerminalClientConfig.getInstance().setLastViewedNetworkId(0);
+    }
+
+    @SubscribeEvent
+    public void onClientDisconnected(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
+        CellTerminalClientConfig.getInstance().setLastViewedNetworkId(0);
     }
 
     @Override

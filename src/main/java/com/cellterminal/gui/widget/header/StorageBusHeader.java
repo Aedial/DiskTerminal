@@ -74,6 +74,7 @@ public class StorageBusHeader extends StorageHeader {
 
     @Override
     protected int drawHeaderContent(int mouseX, int mouseY) {
+        this.nameMaxWidth = getNameMaxWidth();
 
         // Draw location text
         drawLocation();
@@ -94,7 +95,27 @@ public class StorageBusHeader extends StorageHeader {
         }
 
         // Return the hover right bound (up to IO mode button area)
-        return GuiConstants.BUTTON_IO_MODE_X;
+        return supportsIOModeSupplier != null && supportsIOModeSupplier.get()
+            ? GuiConstants.BUTTON_IO_MODE_X
+            : GuiConstants.EXPAND_ICON_X;
+    }
+
+    private int getNameMaxWidth() {
+        int rightEdge = GuiConstants.EXPAND_ICON_X - 4;
+
+        if (prioritizable != null && prioritizable.supportsPriority()) {
+            rightEdge = Math.min(
+                rightEdge,
+                GuiConstants.CONTENT_RIGHT_EDGE - PriorityFieldManager.FIELD_WIDTH
+                    - PriorityFieldManager.RIGHT_MARGIN - 4
+            );
+        }
+
+        if (supportsIOModeSupplier != null && supportsIOModeSupplier.get()) {
+            rightEdge = Math.min(rightEdge, GuiConstants.BUTTON_IO_MODE_X - 4);
+        }
+
+        return Math.max(0, rightEdge - GuiConstants.HEADER_NAME_X);
     }
 
     /**

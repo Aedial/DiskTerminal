@@ -42,6 +42,12 @@ import com.cellterminal.network.chunked.PayloadMode;
  */
 public class TerminalDataManager {
 
+    private enum Section {
+        STORAGES,
+        BUSES,
+        TEMP_CELLS
+    }
+
     private static final int SLOTS_PER_ROW = 8;
     private static final int SLOTS_PER_ROW_BUS = 9;
     private static final int MAX_PARTITION_SLOTS = 63;
@@ -81,6 +87,9 @@ public class TerminalDataManager {
 
     // Track whether we have initial data (first update should always rebuild)
     private boolean hasInitialData = false;
+    private boolean hasInitialStorageData = false;
+    private boolean hasInitialBusData = false;
+    private boolean hasInitialTempCellData = false;
 
     public Map<Long, StorageInfo> getStorageMap() {
         return storageMap;
@@ -133,16 +142,18 @@ public class TerminalDataManager {
      * Apply the STORAGES channel payload (FULL or DELTA).
      */
     public void applyStorages(PayloadMode mode, NBTTagCompound data) {
+        Set<Long> previousIds = new HashSet<>(this.storageMap.keySet());
         DeltaApplier.apply(mode, data, this.storageMap, StorageInfo::new, StorageInfo::getId);
-        finishUpdate();
+        finishUpdate(Section.STORAGES, hasNewIds(this.storageMap.keySet(), previousIds));
     }
 
     /**
      * Apply the BUSES channel payload (FULL or DELTA).
      */
     public void applyBuses(PayloadMode mode, NBTTagCompound data) {
+        Set<Long> previousIds = new HashSet<>(this.storageBusMap.keySet());
         DeltaApplier.apply(mode, data, this.storageBusMap, StorageBusInfo::new, StorageBusInfo::getId);
-        finishUpdate();
+        finishUpdate(Section.BUSES, hasNewIds(this.storageBusMap.keySet(), previousIds));
     }
 
     /**
@@ -163,19 +174,47 @@ public class TerminalDataManager {
             });
 
         rebuildTempAreaLines();
-        finishUpdate();
+        finishUpdate(Section.TEMP_CELLS, false);
     }
 
     /**
      * Common bookkeeping after any section channel update.
      */
-    private void finishUpdate() {
-        if (!hasInitialData) {
-            hasInitialData = true;
+    private void finishUpdate(Section section, boolean hasNewEntries) {
+        boolean needsFullRebuild = !hasInitialData || hasNewEntries;
+
+        switch (section) {
+            case STORAGES:
+                needsFullRebuild |= !this.hasInitialStorageData;
+                this.hasInitialStorageData = true;
+                break;
+            case BUSES:
+                needsFullRebuild |= !this.hasInitialBusData;
+                this.hasInitialBusData = true;
+                break;
+            case TEMP_CELLS:
+                needsFullRebuild |= !this.hasInitialTempCellData;
+                this.hasInitialTempCellData = true;
+                break;
+            default:
+                break;
+        }
+
+        this.hasInitialData = true;
+
+        if (needsFullRebuild) {
             rebuildLines();
         } else {
             rebuildLinesFromSnapshot();
         }
+    }
+
+    private boolean hasNewIds(Set<Long> currentIds, Set<Long> previousIds) {
+        for (Long id : currentIds) {
+            if (!previousIds.contains(id)) return true;
+        }
+
+        return false;
     }
 
     /**
@@ -891,6 +930,9 @@ public class TerminalDataManager {
      */
     public void resetForNetworkSwitch() {
         this.hasInitialData = false;
+        this.hasInitialStorageData = false;
+        this.hasInitialBusData = false;
+        this.hasInitialTempCellData = false;
 
         // Clear all snapshots since they're from the old network
         this.visibleCellSnapshot.clear();

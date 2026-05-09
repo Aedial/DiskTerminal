@@ -218,6 +218,7 @@ cellterminal.error.gas_bus_fluid=Cannot add fluids to a gas storage bus filter.
 cellterminal.error.item_bus_gas=Cannot add gas to an item storage bus filter.
 cellterminal.error.fluid_bus_gas=Cannot add gas to a fluid storage bus filter.
 cellterminal.error.essentia_bus_gas=Cannot add gas to an essentia storage bus filter.
+cellterminal.error.duplicate_filter=This filter already exists in another slot.
 cellterminal.error.mixed_bus_selection=Cannot select storage buses of different types together.
 
 # Keybindings
@@ -253,6 +254,12 @@ gui.cellterminal.storagebus.clear=Clear Filters
 gui.cellterminal.storagebus.partitionall=Set Contents to Filter
 gui.cellterminal.storage_bus.name=Storage Bus
 gui.cellterminal.storage_bus.air=Air
+gui.cellterminal.storage_bus.prefix.import=Import
+gui.cellterminal.storage_bus.prefix.export=Export
+gui.cellterminal.storage_bus.type.item=Item
+gui.cellterminal.storage_bus.type.fluid=Fluid
+gui.cellterminal.storage_bus.type.gas=Gas
+gui.cellterminal.storage_bus.type.essentia=Essentia
 
 # Search help tooltip
 gui.cellterminal.search_help.title=Search Syntax Help

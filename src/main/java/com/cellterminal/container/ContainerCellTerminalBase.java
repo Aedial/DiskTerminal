@@ -44,6 +44,7 @@ import appeng.items.tools.ToolNetworkTool;
 import appeng.parts.automation.PartUpgradeable;
 import appeng.util.Platform;
 
+import com.cells.api.IUpgradeable;
 import com.cellterminal.CellTerminal;
 import com.cellterminal.client.CellFilter;
 import com.cellterminal.config.CellTerminalServerConfig;
@@ -541,6 +542,12 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         StorageBusTracker tracker = this.storageBusById.get(storageBusId);
         if (tracker == null) return;
 
+        if (StorageBusDataHandler.isDuplicateFilterAdd(tracker, action, partitionSlot, itemStack)) {
+            PlayerMessageHelper.error(this.getPlayerInv().player, "cellterminal.error.duplicate_filter");
+
+            return;
+        }
+
         if (StorageBusDataHandler.handlePartitionAction(tracker, action, partitionSlot, itemStack)) {
             requestStorageBusRefresh();
         }
@@ -602,9 +609,12 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
         // Try storage buses
         StorageBusTracker busTracker = this.storageBusById.get(storageId);
-        if (busTracker != null && busTracker.storageBus instanceof IPriorityHost) {
-            ((IPriorityHost) busTracker.storageBus).setPriority(priority);
-            requestStorageBusRefresh();
+        if (busTracker != null) {
+            if (busTracker.storageBus instanceof IPriorityHost) {
+                ((IPriorityHost) busTracker.storageBus).setPriority(priority);
+                requestStorageBusRefresh();
+                return;
+            }
         }
     }
 
@@ -738,10 +748,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
      */
     private boolean tryInsertUpgradeIntoStorageBus(StorageBusTracker tracker, ItemStack upgradeStack,
                                                     EntityPlayer player, int fromSlot) {
-        // Only item and fluid storage buses support upgrades
-        if (!(tracker.storageBus instanceof PartUpgradeable)) return false;
-
-        IItemHandler upgradesInv = ((PartUpgradeable) tracker.storageBus).getInventoryByName("upgrades");
+        IItemHandler upgradesInv = getStorageBusUpgradeInventory(tracker);
         if (upgradesInv == null) return false;
 
         // Try to insert the upgrade
@@ -764,6 +771,30 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         }
 
         return false;
+    }
+
+    private IItemHandler getStorageBusUpgradeInventory(Object storageBus) {
+        if (storageBus instanceof PartUpgradeable) {
+            return ((PartUpgradeable) storageBus).getInventoryByName("upgrades");
+        }
+
+        if (storageBus instanceof IUpgradeable) {
+            return ((IUpgradeable) storageBus).getUpgradeInventory();
+        }
+
+        return null;
+    }
+
+    private IItemHandler getStorageBusUpgradeInventory(StorageBusTracker tracker) {
+        if (tracker == null) return null;
+
+        com.cells.api.IInterfaceHost externalHost = tracker.externalInterfaceHost;
+        if (externalHost != null) {
+            IItemHandler hostInv = externalHost.getUpgradeInventory();
+            if (hostInv != null) return hostInv;
+        }
+
+        return getStorageBusUpgradeInventory(tracker.storageBus);
     }
 
     /**
@@ -824,9 +855,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
             StorageBusTracker tracker = this.storageBusById.get(targetId);
             if (tracker == null) return;
 
-            if (!(tracker.storageBus instanceof PartUpgradeable)) return;
-
-            upgradesInv = ((PartUpgradeable) tracker.storageBus).getInventoryByName("upgrades");
+            upgradesInv = getStorageBusUpgradeInventory(tracker);
             tile = tracker.hostTile;
         }
 

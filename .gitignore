@@ -2,6 +2,7 @@
 *.zip
 TODO.md
 *.patch
+*.lnk
 
 # Gradle
 .gradle/

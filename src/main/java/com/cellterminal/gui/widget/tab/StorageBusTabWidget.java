@@ -30,6 +30,7 @@ import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.client.TabStateManager;
 import com.cellterminal.config.CellTerminalServerConfig;
 import com.cellterminal.gui.GuiConstants;
+import com.cellterminal.gui.PriorityFieldManager;
 import com.cellterminal.gui.handler.JeiGhostHandler;
 import com.cellterminal.gui.handler.TerminalDataManager;
 import com.cellterminal.gui.handler.QuickPartitionHandler;
@@ -304,7 +305,7 @@ public class StorageBusTabWidget extends AbstractTabWidget {
         if (cards != null) header.setCardsDisplay(cards);
 
         // Rename info: header handles right-click directly via InlineRenameManager
-        header.setRenameInfo(bus, GuiConstants.GUI_INDENT + 20 - 2, 0, GuiConstants.BUTTON_IO_MODE_X - 4);
+        header.setRenameInfo(bus, GuiConstants.GUI_INDENT + 20 - 2, 0, getBusRenameRightEdge(bus));
         header.setOnNameDoubleClick(() -> guiContext.highlightInWorld(
             bus.getPos(), bus.getDimension(), bus.getLocalizedName()),
             DoubleClickTracker.storageBusTargetId(bus.getId()));
@@ -334,6 +335,24 @@ public class StorageBusTabWidget extends AbstractTabWidget {
         header.setGuiOffsets(guiLeft, guiTop);
 
         return header;
+    }
+
+    private int getBusRenameRightEdge(StorageBusInfo bus) {
+        int rightEdge = GuiConstants.EXPAND_ICON_X - 4;
+
+        if (bus.supportsPriority()) {
+            rightEdge = Math.min(
+                rightEdge,
+                GuiConstants.CONTENT_RIGHT_EDGE - PriorityFieldManager.FIELD_WIDTH
+                    - PriorityFieldManager.RIGHT_MARGIN - 4
+            );
+        }
+
+        if (bus.supportsIOMode()) {
+            rightEdge = Math.min(rightEdge, GuiConstants.BUTTON_IO_MODE_X - 4);
+        }
+
+        return rightEdge;
     }
 
     // ---- Content line creation ----
@@ -427,12 +446,13 @@ public class StorageBusTabWidget extends AbstractTabWidget {
                 boolean slotOccupied = slotIndex < partition.size() && !partition.get(slotIndex).isEmpty();
 
                 if (!heldStack.isEmpty()) {
-                    // For gas buses, convert gas containers (tanks) to gas representation
-                    ItemStack stackToSend = heldStack;
-                    if (bus.isGas()) {
-                        stackToSend = MekanismEnergisticsIntegration.tryConvertGasContainerToGas(heldStack);
-                        if (stackToSend.isEmpty()) return;
-                    }
+                    // Use the storage-bus JEI conversion rules for held inventory items so
+                    // fluid/gas/essentia clicks get the normalization and user feedback.
+                    ItemStack stackToSend = JeiGhostHandler.convertJeiIngredientForStorageBus(
+                        heldStack,
+                        bus.getStorageType()
+                    );
+                    if (stackToSend.isEmpty()) return;
 
                     guiContext.sendPacket(new PacketStorageBusPartitionAction(
                         bus.getId(), PacketStorageBusPartitionAction.Action.ADD_ITEM,
