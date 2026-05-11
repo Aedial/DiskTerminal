@@ -193,29 +193,10 @@ public class StorageBusTabWidget extends AbstractTabWidget {
 
     @Override
     public boolean handleInventorySlotShiftClick(ItemStack upgradeStack, int sourceSlotIndex) {
-        // Shift-click from player inventory: find first visible bus that can accept
-        List<Object> lines = getLines(guiContext.getDataManager());
-        Set<Long> checkedBusIds = new HashSet<>();
+        // Delegate target selection to the server so addon-specific slot rules are respected.
+        guiContext.sendPacket(new PacketUpgradeStorageBus(0, true, sourceSlotIndex));
 
-        for (Object line : lines) {
-            StorageBusInfo bus = null;
-
-            if (line instanceof StorageBusInfo) {
-                bus = (StorageBusInfo) line;
-            } else if (line instanceof StorageBusContentRow) {
-                bus = ((StorageBusContentRow) line).getStorageBus();
-            }
-
-            if (bus == null) continue;
-            if (!checkedBusIds.add(bus.getId())) continue;
-            if (!bus.canAcceptUpgrade(upgradeStack)) continue;
-
-            guiContext.sendPacket(new PacketUpgradeStorageBus(bus.getId(), true, sourceSlotIndex));
-
-            return true;
-        }
-
-        return false;
+        return true;
     }
 
     // ---- JEI ghost targets ----

@@ -276,6 +276,8 @@ public class CellDataHandler {
     private static void populateCellUpgrades(NBTTagCompound cellData, IItemHandler upgradesInv) {
         if (upgradesInv == null) return;
 
+        cellData.setInteger("upgradeSlotCount", upgradesInv.getSlots());
+
         NBTTagList upgradeList = new NBTTagList();
 
         for (int i = 0; i < upgradesInv.getSlots(); i++) {

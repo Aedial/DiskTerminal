@@ -492,8 +492,6 @@ public abstract class AbstractTabWidget extends AbstractWidget {
         // Default: try cell-based upgrade insertion
         if (hoveredData instanceof CellInfo) {
             CellInfo cell = (CellInfo) hoveredData;
-            if (!cell.canAcceptUpgrade(heldStack)) return false;
-
             StorageInfo storage = guiContext.getDataManager().getStorageMap().get(cell.getParentStorageId());
             if (storage == null) return false;
 
@@ -505,11 +503,6 @@ public abstract class AbstractTabWidget extends AbstractWidget {
 
         if (hoveredData instanceof StorageInfo) {
             StorageInfo storage = (StorageInfo) hoveredData;
-            // Check if any cell could potentially accept (client-side heuristic)
-            boolean anyCanAccept = storage.getCells().stream()
-                .anyMatch(cell -> cell.canAcceptUpgrade(heldStack));
-            if (!anyCanAccept) return false;
-
             // Let the server iterate through cells and find one that actually accepts
             // Use shiftClick=true so server handles the cell selection
             guiContext.sendPacket(new com.cellterminal.network.PacketUpgradeCell(
@@ -520,18 +513,22 @@ public abstract class AbstractTabWidget extends AbstractWidget {
 
         if (hoveredData instanceof CellContentRow) {
             CellInfo cell = ((CellContentRow) hoveredData).getCell();
-            if (cell != null && cell.canAcceptUpgrade(heldStack)) {
-                StorageInfo storage = guiContext.getDataManager().getStorageMap().get(cell.getParentStorageId());
-                if (storage != null) {
-                    guiContext.sendPacket(new com.cellterminal.network.PacketUpgradeCell(
-                        storage.getId(), cell.getSlot(), false));
+            if (cell == null) return false;
 
-                    return true;
-                }
+            StorageInfo storage = guiContext.getDataManager().getStorageMap().get(cell.getParentStorageId());
+            if (storage != null) {
+                guiContext.sendPacket(new com.cellterminal.network.PacketUpgradeCell(
+                    storage.getId(), cell.getSlot(), false));
+
+                return true;
             }
         }
 
         return false;
+    }
+
+    protected void showUpgradeInsertWarning(String targetName) {
+        guiContext.showWarning("cellterminal.warning.upgrade_insert_failed", targetName);
     }
 
     /**

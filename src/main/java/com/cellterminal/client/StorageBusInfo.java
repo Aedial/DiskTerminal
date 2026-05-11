@@ -311,6 +311,15 @@ public class StorageBusInfo implements Renameable, Prioritizable {
         return I18n.format("gui.cellterminal.storage_bus.name");
     }
 
+    public String getWarningDisplayName() {
+        if (customName != null && !customName.isEmpty()) return customName;
+
+        String baseName = getDisplayName();
+        if (namePrefixKey == null || namePrefixKey.isEmpty()) return baseName;
+
+        return I18n.format(namePrefixKey) + " " + baseName;
+    }
+
     /**
      * Get localized name for display.
      * Priority: custom name > connected inventory name > "Air".

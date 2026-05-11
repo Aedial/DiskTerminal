@@ -7,8 +7,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Keep a Changelog: https://keepachangelog.com/en/1.1.0/
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
+## [1.6.2-beta] - 2026-05-11
+### Added
+- Show a warning when upgrade insertion fails for a targeted drive, cell, storage bus, or temporary cell.
 
-## [1.6.1-beta] - 2026-05-01
+
+## [1.6.1-beta] - 2026-05-09
 ### Added
 - Add CELLS integration for import/export interfaces and subnet proxies, as direct storage-bus and subnet overview.
 - Add strict no-duplicates check for storage bus filters, with user feedback on attempted duplicates.

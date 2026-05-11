@@ -3,6 +3,9 @@ package com.cellterminal.container.handler;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextComponentTranslation;
 
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
@@ -334,6 +337,8 @@ public class TempCellActionHandler {
                 }
             }
 
+            PlayerMessageHelper.warning(player, "cellterminal.warning.upgrade_insert_failed_any_temp_cell");
+
             return;
         }
 
@@ -342,7 +347,15 @@ public class TempCellActionHandler {
 
         if (tryInsertUpgradeIntoTempCell(tempInv, tempSlotIndex, upgradeStack, player, fromSlot)) {
             markDirty(container);
+
+            return;
         }
+
+        PlayerMessageHelper.warning(
+            player,
+            "cellterminal.warning.upgrade_insert_failed",
+            getTempCellDisplayName(tempInv, tempSlotIndex)
+        );
     }
 
     /**
@@ -392,6 +405,17 @@ public class TempCellActionHandler {
      */
     private static IItemHandlerModifiable getTempCellInventory(ContainerCellTerminalBase container) {
         return container.getTempCellInventory();
+    }
+
+    private static ITextComponent getTempCellDisplayName(IItemHandlerModifiable tempInv, int tempSlotIndex) {
+        if (tempInv == null || tempSlotIndex < 0 || tempSlotIndex >= tempInv.getSlots()) {
+            return new TextComponentTranslation("gui.cellterminal.cell_empty");
+        }
+
+        ItemStack cellStack = tempInv.getStackInSlot(tempSlotIndex);
+        if (!cellStack.isEmpty()) return new TextComponentString(cellStack.getDisplayName());
+
+        return new TextComponentTranslation("gui.cellterminal.cell_empty");
     }
 
     /**

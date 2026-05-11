@@ -670,7 +670,7 @@ public class TempAreaTabWidget extends AbstractTabWidget {
         if (hoveredData instanceof TempCellInfo) {
             TempCellInfo tempCell = (TempCellInfo) hoveredData;
             CellInfo cellInfo = tempCell.getCellInfo();
-            if (cellInfo == null || !cellInfo.canAcceptUpgrade(heldStack)) return false;
+            if (cellInfo == null) return false;
 
             guiContext.sendPacket(new PacketTempCellAction(
                 PacketTempCellAction.Action.UPGRADE, tempCell.getTempSlotIndex()));
@@ -681,7 +681,7 @@ public class TempAreaTabWidget extends AbstractTabWidget {
         // Handle CellContentRow (content/partition row) - find parent temp cell
         if (hoveredData instanceof CellContentRow) {
             CellInfo cell = ((CellContentRow) hoveredData).getCell();
-            if (cell == null || !cell.canAcceptUpgrade(heldStack)) return false;
+            if (cell == null) return false;
 
             int tempSlotIndex = findTempSlotIndexForCell(cell);
             if (tempSlotIndex < 0) return false;

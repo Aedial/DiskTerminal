@@ -185,6 +185,11 @@ cellterminal.error.partition_edit_disabled=§cPartition editing is disabled on t
 cellterminal.error.priority_edit_disabled=§cPriority editing is disabled on this server.
 cellterminal.error.upgrade_insert_disabled=§cUpgrade insertion is disabled on this server.
 cellterminal.error.upgrade_extract_disabled=§cUpgrade extraction is disabled on this server.
+cellterminal.warning.upgrade_insert_failed=Couldn't insert upgrade into %s.
+cellterminal.warning.upgrade_insert_failed_generic=Couldn't insert upgrade.
+cellterminal.warning.upgrade_insert_failed_any_cell=Couldn't insert upgrade into any visible cell.
+cellterminal.warning.upgrade_insert_failed_any_storage_bus=Couldn't insert upgrade into any visible storage bus.
+cellterminal.warning.upgrade_insert_failed_any_temp_cell=Couldn't insert upgrade into any temporary cell.
 
 # Panel hints
 gui.cellterminal.hint.partition=Click to remove, drag from JEI to add

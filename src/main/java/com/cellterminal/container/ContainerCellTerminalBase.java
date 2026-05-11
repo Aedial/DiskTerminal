@@ -6,6 +6,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import net.minecraft.entity.player.EntityPlayer;
@@ -58,6 +59,7 @@ import com.cellterminal.container.handler.SubnetDataHandler;
 import com.cellterminal.container.handler.SubnetDataHandler.SubnetTracker;
 import com.cellterminal.container.handler.TempCellActionHandler;
 import com.cellterminal.gui.GuiConstants;
+import com.cellterminal.integration.CellsIntegration;
 import com.cellterminal.integration.storage.StorageScannerRegistry;
 import com.cellterminal.network.PacketExtractUpgrade;
 import com.cellterminal.network.PacketPartitionAction;
@@ -655,7 +657,9 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
                     }
                 }
 
-                return;  // Targeted storage but no cell accepted
+                warnUpgradeInsertFailure(player, getStorageDisplayName(targetTracker));
+
+                return;
             }
 
             // No specific storage: iterate all storages and cells (global shift-click)
@@ -676,6 +680,8 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
                 }
             }
 
+            PlayerMessageHelper.warning(player, "cellterminal.warning.upgrade_insert_failed_any_cell");
+
             return;
         }
 
@@ -685,7 +691,11 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
         if (CellActionHandler.upgradeCell(tracker.storage, tracker.tile, cellSlot, upgradeStack, player, fromSlot)) {
             requestFullRefresh();
+
+            return;
         }
+
+        warnUpgradeInsertFailure(player, getCellDisplayName(tracker, cellSlot));
     }
 
     /**
@@ -718,6 +728,21 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         // For shift-click, iterate through all storage buses to find one that accepts this upgrade
         // Sort by distance to match visual order on client
         if (shiftClick) {
+            if (storageBusId != 0) {
+                StorageBusTracker targetTracker = this.storageBusById.get(storageBusId);
+                if (targetTracker != null) {
+                    if (tryInsertUpgradeIntoStorageBus(targetTracker, upgradeStack, player, fromSlot)) {
+                        requestStorageBusRefresh();
+
+                        return;
+                    }
+
+                    warnUpgradeInsertFailure(player, getStorageBusDisplayName(targetTracker));
+
+                    return;
+                }
+            }
+
             int terminalDim = getTerminalDimension();
             List<StorageBusTracker> sortedTrackers = new ArrayList<>(this.storageBusById.values());
             sortedTrackers.sort(createStorageBusTrackerComparator(BlockPos.ORIGIN, terminalDim));
@@ -730,6 +755,8 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
                 }
             }
 
+            PlayerMessageHelper.warning(player, "cellterminal.warning.upgrade_insert_failed_any_storage_bus");
+
             return;
         }
 
@@ -739,7 +766,11 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
 
         if (tryInsertUpgradeIntoStorageBus(tracker, upgradeStack, player, fromSlot)) {
             requestStorageBusRefresh();
+
+            return;
         }
+
+        warnUpgradeInsertFailure(player, getStorageBusDisplayName(tracker));
     }
 
     /**
@@ -795,6 +826,104 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         }
 
         return getStorageBusUpgradeInventory(tracker.storageBus);
+    }
+
+    private void warnUpgradeInsertFailure(EntityPlayer player, ITextComponent targetName) {
+        if (targetName != null) {
+            PlayerMessageHelper.warning(player, "cellterminal.warning.upgrade_insert_failed", targetName);
+
+            return;
+        }
+
+        PlayerMessageHelper.warning(player, "cellterminal.warning.upgrade_insert_failed_generic");
+    }
+
+    private ITextComponent getStorageDisplayName(StorageTracker tracker) {
+        if (tracker == null) return null;
+
+        ITextComponent customName = getCustomInventoryName(tracker.tile);
+        if (customName != null) return customName;
+
+        if (tracker.tile != null) {
+            ItemStack displayStack = CellsIntegration.getTileDisplayStack(tracker.tile);
+            if (!displayStack.isEmpty()) return new TextComponentString(displayStack.getDisplayName());
+        }
+
+        return tracker.tile == null
+            ? null
+            : new TextComponentString(tracker.tile.getClass().getSimpleName());
+    }
+
+    private ITextComponent getCellDisplayName(StorageTracker tracker, int cellSlot) {
+        if (tracker == null) return null;
+
+        IItemHandler cellInventory = CellDataHandler.getCellInventory(tracker.storage);
+        if (cellInventory == null || cellSlot < 0 || cellSlot >= cellInventory.getSlots()) {
+            return getStorageDisplayName(tracker);
+        }
+
+        ItemStack cellStack = cellInventory.getStackInSlot(cellSlot);
+        if (!cellStack.isEmpty()) return new TextComponentString(cellStack.getDisplayName());
+
+        return new TextComponentTranslation("gui.cellterminal.cell_empty");
+    }
+
+    private ITextComponent getStorageBusDisplayName(StorageBusTracker tracker) {
+        if (tracker == null) return null;
+
+        ITextComponent customName = getCustomInventoryName(tracker.storageBus);
+        if (customName != null) return customName;
+
+        ItemStack busDisplay = CellsIntegration.getHostDisplayStack(tracker.storageBus);
+        if (busDisplay.isEmpty() && tracker.hostTile != null) {
+            busDisplay = CellsIntegration.getTileDisplayStack(tracker.hostTile);
+        }
+
+        ITextComponent baseName = busDisplay.isEmpty()
+            ? new TextComponentTranslation("gui.cellterminal.storage_bus.name")
+            : new TextComponentString(busDisplay.getDisplayName());
+
+        ITextComponent prefix = getStorageBusPrefix(tracker);
+        if (prefix == null) return baseName;
+
+        TextComponentString combinedName = new TextComponentString("");
+        combinedName.appendSibling(prefix);
+        combinedName.appendText(" ");
+        combinedName.appendSibling(baseName);
+
+        return combinedName;
+    }
+
+    private ITextComponent getCustomInventoryName(Object nameableCandidate) {
+        if (!(nameableCandidate instanceof ICustomNameObject)) return null;
+
+        ICustomNameObject nameable = (ICustomNameObject) nameableCandidate;
+        if (!nameable.hasCustomInventoryName()) return null;
+
+        String customName = nameable.getCustomInventoryName();
+        if (customName == null || customName.isEmpty()) return null;
+
+        return new TextComponentString(customName);
+    }
+
+    private ITextComponent getStorageBusPrefix(StorageBusTracker tracker) {
+        com.cells.api.IInterfaceHost externalHost = tracker.externalInterfaceHost;
+        if (externalHost == null) return null;
+
+        if (externalHost.isDirectionalView()) {
+            return new TextComponentTranslation(
+                externalHost.isExport()
+                    ? "gui.cellterminal.storage_bus.prefix.export"
+                    : "gui.cellterminal.storage_bus.prefix.import"
+            );
+        }
+
+        if (!externalHost.isTypeLabeled()) return null;
+
+        return new TextComponentTranslation(
+            "gui.cellterminal.storage_bus.type."
+                + externalHost.getResourceType().name().toLowerCase(Locale.ROOT)
+        );
     }
 
     /**
