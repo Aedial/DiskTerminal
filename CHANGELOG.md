@@ -7,6 +7,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Keep a Changelog: https://keepachangelog.com/en/1.1.0/
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
+
+## [1.6.3-beta] - 2026-05-12
+### Added
+- Add support for search in Subnet Overview ,using the shared mixed/inventory/partition search mode and match subnet content and filters, with the same search syntax as the main terminal tabs.
+
+
 ## [1.6.2-beta] - 2026-05-11
 ### Added
 - Show a warning when upgrade insertion fails for a targeted drive, cell, storage bus, or temporary cell.

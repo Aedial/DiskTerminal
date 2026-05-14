@@ -500,14 +500,14 @@ public class SubnetInfo implements Renameable {
      * @return List of connection rows for this connection
      */
     public static List<SubnetConnectionRow> buildConnectionContentRows(
-            SubnetInfo subnet, ConnectionPoint conn, int connIdx, int slotsPerRow) {
+            SubnetInfo subnet, ConnectionPoint conn, int connIdx, int slotsPerRow, SlotLimit slotLimit) {
         List<SubnetConnectionRow> rows = new ArrayList<>();
 
         // For outbound connections (Storage Bus on main → Interface on subnet),
         // show the subnet's entire ME storage as "content" so the user can see
         // what's available and use "Partition All" to set filters.
         if (conn.isOutbound() && subnet.hasInventory()) {
-            int contentCount = subnet.getInventory().size();
+            int contentCount = slotLimit.getEffectiveCount(subnet.getInventory().size());
             int contentRows = Math.max(1, (contentCount + slotsPerRow - 1) / slotsPerRow);
             for (int row = 0; row < contentRows; row++) {
                 rows.add(new SubnetConnectionRow(subnet, conn, connIdx,
@@ -516,7 +516,7 @@ public class SubnetInfo implements Renameable {
 
         // For inbound connections, use per-connection content (if backend sends it)
         } else if (conn.hasContentKey()) {
-            int contentCount = conn.getContent().size();
+            int contentCount = slotLimit.getEffectiveCount(conn.getContent().size());
             int contentRows = Math.max(1, (contentCount + slotsPerRow - 1) / slotsPerRow);
             for (int row = 0; row < contentRows; row++) {
                 rows.add(new SubnetConnectionRow(subnet, conn, connIdx,

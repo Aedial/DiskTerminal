@@ -9,6 +9,8 @@ import java.util.regex.Pattern;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.item.ItemStack;
 
+import com.cellterminal.client.SubnetInfo.ConnectionPoint;
+
 
 /**
  * Parser and evaluator for advanced search queries.
@@ -185,6 +187,13 @@ public class AdvancedSearchParser {
                 public boolean matchesStorageBus(StorageBusInfo bus, SearchFilterMode mode) {
                     return l.matchesStorageBus(bus, mode) || r.matchesStorageBus(bus, mode);
                 }
+
+                @Override
+                public boolean matchesSubnetConnection(SubnetInfo subnet, ConnectionPoint connection,
+                                                      boolean usesSubnetInventory, SearchFilterMode mode) {
+                    return l.matchesSubnetConnection(subnet, connection, usesSubnetInventory, mode)
+                        || r.matchesSubnetConnection(subnet, connection, usesSubnetInventory, mode);
+                }
             };
         }
 
@@ -214,6 +223,13 @@ public class AdvancedSearchParser {
                 @Override
                 public boolean matchesStorageBus(StorageBusInfo bus, SearchFilterMode mode) {
                     return l.matchesStorageBus(bus, mode) && r.matchesStorageBus(bus, mode);
+                }
+
+                @Override
+                public boolean matchesSubnetConnection(SubnetInfo subnet, ConnectionPoint connection,
+                                                      boolean usesSubnetInventory, SearchFilterMode mode) {
+                    return l.matchesSubnetConnection(subnet, connection, usesSubnetInventory, mode)
+                        && r.matchesSubnetConnection(subnet, connection, usesSubnetInventory, mode);
                 }
             };
         }
@@ -323,10 +339,6 @@ public class AdvancedSearchParser {
         return "$priority".equals(id) || "$partition".equals(id) || "$items".equals(id);
     }
 
-    private static boolean isStringIdentifier(String id) {
-        return "$name".equals(id) || "$content".equals(id) || "$part".equals(id) || "$container".equals(id) || "$renamed".equals(id);
-    }
-
     private static boolean isOperator(String s) {
         return s.startsWith("=") || "!=".equals(s) || s.startsWith("<") || s.startsWith(">")
             || "<=".equals(s) || ">=".equals(s) || "~".equals(s)
@@ -424,6 +436,26 @@ public class AdvancedSearchParser {
                         return matchesInventory || matchesPartition;
                 }
             }
+
+            @Override
+            public boolean matchesSubnetConnection(SubnetInfo subnet, ConnectionPoint connection,
+                                                  boolean usesSubnetInventory, SearchFilterMode mode) {
+                if (connection == null) return false;
+
+                boolean matchesInventory = matchesItemList(
+                    getSubnetContentItems(subnet, connection, usesSubnetInventory), searchValue, operator);
+                boolean matchesPartition = matchesItemList(connection.getPartition(), searchValue, operator);
+
+                switch (mode) {
+                    case INVENTORY:
+                        return matchesInventory;
+                    case PARTITION:
+                        return matchesPartition;
+                    case MIXED:
+                    default:
+                        return matchesInventory || matchesPartition;
+                }
+            }
         };
     }
 
@@ -453,6 +485,26 @@ public class AdvancedSearchParser {
             public boolean matchesStorageBus(StorageBusInfo bus, SearchFilterMode mode) {
                 boolean matchesInventory = matchesItemList(bus.getContents(), searchText, "~");
                 boolean matchesPartition = matchesItemList(bus.getPartition(), searchText, "~");
+
+                switch (mode) {
+                    case INVENTORY:
+                        return matchesInventory;
+                    case PARTITION:
+                        return matchesPartition;
+                    case MIXED:
+                    default:
+                        return matchesInventory || matchesPartition;
+                }
+            }
+
+            @Override
+            public boolean matchesSubnetConnection(SubnetInfo subnet, ConnectionPoint connection,
+                                                  boolean usesSubnetInventory, SearchFilterMode mode) {
+                if (connection == null) return false;
+
+                boolean matchesInventory = matchesItemList(
+                    getSubnetContentItems(subnet, connection, usesSubnetInventory), searchText, "~");
+                boolean matchesPartition = matchesItemList(connection.getPartition(), searchText, "~");
 
                 switch (mode) {
                     case INVENTORY:
@@ -501,6 +553,15 @@ public class AdvancedSearchParser {
             public boolean matchesStorageBus(StorageBusInfo bus, SearchFilterMode mode) {
                 return matchesItemList(bus.getContents(), searchValue, operator);
             }
+
+            @Override
+            public boolean matchesSubnetConnection(SubnetInfo subnet, ConnectionPoint connection,
+                                                  boolean usesSubnetInventory, SearchFilterMode mode) {
+                if (connection == null) return false;
+
+                return matchesItemList(getSubnetContentItems(subnet, connection, usesSubnetInventory),
+                    searchValue, operator);
+            }
         };
     }
 
@@ -519,6 +580,14 @@ public class AdvancedSearchParser {
             @Override
             public boolean matchesStorageBus(StorageBusInfo bus, SearchFilterMode mode) {
                 return matchesItemList(bus.getPartition(), searchValue, operator);
+            }
+
+            @Override
+            public boolean matchesSubnetConnection(SubnetInfo subnet, ConnectionPoint connection,
+                                                  boolean usesSubnetInventory, SearchFilterMode mode) {
+                if (connection == null) return false;
+
+                return matchesItemList(connection.getPartition(), searchValue, operator);
             }
         };
     }
@@ -561,6 +630,15 @@ public class AdvancedSearchParser {
 
                 return compareString(busName, operator, searchValue);
             }
+
+            @Override
+            public boolean matchesSubnetConnection(SubnetInfo subnet, ConnectionPoint connection,
+                                                  boolean usesSubnetInventory, SearchFilterMode mode) {
+                if (subnet == null) return false;
+                if (onlyRenamed && !subnet.hasCustomName()) return false;
+
+                return compareString(subnet.getDisplayName().toLowerCase(Locale.ROOT), operator, searchValue);
+            }
         };
     }
 
@@ -597,6 +675,14 @@ public class AdvancedSearchParser {
             public boolean matchesStorageBus(StorageBusInfo bus, SearchFilterMode mode) {
                 return compareInt(bus.getPartitionCount(), operator, targetValue);
             }
+
+            @Override
+            public boolean matchesSubnetConnection(SubnetInfo subnet, ConnectionPoint connection,
+                                                  boolean usesSubnetInventory, SearchFilterMode mode) {
+                if (connection == null) return false;
+
+                return compareInt(countNonEmpty(connection.getPartition()), operator, targetValue);
+            }
         };
     }
 
@@ -615,6 +701,15 @@ public class AdvancedSearchParser {
             public boolean matchesStorageBus(StorageBusInfo bus, SearchFilterMode mode) {
                 return compareInt(bus.getContentTypeCount(), operator, targetValue);
             }
+
+            @Override
+            public boolean matchesSubnetConnection(SubnetInfo subnet, ConnectionPoint connection,
+                                                  boolean usesSubnetInventory, SearchFilterMode mode) {
+                if (connection == null) return false;
+
+                return compareInt(getSubnetContentItems(subnet, connection, usesSubnetInventory).size(),
+                    operator, targetValue);
+            }
         };
     }
 
@@ -627,6 +722,13 @@ public class AdvancedSearchParser {
         return count;
     }
 
+    private static List<ItemStack> getSubnetContentItems(SubnetInfo subnet, ConnectionPoint connection,
+                                                         boolean usesSubnetInventory) {
+        if (subnet == null || connection == null) return java.util.Collections.emptyList();
+
+        return usesSubnetInventory ? subnet.getInventory() : connection.getContent();
+    }
+
     private static SearchMatcher alwaysFalse() {
         return new SearchMatcher() {
             @Override
@@ -636,6 +738,12 @@ public class AdvancedSearchParser {
 
             @Override
             public boolean matchesStorageBus(StorageBusInfo bus, SearchFilterMode mode) {
+                return false;
+            }
+
+            @Override
+            public boolean matchesSubnetConnection(SubnetInfo subnet, ConnectionPoint connection,
+                                                  boolean usesSubnetInventory, SearchFilterMode mode) {
                 return false;
             }
         };
@@ -840,10 +948,15 @@ public class AdvancedSearchParser {
     }
 
     /**
-     * Interface for matching cells and storage buses.
+     * Interface for matching cells, storage buses, and subnet connections.
      */
     public interface SearchMatcher {
         boolean matchesCell(CellInfo cell, StorageInfo storage, SearchFilterMode mode);
         boolean matchesStorageBus(StorageBusInfo bus, SearchFilterMode mode);
+
+        default boolean matchesSubnetConnection(SubnetInfo subnet, ConnectionPoint connection,
+                                               boolean usesSubnetInventory, SearchFilterMode mode) {
+            return false;
+        }
     }
 }

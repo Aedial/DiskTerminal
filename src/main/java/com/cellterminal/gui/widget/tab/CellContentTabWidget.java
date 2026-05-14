@@ -35,6 +35,8 @@ import com.cellterminal.gui.widget.IWidget;
 import com.cellterminal.gui.widget.button.ButtonType;
 import com.cellterminal.gui.widget.button.SmallButton;
 import com.cellterminal.gui.widget.header.StorageHeader;
+import com.cellterminal.gui.widget.header.AbstractHeader;
+import com.cellterminal.gui.widget.line.AbstractLine;
 import com.cellterminal.gui.widget.line.CellSlotsLine;
 import com.cellterminal.gui.widget.line.ContinuationLine;
 import com.cellterminal.gui.widget.line.SlotsLine;
@@ -292,6 +294,83 @@ public class CellContentTabWidget extends AbstractTabWidget {
         Object line = allLines.get(index);
 
         return line instanceof CellContentRow || line instanceof EmptySlotInfo;
+    }
+
+    @Override
+    protected void propagateTreeLines(List<?> allLines, int scrollOffset) {
+        int lastCutY = GuiConstants.CONTENT_START_Y;
+        boolean hasContentAbove = scrollOffset > 0 && isContentLine(allLines, scrollOffset - 1);
+
+        for (int i = 0; i < visibleRows.size(); i++) {
+            IWidget widget = visibleRows.get(i);
+            int lineIndex = scrollOffset + i;
+
+            if (widget instanceof AbstractHeader) {
+                AbstractHeader header = (AbstractHeader) widget;
+                header.setDrawConnector(hasContentBelow(allLines, lineIndex));
+                lastCutY = header.getConnectorY();
+
+                continue;
+            }
+
+            if (!(widget instanceof AbstractLine)) continue;
+
+            AbstractLine line = (AbstractLine) widget;
+            boolean drawTreeLine = shouldDrawCellTreeLine(allLines, lineIndex);
+            int lineAboveCutY = (i == 0 && hasContentAbove) ? GuiConstants.CONTENT_START_Y : lastCutY;
+            line.setTreeLineParams(drawTreeLine, lineAboveCutY);
+
+            if (!drawTreeLine) continue;
+
+            lastCutY = line.getTreeLineCutY();
+        }
+
+        int lastVisibleIndex = scrollOffset + visibleRows.size() - 1;
+        if (lastVisibleIndex < 0) {
+            bottomContinuationFromY = -1;
+
+            return;
+        }
+
+        int nextIndex = lastVisibleIndex + 1;
+        if (nextIndex >= allLines.size() || !shouldDrawCellTreeLine(allLines, nextIndex)) {
+            bottomContinuationFromY = -1;
+
+            return;
+        }
+
+        bottomContinuationFromY = lastCutY;
+    }
+
+    /**
+     * Continuation rows only carry the storage tree trunk when another cell slot
+     * exists later in the same storage section. Extra rows of the last cell are
+     * part of that cell's body, not separate tree nodes.
+     */
+    private boolean shouldDrawCellTreeLine(List<?> allLines, int index) {
+        if (index < 0 || index >= allLines.size()) return false;
+
+        Object line = allLines.get(index);
+        if (line instanceof EmptySlotInfo) return true;
+        if (!(line instanceof CellContentRow)) return false;
+
+        CellContentRow row = (CellContentRow) line;
+        if (row.isFirstRow()) return true;
+
+        return hasCellBelowInStorage(allLines, index);
+    }
+
+    private boolean hasCellBelowInStorage(List<?> allLines, int index) {
+        for (int i = index + 1; i < allLines.size(); i++) {
+            Object next = allLines.get(i);
+
+            if (next instanceof StorageInfo) return false;
+            if (next instanceof EmptySlotInfo) return true;
+            if (!(next instanceof CellContentRow)) continue;
+            if (((CellContentRow) next).isFirstRow()) return true;
+        }
+
+        return false;
     }
 
     // ---- Storage header creation ----

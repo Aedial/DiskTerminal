@@ -7,6 +7,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
@@ -17,10 +18,14 @@ import net.minecraft.nbt.NBTTagCompound;
 
 import mezz.jei.api.gui.IGhostIngredientHandler;
 
+import com.cellterminal.client.AdvancedSearchParser;
+import com.cellterminal.client.SearchFilterMode;
+import com.cellterminal.client.SlotLimit;
 import com.cellterminal.client.StorageType;
 import com.cellterminal.client.SubnetConnectionEntry;
 import com.cellterminal.client.SubnetConnectionRow;
 import com.cellterminal.client.SubnetInfo;
+import com.cellterminal.config.CellTerminalClientConfig;
 import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.gui.handler.JeiGhostHandler;
 import com.cellterminal.gui.handler.TerminalDataManager;
@@ -70,6 +75,9 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
     private final Map<Long, SubnetInfo> subnetById = new LinkedHashMap<>();
     private final List<SubnetInfo> subnetList = new ArrayList<>();
     private final List<Object> subnetLines = new ArrayList<>();
+    private String lastSearchQuery = null;
+    private SearchFilterMode lastSearchMode = null;
+    private SlotLimit lastSlotLimit = null;
 
     // Context for GUI-level operations
     private SubnetOverviewContext subnetContext;
@@ -168,10 +176,24 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
      */
     private void buildSubnetLines() {
         this.subnetLines.clear();
+        TerminalDataManager dataManager = this.guiContext != null ? this.guiContext.getDataManager() : null;
+        String simpleSearch = dataManager != null ? dataManager.getSearchFilter() : "";
+        AdvancedSearchParser.SearchMatcher advancedMatcher = dataManager != null
+            ? dataManager.getAdvancedMatcher() : null;
+        boolean useAdvancedSearch = dataManager != null
+            && dataManager.isUsingAdvancedSearch()
+            && advancedMatcher != null;
+        SearchFilterMode searchMode = CellTerminalClientConfig.getInstance().getSearchMode();
+        SlotLimit slotLimit = CellTerminalClientConfig.getInstance().getSubnetSlotLimit();
+        boolean hasSearch = useAdvancedSearch || !simpleSearch.isEmpty();
 
         for (SubnetInfo subnet : this.subnetList) {
             // Main network gets a single header with no connections
             if (subnet.isMainNetwork()) {
+                if (hasSearch && !matchesSubnetHeader(subnet, searchMode, advancedMatcher, useAdvancedSearch)) {
+                    continue;
+                }
+
                 this.subnetLines.add(subnet);
                 continue;
             }
@@ -179,14 +201,89 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
             // Each connection gets its own header + content/partition rows
             for (int connIdx = 0; connIdx < subnet.getConnections().size(); connIdx++) {
                 SubnetInfo.ConnectionPoint conn = subnet.getConnections().get(connIdx);
+                boolean usesSubnetInventory = conn.isOutbound() && subnet.hasInventory();
+                if (hasSearch && !matchesConnectionSearch(
+                        subnet, conn, usesSubnetInventory, searchMode, simpleSearch,
+                        advancedMatcher, useAdvancedSearch)) {
+                    continue;
+                }
+
                 this.subnetLines.add(new SubnetConnectionEntry(subnet, conn, connIdx));
 
                 // Content + partition rows (like TempArea's CellContentRow with isPartitionRow flag)
                 List<SubnetConnectionRow> rows =
-                    SubnetInfo.buildConnectionContentRows(subnet, conn, connIdx, SLOTS_PER_ROW);
+                    SubnetInfo.buildConnectionContentRows(subnet, conn, connIdx, SLOTS_PER_ROW, slotLimit);
                 this.subnetLines.addAll(rows);
             }
         }
+
+        this.lastSearchQuery = CellTerminalClientConfig.getInstance().getSearchFilter();
+        this.lastSearchMode = searchMode;
+        this.lastSlotLimit = slotLimit;
+    }
+
+    private boolean matchesSubnetHeader(SubnetInfo subnet, SearchFilterMode searchMode,
+                                        AdvancedSearchParser.SearchMatcher advancedMatcher,
+                                        boolean useAdvancedSearch) {
+        if (!useAdvancedSearch || advancedMatcher == null) return false;
+
+        return advancedMatcher.matchesSubnetConnection(subnet, null, false, searchMode);
+    }
+
+    private boolean matchesConnectionSearch(SubnetInfo subnet, SubnetInfo.ConnectionPoint connection,
+                                            boolean usesSubnetInventory, SearchFilterMode searchMode,
+                                            String simpleSearch,
+                                            AdvancedSearchParser.SearchMatcher advancedMatcher,
+                                            boolean useAdvancedSearch) {
+        if (useAdvancedSearch && advancedMatcher != null) {
+            return advancedMatcher.matchesSubnetConnection(subnet, connection, usesSubnetInventory, searchMode);
+        }
+
+        if (simpleSearch.isEmpty()) return true;
+
+        boolean matchesInventory = matchesItemList(
+            usesSubnetInventory ? subnet.getInventory() : connection.getContent(), simpleSearch);
+        boolean matchesPartition = matchesItemList(connection.getPartition(), simpleSearch);
+
+        switch (searchMode) {
+            case INVENTORY:
+                return matchesInventory;
+            case PARTITION:
+                return matchesPartition;
+            case MIXED:
+            default:
+                return matchesInventory || matchesPartition;
+        }
+    }
+
+    private boolean matchesItemList(List<ItemStack> items, String searchFilter) {
+        for (ItemStack stack : items) {
+            if (stack.isEmpty()) continue;
+
+            String displayName = stack.getDisplayName().toLowerCase(Locale.ROOT);
+            if (displayName.contains(searchFilter)) return true;
+
+            if (stack.getItem().getRegistryName() == null) continue;
+
+            String registryName = stack.getItem().getRegistryName().toString().toLowerCase(Locale.ROOT);
+            if (registryName.contains(searchFilter)) return true;
+        }
+
+        return false;
+    }
+
+    private void rebuildLinesIfSearchChanged(TerminalDataManager dataManager) {
+        String searchQuery = CellTerminalClientConfig.getInstance().getSearchFilter();
+        SearchFilterMode searchMode = CellTerminalClientConfig.getInstance().getSearchMode();
+        SlotLimit slotLimit = CellTerminalClientConfig.getInstance().getSubnetSlotLimit();
+
+        if (searchQuery.equals(this.lastSearchQuery)
+                && searchMode == this.lastSearchMode
+                && slotLimit == this.lastSlotLimit) {
+            return;
+        }
+
+        buildSubnetLines();
     }
 
     /**
@@ -590,10 +687,11 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
 
     /**
      * Return the flattened subnet lines for scrollbar calculation.
-     * The data manager is not used as subnet data comes from handleSubnetListUpdate.
      */
     @Override
     public List<Object> getLines(TerminalDataManager dataManager) {
+        rebuildLinesIfSearchChanged(dataManager);
+
         return subnetLines;
     }
 
@@ -629,11 +727,11 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
     }
 
     /**
-     * No search mode button needed in subnet overview.
+     * Subnet overview uses the shared mixed/inventory/partition search mode.
      */
     @Override
     public boolean showSearchModeButton() {
-        return false;
+        return true;
     }
 
     // ========================================================================
