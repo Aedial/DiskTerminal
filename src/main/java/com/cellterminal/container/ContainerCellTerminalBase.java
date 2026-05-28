@@ -1307,6 +1307,20 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
      * Called when client enters subnet overview mode or needs updated data.
      */
     public void requestSubnetRefresh() {
+        requestSubnetRefresh(false);
+    }
+
+    /**
+     * Request a subnet list refresh.
+     * Called when client enters subnet overview mode or needs updated data.
+     *
+     * @param forceFull True to discard the server-side subnet delta snapshot before sending.
+     *                  Needed when the client rebuilt the overview widget and no longer has
+     *                  the previous baseline required to apply a delta payload.
+     */
+    public void requestSubnetRefresh(boolean forceFull) {
+        if (forceFull) this.deltaSnapshot.reset(TerminalChannels.SUBNETS);
+
         this.needsSubnetRefresh = true;
     }
 

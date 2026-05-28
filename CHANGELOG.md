@@ -11,6 +11,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ## [1.6.4-beta] - 2026-05-26
 ### Fixed
 - Unify subnet direction semantics so AE2 connections now point from the exposing side, matching CELLS subnet proxies, without changing which connections mirror subnet inventory in the overview.
+- Fix Subnet Overview being empty after coming back from JEI (which reopen the terminal without triggering the proper refresh).
 
 
 ## [1.6.3-beta] - 2026-05-12

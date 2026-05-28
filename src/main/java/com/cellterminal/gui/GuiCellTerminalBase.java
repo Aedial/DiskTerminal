@@ -282,6 +282,10 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
 
     @Override
     public void initGui() {
+        // JEI can close and later reopen the same GUI instance. onGuiClosed() unregisters the
+        // chunked payload handlers, so re-register them here before any refresh packets are sent.
+        registerPayloadHandlers();
+
         // Reset button ID counter on each initGui call
         this.nextButtonId = 10;
 
@@ -354,6 +358,10 @@ public abstract class GuiCellTerminalBase extends AEBaseGui implements IJEIGhost
             this.dataManager.resetForNetworkSwitch();
             CellTerminalNetwork.INSTANCE.sendToServer(new PacketSwitchNetwork(this.currentNetworkId));
         }
+
+            // Reopening the GUI directly onto the subnet overview (for example after leaving via JEI)
+            // does not fire a tab-switch event, so trigger the overview enter hook manually.
+            if (isInSubnetOverviewMode()) tabManager.getSubnetTab().onEnterOverview();
     }
 
     protected void initTabWidgets() {

@@ -37,7 +37,17 @@ public final class ChunkedNBTReceiver {
 
     public static void acceptChunk(PacketNBTChunk chunk) {
         String channel = chunk.getChannel();
+        PayloadHandler handler = PayloadDispatcher.get(channel);
+
+        // If the GUI that owns this channel is closed, drop any late chunks immediately so a
+        // reopened GUI does not inherit stale partial assemblies from the previous instance.
+        if (handler == null) {
+            inflight.remove(channel);
+            return;
+        }
+
         Assembler assembler = inflight.get(channel);
+        int chunkIndex = chunk.getChunkIndex();
 
         // New session: start fresh. This abandons any partially-received older session.
         if (assembler == null || assembler.sessionId != chunk.getSessionId()) {
@@ -45,13 +55,15 @@ public final class ChunkedNBTReceiver {
             inflight.put(channel, assembler);
         }
 
-        if (chunk.getChunkIndex() < 0 || chunk.getChunkIndex() >= assembler.totalChunks) {
+        if (chunkIndex < 0 || chunkIndex >= assembler.totalChunks) {
             CellTerminal.LOGGER.warn("Discarding out-of-range chunk {} for channel {} (total={})",
-                chunk.getChunkIndex(), channel, assembler.totalChunks);
+                chunkIndex, channel, assembler.totalChunks);
             return;
         }
 
-        assembler.parts[chunk.getChunkIndex()] = chunk.getPayload();
+        if (assembler.parts[chunkIndex] != null) return;
+
+        assembler.parts[chunkIndex] = chunk.getPayload();
         assembler.received++;
 
         if (assembler.received < assembler.totalChunks) return;
@@ -61,13 +73,6 @@ public final class ChunkedNBTReceiver {
 
         try {
             NBTTagCompound nbt = decode(assembler);
-            PayloadHandler handler = PayloadDispatcher.get(channel);
-
-            if (handler == null) {
-                CellTerminal.LOGGER.warn("No handler registered for chunked payload channel: {}", channel);
-                return;
-            }
-
             handler.onPayload(assembler.mode, nbt);
         } catch (IOException e) {
             CellTerminal.LOGGER.error("Failed to decode chunked payload for channel " + channel, e);

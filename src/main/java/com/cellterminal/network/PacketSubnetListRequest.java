@@ -35,7 +35,9 @@ public class PacketSubnetListRequest implements IMessage {
             ctx.getServerHandler().player.getServerWorld().addScheduledTask(() -> {
                 if (ctx.getServerHandler().player.openContainer instanceof ContainerCellTerminalBase) {
                     ContainerCellTerminalBase container = (ContainerCellTerminalBase) ctx.getServerHandler().player.openContainer;
-                    container.requestSubnetRefresh();
+                    // The overview widget may have been recreated client-side (for example by JEI
+                    // reinitializing the GUI), so force a full subnet snapshot instead of a delta.
+                    container.requestSubnetRefresh(true);
                 }
             });
 
