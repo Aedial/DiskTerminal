@@ -125,6 +125,7 @@ public class CellsSubnetScanner extends AbstractSubnetScanner {
         nbt.setInteger("dim", hostTile.getWorld().provider.getDimension());
         nbt.setInteger("side", facing.ordinal());
         nbt.setBoolean("outbound", outbound);
+        nbt.setBoolean("usesSubnetInventory", outbound);
         nbt.setTag("filter", CellsIntegration.createFilterNBT(proxy));
         nbt.setInteger("maxPartitionSlots", Math.max(0, proxy.getFilterSlots()));
 

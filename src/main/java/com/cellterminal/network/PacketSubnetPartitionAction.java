@@ -25,7 +25,7 @@ public class PacketSubnetPartitionAction implements IMessage {
         SET_ALL_FROM_CONTENTS,
         CLEAR_ALL,
         TOGGLE_ITEM,
-        /** Set partition from the subnet's entire ME storage inventory (for outbound connections). */
+        /** Set partition from the subnet's entire ME storage inventory. */
         SET_ALL_FROM_SUBNET_INVENTORY
     }
 

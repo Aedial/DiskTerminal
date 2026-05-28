@@ -41,6 +41,7 @@ import com.cellterminal.gui.rename.RenameTargetType;
  *        "dim"          int                   4
  *        "side"         int (EnumFacing)      4
  *        "outbound"     boolean               1
+ *        "usesSubnetInventory" boolean         1   (optional; content comes from subnet inventory)
  *        "localIcon"    NBTTagCompound        ~I  (optional; block icon on main net)
  *        "remoteIcon"   NBTTagCompound        ~I  (optional; block icon on subnet)
  *        "content"      NBTTagList            ~S  (optional; flowing items)
@@ -59,11 +60,11 @@ import com.cellterminal.gui.rename.RenameTargetType;
  * ME Passthrough mechanism (IStorageMonitorableAccessor capability). Each connection
  * is one-way:
  * <p>
- * - Outbound: Storage Bus on main network → Interface on subnet
- *   (Main network reads from / writes to subnet's storage)
+ * - Outbound: storage is exposed from the main-network side toward the subnet
+ *   (local side → remote side)
  * <p>
- * - Inbound: Interface on main network ← Storage Bus on subnet
- *   (Subnet reads from / writes to main network's storage)
+ * - Inbound: storage is exposed from the subnet side toward the main network
+ *   (remote side → local side)
  * <p>
  * Both directions can exist simultaneously for bidirectional item flow.
  * Multiple connections to the same subnet are grouped together and sorted by position.
@@ -84,9 +85,10 @@ public class SubnetInfo implements Renameable {
         private final BlockPos pos;           // Position on main network
         private final int dimension;          // Dimension of the connection (can differ from subnet primary dim via Quantum Bridge)
         private final EnumFacing side;        // Side of the part
-        private final boolean isOutbound;     // true = Storage Bus on main, false = Interface on main
+        private final boolean isOutbound;     // true = main-to-subnet, false = subnet-to-main
         private final ItemStack localIcon;    // Icon of the block on main network
         private final ItemStack remoteIcon;   // Icon of the block on subnet
+        private final boolean usesSubnetInventory;
 
         // Content items (items flowing through the connection). Empty list if no content key in data.
         private final List<ItemStack> content;
@@ -105,7 +107,7 @@ public class SubnetInfo implements Renameable {
             this.localIcon = nbt.hasKey("localIcon") ? new ItemStack(nbt.getCompoundTag("localIcon")) : ItemStack.EMPTY;
             this.remoteIcon = nbt.hasKey("remoteIcon") ? new ItemStack(nbt.getCompoundTag("remoteIcon")) : ItemStack.EMPTY;
 
-            // Content items (future: backend will send "content" key with subnet inventory)
+            // Content items sent specifically for this connection.
             this.hasContentKey = nbt.hasKey("content");
             this.content = new ArrayList<>();
             if (hasContentKey) {
@@ -114,6 +116,10 @@ public class SubnetInfo implements Renameable {
                     content.add(new ItemStack(contentList.getCompoundTagAt(i)));
                 }
             }
+
+            this.usesSubnetInventory = nbt.hasKey("usesSubnetInventory")
+                ? nbt.getBoolean("usesSubnetInventory")
+                : this.isOutbound && !this.hasContentKey;
 
             // Partition items (storage bus filter config, with empty slots preserved for position-aware editing)
             this.hasPartitionKey = nbt.hasKey("filter");
@@ -144,11 +150,18 @@ public class SubnetInfo implements Renameable {
         }
 
         /**
-         * True if this is an outbound connection (Storage Bus on main → Interface on subnet).
-         * False if this is an inbound connection (Interface on main ← Storage Bus on subnet).
+         * True if storage is exposed from the main-network side toward the subnet.
+         * False if storage is exposed from the subnet side toward the main network.
          */
         public boolean isOutbound() {
             return isOutbound;
+        }
+
+        /**
+         * Whether this connection should mirror the subnet inventory in the overview.
+         */
+        public boolean usesSubnetInventory() {
+            return usesSubnetInventory;
         }
 
         /**
@@ -411,7 +424,7 @@ public class SubnetInfo implements Renameable {
     }
 
     /**
-     * Get the number of outbound connections (Storage Bus on main → Interface on subnet).
+     * Get the number of outbound connections (main network exposes storage to the subnet).
      */
     public int getOutboundCount() {
         int count = 0;
@@ -423,7 +436,7 @@ public class SubnetInfo implements Renameable {
     }
 
     /**
-     * Get the number of inbound connections (Interface on main ← Storage Bus on subnet).
+     * Get the number of inbound connections (subnet exposes storage to the main network).
      */
     public int getInboundCount() {
         int count = 0;
@@ -503,10 +516,9 @@ public class SubnetInfo implements Renameable {
             SubnetInfo subnet, ConnectionPoint conn, int connIdx, int slotsPerRow, SlotLimit slotLimit) {
         List<SubnetConnectionRow> rows = new ArrayList<>();
 
-        // For outbound connections (Storage Bus on main → Interface on subnet),
-        // show the subnet's entire ME storage as "content" so the user can see
-        // what's available and use "Partition All" to set filters.
-        if (conn.isOutbound() && subnet.hasInventory()) {
+        // Some connections mirror the subnet's shared inventory instead of
+        // sending dedicated per-connection content payloads.
+        if (conn.usesSubnetInventory() && subnet.hasInventory()) {
             int contentCount = slotLimit.getEffectiveCount(subnet.getInventory().size());
             int contentRows = Math.max(1, (contentCount + slotsPerRow - 1) / slotsPerRow);
             for (int row = 0; row < contentRows; row++) {
@@ -514,7 +526,7 @@ public class SubnetInfo implements Renameable {
                     row * slotsPerRow, row == 0, false, true));
             }
 
-        // For inbound connections, use per-connection content (if backend sends it)
+        // Otherwise use per-connection content when the backend provides it.
         } else if (conn.hasContentKey()) {
             int contentCount = slotLimit.getEffectiveCount(conn.getContent().size());
             int contentRows = Math.max(1, (contentCount + slotsPerRow - 1) / slotsPerRow);

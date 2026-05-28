@@ -201,7 +201,7 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
             // Each connection gets its own header + content/partition rows
             for (int connIdx = 0; connIdx < subnet.getConnections().size(); connIdx++) {
                 SubnetInfo.ConnectionPoint conn = subnet.getConnections().get(connIdx);
-                boolean usesSubnetInventory = conn.isOutbound() && subnet.hasInventory();
+                boolean usesSubnetInventory = conn.usesSubnetInventory() && subnet.hasInventory();
                 if (hasSearch && !matchesConnectionSearch(
                         subnet, conn, usesSubnetInventory, searchMode, simpleSearch,
                         advancedMatcher, useAdvancedSearch)) {
@@ -515,7 +515,7 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
                     row.getSubnet().getId(), conn.getPos().toLong(), conn.getSide().ordinal(),
                     PacketSubnetPartitionAction.Action.CLEAR_ALL));
             } else if (row.usesSubnetInventory()) {
-                // Outbound connection: set partition from the subnet's entire ME storage
+                // Connection mirrors the subnet inventory, so build the filter from it.
                 guiContext.sendPacket(new PacketSubnetPartitionAction(
                     row.getSubnet().getId(), conn.getPos().toLong(), conn.getSide().ordinal(),
                     PacketSubnetPartitionAction.Action.SET_ALL_FROM_SUBNET_INVENTORY));
@@ -556,7 +556,7 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
 
         if (mode == SlotsLine.SlotMode.CONTENT) {
             if (row.usesSubnetInventory()) {
-                // Outbound connection: content is the subnet's ME storage
+                // This connection mirrors the subnet's shared ME storage.
                 line.setItemsSupplier(subnet::getInventory);
                 line.setCountProvider(() -> subnet::getInventoryCount);
             } else {

@@ -8,9 +8,14 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.6.4-beta] - 2026-05-26
+### Fixed
+- Unify subnet direction semantics so AE2 connections now point from the exposing side, matching CELLS subnet proxies, without changing which connections mirror subnet inventory in the overview.
+
+
 ## [1.6.3-beta] - 2026-05-12
 ### Added
-- Add support for search in Subnet Overview ,using the shared mixed/inventory/partition search mode and match subnet content and filters, with the same search syntax as the main terminal tabs.
+- Add support for search in Subnet Overview, using the shared mixed/inventory/partition search mode and match subnet content and filters, with the same search syntax as the main terminal tabs.
 
 
 ## [1.6.2-beta] - 2026-05-11

@@ -70,11 +70,11 @@ public class AE2SubnetScanner extends AbstractSubnetScanner {
         // Temporary map to group connections by target subnet grid
         Map<IGrid, SubnetTracker> subnetsByGrid = new HashMap<>();
 
-        // Scan outbound connections: Storage Bus on main -> Interface on subnet
+        // Scan connections where the main network hosts the storage bus.
         scanStorageBuses(grid, subnetsByGrid, playerId);
         scanFluidStorageBuses(grid, subnetsByGrid, playerId);
 
-        // Scan inbound connections: Interface on main <- Storage Bus on subnet
+        // Scan connections where the main network hosts the interface.
         scanInboundConnections(grid, subnetsByGrid, playerId);
 
         // Convert to NBT and populate tracker map
@@ -265,10 +265,10 @@ public class AE2SubnetScanner extends AbstractSubnetScanner {
         for (int i = 0; i < tracker.connectionParts.size(); i++) {
             Object part = tracker.connectionParts.get(i);
             TileEntity hostTile = i < tracker.hostTiles.size() ? tracker.hostTiles.get(i) : null;
-            boolean isOutbound = i < tracker.isOutbound.size() ? tracker.isOutbound.get(i) : true;
+            boolean busOnMain = i < tracker.isOutbound.size() ? tracker.isOutbound.get(i) : true;
             EnumFacing side = i < tracker.connectionSides.size() ? tracker.connectionSides.get(i) : null;
 
-            NBTTagCompound connNbt = createConnectionNBT(part, hostTile, subnetGrid, isOutbound, side);
+            NBTTagCompound connNbt = createConnectionNBT(part, hostTile, subnetGrid, busOnMain, side);
             if (connNbt != null) connectionsList.appendTag(connNbt);
         }
         nbt.setTag("connections", connectionsList);
@@ -351,13 +351,17 @@ public class AE2SubnetScanner extends AbstractSubnetScanner {
     /**
      * Create NBT for a single connection point.
      */
-    private NBTTagCompound createConnectionNBT(Object part, TileEntity hostTile, IGrid subnetGrid, boolean isOutbound, EnumFacing connectionSide) {
+    private NBTTagCompound createConnectionNBT(Object part, TileEntity hostTile, IGrid subnetGrid, boolean busOnMain, EnumFacing connectionSide) {
         if (hostTile == null) return null;
 
         NBTTagCompound nbt = new NBTTagCompound();
         nbt.setLong("pos", hostTile.getPos().toLong());
         nbt.setInteger("dim", hostTile.getWorld().provider.getDimension());
-        nbt.setBoolean("outbound", isOutbound);
+
+        // Direction follows the side that exposes storage through the link,
+        // not the side that happens to host the local AE2 part.
+        nbt.setBoolean("outbound", !busOnMain);
+        nbt.setBoolean("usesSubnetInventory", !busOnMain);
 
         if (part instanceof PartStorageBus) {
             PartStorageBus bus = (PartStorageBus) part;
@@ -410,7 +414,6 @@ public class AE2SubnetScanner extends AbstractSubnetScanner {
             addFluidStorageBusFilter(nbt, bus);
 
         } else if (part instanceof TileInterface) {
-            // Inbound connection: Interface on main <- Storage Bus on subnet
             nbt.setInteger("side", connectionSide != null ? connectionSide.ordinal() : 0);
 
             // Local icon (interface)
@@ -436,7 +439,6 @@ public class AE2SubnetScanner extends AbstractSubnetScanner {
             addInboundFilter(nbt, hostTile, connectionSide, subnetGrid);
 
         } else if (part instanceof PartInterface) {
-            // Inbound connection: PartInterface (cable-attached) on main <- Storage Bus on subnet
             PartInterface iface = (PartInterface) part;
             nbt.setInteger("side", connectionSide != null ? connectionSide.ordinal() : iface.getSide().ordinal());
 
