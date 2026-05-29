@@ -50,6 +50,7 @@ public class GuiSearchHelpButton extends GuiAtlasButton {
         tooltip.add("§7  $priority §f- " + I18n.format("gui.cellterminal.search_help.id_priority"));
         tooltip.add("§7  $partition §f- " + I18n.format("gui.cellterminal.search_help.id_partition"));
         tooltip.add("§7  $items §f- " + I18n.format("gui.cellterminal.search_help.id_items"));
+        tooltip.add("§7  $dir §f- " + I18n.format("gui.cellterminal.search_help.id_dir"));
         tooltip.add("");
         tooltip.add("§b" + I18n.format("gui.cellterminal.search_help.operators"));
         tooltip.add("§7  = != < > <= >= ~ §f- " + I18n.format("gui.cellterminal.search_help.op_compare"));
@@ -66,6 +67,7 @@ public class GuiSearchHelpButton extends GuiAtlasButton {
         tooltip.add("§f  ? $container~drive§7 => " + I18n.format("gui.cellterminal.search_help.examples_desc5"));
         tooltip.add("§f  ? $renamed~*§7 => " + I18n.format("gui.cellterminal.search_help.examples_desc6"));
         tooltip.add("§f  ? $content~iron & $part~gold§7 => " + I18n.format("gui.cellterminal.search_help.examples_desc7"));
+        tooltip.add("§f  ? $dir=outbound§7 => " + I18n.format("gui.cellterminal.search_help.examples_desc8"));
         tooltip.add("");
         tooltip.add("§7" + I18n.format("gui.cellterminal.search_help.field_double_click"));
 

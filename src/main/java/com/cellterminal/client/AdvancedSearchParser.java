@@ -17,6 +17,7 @@ import com.cellterminal.client.SubnetInfo.ConnectionPoint;
  * <p>
  * Syntax (when query starts with "?"):
  * - $name: Match against item contents (display name, registry name) - same as normal search
+ * - $dir: Subnet connection direction (inbound/outbound, ignored outside Subnet Overview)
  * - $priority: Storage/bus priority (numeric comparison)
  * - $partition: Count of partition slots filled (numeric comparison)
  * - $items: Count of item types stored (numeric comparison)
@@ -26,6 +27,7 @@ import com.cellterminal.client.SubnetInfo.ConnectionPoint;
  * Parentheses for grouping: ( )
  * <p>
  * Examples:
+ * - ?$dir=outbound
  * - ?$priority>0
  * - ?$items=0&$partition>0
  * - ?$name~iron|$name~gold
@@ -176,23 +178,57 @@ public class AdvancedSearchParser {
             }
 
             SearchMatcher right = parseAndExpression(tokens, pos, errors);
-            final SearchMatcher l = left, r = right;
+            SearchMatcher l = left;
+            SearchMatcher r = right;
             left = new SearchMatcher() {
                 @Override
+                public boolean appliesToCell(SearchFilterMode mode) {
+                    return l.appliesToCell(mode) || r.appliesToCell(mode);
+                }
+
+                @Override
                 public boolean matchesCell(CellInfo cell, StorageInfo storage, SearchFilterMode mode) {
-                    return l.matchesCell(cell, storage, mode) || r.matchesCell(cell, storage, mode);
+                    boolean leftApplicable = l.appliesToCell(mode);
+                    boolean rightApplicable = r.appliesToCell(mode);
+
+                    return combineOr(leftApplicable,
+                        leftApplicable && l.matchesCell(cell, storage, mode),
+                        rightApplicable,
+                        rightApplicable && r.matchesCell(cell, storage, mode));
+                }
+
+                @Override
+                public boolean appliesToStorageBus(SearchFilterMode mode) {
+                    return l.appliesToStorageBus(mode) || r.appliesToStorageBus(mode);
                 }
 
                 @Override
                 public boolean matchesStorageBus(StorageBusInfo bus, SearchFilterMode mode) {
-                    return l.matchesStorageBus(bus, mode) || r.matchesStorageBus(bus, mode);
+                    boolean leftApplicable = l.appliesToStorageBus(mode);
+                    boolean rightApplicable = r.appliesToStorageBus(mode);
+
+                    return combineOr(leftApplicable,
+                        leftApplicable && l.matchesStorageBus(bus, mode),
+                        rightApplicable,
+                        rightApplicable && r.matchesStorageBus(bus, mode));
+                }
+
+                @Override
+                public boolean appliesToSubnetConnection(boolean usesSubnetInventory, SearchFilterMode mode) {
+                    return l.appliesToSubnetConnection(usesSubnetInventory, mode)
+                        || r.appliesToSubnetConnection(usesSubnetInventory, mode);
                 }
 
                 @Override
                 public boolean matchesSubnetConnection(SubnetInfo subnet, ConnectionPoint connection,
                                                       boolean usesSubnetInventory, SearchFilterMode mode) {
-                    return l.matchesSubnetConnection(subnet, connection, usesSubnetInventory, mode)
-                        || r.matchesSubnetConnection(subnet, connection, usesSubnetInventory, mode);
+                    boolean leftApplicable = l.appliesToSubnetConnection(usesSubnetInventory, mode);
+                    boolean rightApplicable = r.appliesToSubnetConnection(usesSubnetInventory, mode);
+
+                    return combineOr(leftApplicable,
+                        leftApplicable && l.matchesSubnetConnection(subnet, connection, usesSubnetInventory, mode),
+                        rightApplicable,
+                        rightApplicable && r.matchesSubnetConnection(subnet, connection, usesSubnetInventory, mode));
                 }
             };
         }
@@ -213,28 +249,80 @@ public class AdvancedSearchParser {
             }
 
             SearchMatcher right = parsePrimary(tokens, pos, errors);
-            final SearchMatcher l = left, r = right;
+            SearchMatcher l = left;
+            SearchMatcher r = right;
             left = new SearchMatcher() {
                 @Override
+                public boolean appliesToCell(SearchFilterMode mode) {
+                    return l.appliesToCell(mode) || r.appliesToCell(mode);
+                }
+
+                @Override
                 public boolean matchesCell(CellInfo cell, StorageInfo storage, SearchFilterMode mode) {
-                    return l.matchesCell(cell, storage, mode) && r.matchesCell(cell, storage, mode);
+                    boolean leftApplicable = l.appliesToCell(mode);
+                    boolean rightApplicable = r.appliesToCell(mode);
+
+                    return combineAnd(leftApplicable,
+                        leftApplicable && l.matchesCell(cell, storage, mode),
+                        rightApplicable,
+                        rightApplicable && r.matchesCell(cell, storage, mode));
+                }
+
+                @Override
+                public boolean appliesToStorageBus(SearchFilterMode mode) {
+                    return l.appliesToStorageBus(mode) || r.appliesToStorageBus(mode);
                 }
 
                 @Override
                 public boolean matchesStorageBus(StorageBusInfo bus, SearchFilterMode mode) {
-                    return l.matchesStorageBus(bus, mode) && r.matchesStorageBus(bus, mode);
+                    boolean leftApplicable = l.appliesToStorageBus(mode);
+                    boolean rightApplicable = r.appliesToStorageBus(mode);
+
+                    return combineAnd(leftApplicable,
+                        leftApplicable && l.matchesStorageBus(bus, mode),
+                        rightApplicable,
+                        rightApplicable && r.matchesStorageBus(bus, mode));
+                }
+
+                @Override
+                public boolean appliesToSubnetConnection(boolean usesSubnetInventory, SearchFilterMode mode) {
+                    return l.appliesToSubnetConnection(usesSubnetInventory, mode)
+                        || r.appliesToSubnetConnection(usesSubnetInventory, mode);
                 }
 
                 @Override
                 public boolean matchesSubnetConnection(SubnetInfo subnet, ConnectionPoint connection,
                                                       boolean usesSubnetInventory, SearchFilterMode mode) {
-                    return l.matchesSubnetConnection(subnet, connection, usesSubnetInventory, mode)
-                        && r.matchesSubnetConnection(subnet, connection, usesSubnetInventory, mode);
+                    boolean leftApplicable = l.appliesToSubnetConnection(usesSubnetInventory, mode);
+                    boolean rightApplicable = r.appliesToSubnetConnection(usesSubnetInventory, mode);
+
+                    return combineAnd(leftApplicable,
+                        leftApplicable && l.matchesSubnetConnection(subnet, connection, usesSubnetInventory, mode),
+                        rightApplicable,
+                        rightApplicable && r.matchesSubnetConnection(subnet, connection, usesSubnetInventory, mode));
                 }
             };
         }
 
         return left;
+    }
+
+    private static boolean combineOr(boolean leftApplicable, boolean leftMatches,
+                                     boolean rightApplicable, boolean rightMatches) {
+        if (leftApplicable && rightApplicable) return leftMatches || rightMatches;
+        if (leftApplicable) return leftMatches;
+        if (rightApplicable) return rightMatches;
+
+        return true;
+    }
+
+    private static boolean combineAnd(boolean leftApplicable, boolean leftMatches,
+                                      boolean rightApplicable, boolean rightMatches) {
+        if (leftApplicable && rightApplicable) return leftMatches && rightMatches;
+        if (leftApplicable) return leftMatches;
+        if (rightApplicable) return rightMatches;
+
+        return true;
     }
 
     private static SearchMatcher parsePrimary(List<String> tokens, int[] pos, List<String> errors) {
@@ -332,7 +420,8 @@ public class AdvancedSearchParser {
 
     private static boolean isValidIdentifier(String id) {
         return "$name".equals(id) || "$priority".equals(id) || "$partition".equals(id) || "$items".equals(id)
-            || "$content".equals(id) || "$part".equals(id) || "$container".equals(id) || "$renamed".equals(id);
+            || "$content".equals(id) || "$part".equals(id) || "$container".equals(id)
+            || "$renamed".equals(id) || "$dir".equals(id);
     }
 
     private static boolean isNumericIdentifier(String id) {
@@ -380,6 +469,8 @@ public class AdvancedSearchParser {
                 return createContentMatcher(operator, value);
             case "$part":
                 return createPartitionMatcher(operator, value);
+            case "$dir":
+                return createDirectionMatcher(operator, value);
             case "$priority":
                 return createPriorityMatcher(operator, value);
             case "$partition":
@@ -404,6 +495,11 @@ public class AdvancedSearchParser {
         final String searchValue = value.toLowerCase(Locale.ROOT);
 
         return new SearchMatcher() {
+            @Override
+            public boolean appliesToSubnetConnection(boolean usesSubnetInventory, SearchFilterMode mode) {
+                return true;
+            }
+
             @Override
             public boolean matchesCell(CellInfo cell, StorageInfo storage, SearchFilterMode mode) {
                 // Match against inventory, partition, or both based on mode
@@ -465,6 +561,11 @@ public class AdvancedSearchParser {
      */
     private static SearchMatcher createContentContainsMatcher(String searchText) {
         return new SearchMatcher() {
+            @Override
+            public boolean appliesToSubnetConnection(boolean usesSubnetInventory, SearchFilterMode mode) {
+                return true;
+            }
+
             @Override
             public boolean matchesCell(CellInfo cell, StorageInfo storage, SearchFilterMode mode) {
                 boolean matchesInventory = matchesItemList(cell.getContents(), searchText, "~");
@@ -545,6 +646,11 @@ public class AdvancedSearchParser {
 
         return new SearchMatcher() {
             @Override
+            public boolean appliesToSubnetConnection(boolean usesSubnetInventory, SearchFilterMode mode) {
+                return true;
+            }
+
+            @Override
             public boolean matchesCell(CellInfo cell, StorageInfo storage, SearchFilterMode mode) {
                 return matchesItemList(cell.getContents(), searchValue, operator);
             }
@@ -573,6 +679,11 @@ public class AdvancedSearchParser {
 
         return new SearchMatcher() {
             @Override
+            public boolean appliesToSubnetConnection(boolean usesSubnetInventory, SearchFilterMode mode) {
+                return true;
+            }
+
+            @Override
             public boolean matchesCell(CellInfo cell, StorageInfo storage, SearchFilterMode mode) {
                 return matchesItemList(cell.getPartition(), searchValue, operator);
             }
@@ -600,6 +711,11 @@ public class AdvancedSearchParser {
         final String searchValue = value.toLowerCase(Locale.ROOT);
 
         return new SearchMatcher() {
+            @Override
+            public boolean appliesToSubnetConnection(boolean usesSubnetInventory, SearchFilterMode mode) {
+                return true;
+            }
+
             @Override
             public boolean matchesCell(CellInfo cell, StorageInfo storage, SearchFilterMode mode) {
                 // Check cell item name (only if cell has custom name when onlyRenamed is true)
@@ -642,6 +758,51 @@ public class AdvancedSearchParser {
         };
     }
 
+    /**
+     * Create a matcher for subnet connection direction.
+     * Direction only applies to subnet connections, so other tabs ignore this filter.
+     */
+    private static SearchMatcher createDirectionMatcher(String operator, String value) {
+        String searchValue = value.toLowerCase(Locale.ROOT);
+
+        return new SearchMatcher() {
+            @Override
+            public boolean appliesToCell(SearchFilterMode mode) {
+                return false;
+            }
+
+            @Override
+            public boolean appliesToStorageBus(SearchFilterMode mode) {
+                return false;
+            }
+
+            @Override
+            public boolean appliesToSubnetConnection(boolean usesSubnetInventory, SearchFilterMode mode) {
+                return true;
+            }
+
+            @Override
+            public boolean matchesCell(CellInfo cell, StorageInfo storage, SearchFilterMode mode) {
+                return true;
+            }
+
+            @Override
+            public boolean matchesStorageBus(StorageBusInfo bus, SearchFilterMode mode) {
+                return true;
+            }
+
+            @Override
+            public boolean matchesSubnetConnection(SubnetInfo subnet, ConnectionPoint connection,
+                                                  boolean usesSubnetInventory, SearchFilterMode mode) {
+                if (connection == null) return false;
+
+                String direction = connection.isOutbound() ? "outbound" : "inbound";
+
+                return compareString(direction, operator, searchValue);
+            }
+        };
+    }
+
     private static SearchMatcher createPriorityMatcher(String operator, String value) {
         final String targetValue = value;  // Keep raw for multi-value support
 
@@ -664,6 +825,11 @@ public class AdvancedSearchParser {
         final String targetValue = value;  // Keep raw for multi-value support
 
         return new SearchMatcher() {
+            @Override
+            public boolean appliesToSubnetConnection(boolean usesSubnetInventory, SearchFilterMode mode) {
+                return true;
+            }
+
             @Override
             public boolean matchesCell(CellInfo cell, StorageInfo storage, SearchFilterMode mode) {
                 int partitionCount = countNonEmpty(cell.getPartition());
@@ -690,6 +856,11 @@ public class AdvancedSearchParser {
         final String targetValue = value;  // Keep raw for multi-value support
 
         return new SearchMatcher() {
+            @Override
+            public boolean appliesToSubnetConnection(boolean usesSubnetInventory, SearchFilterMode mode) {
+                return true;
+            }
+
             @Override
             public boolean matchesCell(CellInfo cell, StorageInfo storage, SearchFilterMode mode) {
                 int itemCount = cell.getContents().size();
@@ -951,12 +1122,43 @@ public class AdvancedSearchParser {
      * Interface for matching cells, storage buses, and subnet connections.
      */
     public interface SearchMatcher {
+        default boolean appliesToCell(SearchFilterMode mode) {
+            return true;
+        }
+
+        default boolean appliesToStorageBus(SearchFilterMode mode) {
+            return true;
+        }
+
+        default boolean appliesToSubnetConnection(boolean usesSubnetInventory, SearchFilterMode mode) {
+            return false;
+        }
+
         boolean matchesCell(CellInfo cell, StorageInfo storage, SearchFilterMode mode);
         boolean matchesStorageBus(StorageBusInfo bus, SearchFilterMode mode);
+
+        default boolean matchesCellFilter(CellInfo cell, StorageInfo storage, SearchFilterMode mode) {
+            if (!appliesToCell(mode)) return true;
+
+            return matchesCell(cell, storage, mode);
+        }
+
+        default boolean matchesStorageBusFilter(StorageBusInfo bus, SearchFilterMode mode) {
+            if (!appliesToStorageBus(mode)) return true;
+
+            return matchesStorageBus(bus, mode);
+        }
 
         default boolean matchesSubnetConnection(SubnetInfo subnet, ConnectionPoint connection,
                                                boolean usesSubnetInventory, SearchFilterMode mode) {
             return false;
+        }
+
+        default boolean matchesSubnetConnectionFilter(SubnetInfo subnet, ConnectionPoint connection,
+                                                      boolean usesSubnetInventory, SearchFilterMode mode) {
+            if (!appliesToSubnetConnection(usesSubnetInventory, mode)) return true;
+
+            return matchesSubnetConnection(subnet, connection, usesSubnetInventory, mode);
         }
     }
 }

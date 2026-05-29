@@ -227,7 +227,7 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
                                         boolean useAdvancedSearch) {
         if (!useAdvancedSearch || advancedMatcher == null) return false;
 
-        return advancedMatcher.matchesSubnetConnection(subnet, null, false, searchMode);
+        return advancedMatcher.matchesSubnetConnectionFilter(subnet, null, false, searchMode);
     }
 
     private boolean matchesConnectionSearch(SubnetInfo subnet, SubnetInfo.ConnectionPoint connection,
@@ -236,7 +236,8 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
                                             AdvancedSearchParser.SearchMatcher advancedMatcher,
                                             boolean useAdvancedSearch) {
         if (useAdvancedSearch && advancedMatcher != null) {
-            return advancedMatcher.matchesSubnetConnection(subnet, connection, usesSubnetInventory, searchMode);
+            return advancedMatcher.matchesSubnetConnectionFilter(
+                subnet, connection, usesSubnetInventory, searchMode);
         }
 
         if (simpleSearch.isEmpty()) return true;

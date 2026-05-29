@@ -419,9 +419,9 @@ public class TerminalDataManager {
                         if (!cellMatchesCellFilters(cell)) continue;
 
                         if (useAdvancedSearch && advancedMatcher != null) {
-                            showInTerminal = advancedMatcher.matchesCell(cell, storage, searchMode);
-                            showInInventory = advancedMatcher.matchesCell(cell, storage, SearchFilterMode.INVENTORY);
-                            showInPartition = advancedMatcher.matchesCell(cell, storage, SearchFilterMode.PARTITION);
+                            showInTerminal = advancedMatcher.matchesCellFilter(cell, storage, searchMode);
+                            showInInventory = advancedMatcher.matchesCellFilter(cell, storage, SearchFilterMode.INVENTORY);
+                            showInPartition = advancedMatcher.matchesCellFilter(cell, storage, SearchFilterMode.PARTITION);
                         } else {
                             boolean matchesInventory = cellMatchesSearchFilter(cell, true);
                             boolean matchesPartition = cellMatchesSearchFilter(cell, false);
@@ -487,32 +487,43 @@ public class TerminalDataManager {
                         }
                     }
                 } else {
-                    // Empty slots - only show if no filter active (and only during filter evaluation)
-                    if (evaluateFilters && searchFilter.isEmpty() && !useAdvancedSearch) {
-                        if (!addedToInventoryLines) {
-                            this.inventoryLines.add(inventoryLinesStartIndex, storage);
-                            addedToInventoryLines = true;
+                    // Empty slots stay visible when the active search does not target cell tabs.
+                    if (evaluateFilters) {
+                        boolean showInInventory = searchFilter.isEmpty() && !useAdvancedSearch;
+                        boolean showInPartition = searchFilter.isEmpty() && !useAdvancedSearch;
+
+                        if (useAdvancedSearch && advancedMatcher != null) {
+                            showInInventory = !advancedMatcher.appliesToCell(SearchFilterMode.INVENTORY);
+                            showInPartition = !advancedMatcher.appliesToCell(SearchFilterMode.PARTITION);
                         }
 
-                        if (!addedToPartitionLines) {
-                            this.partitionLines.add(partitionLinesStartIndex, storage);
-                            addedToPartitionLines = true;
+                        if (showInInventory) {
+                            if (!addedToInventoryLines) {
+                                this.inventoryLines.add(inventoryLinesStartIndex, storage);
+                                addedToInventoryLines = true;
+                            }
+
+                            if (TabStateManager.getInstance().isExpanded(TabStateManager.TabType.INVENTORY, storage.getId())) {
+                                EmptySlotInfo emptySlot = new EmptySlotInfo(storage.getId(), slot);
+                                this.inventoryLines.add(emptySlot);
+                            }
+
+                            visibleCellSnapshotInventory.add(cellKey);
                         }
 
-                        // Only add empty slot rows if the storage is expanded for that tab
-                        if (TabStateManager.getInstance().isExpanded(TabStateManager.TabType.INVENTORY, storage.getId())) {
-                            EmptySlotInfo emptySlot = new EmptySlotInfo(storage.getId(), slot);
-                            this.inventoryLines.add(emptySlot);
-                        }
+                        if (showInPartition) {
+                            if (!addedToPartitionLines) {
+                                this.partitionLines.add(partitionLinesStartIndex, storage);
+                                addedToPartitionLines = true;
+                            }
 
-                        if (TabStateManager.getInstance().isExpanded(TabStateManager.TabType.PARTITION, storage.getId())) {
-                            EmptySlotInfo emptySlot2 = new EmptySlotInfo(storage.getId(), slot);
-                            this.partitionLines.add(emptySlot2);
-                        }
+                            if (TabStateManager.getInstance().isExpanded(TabStateManager.TabType.PARTITION, storage.getId())) {
+                                EmptySlotInfo emptySlot = new EmptySlotInfo(storage.getId(), slot);
+                                this.partitionLines.add(emptySlot);
+                            }
 
-                        // Track empty slots in snapshot for consistency
-                        visibleCellSnapshotInventory.add(cellKey);
-                        visibleCellSnapshotPartition.add(cellKey);
+                            visibleCellSnapshotPartition.add(cellKey);
+                        }
                     } else if (!evaluateFilters) {
                         // Show empty slots if they were in the snapshot
                         if (visibleCellSnapshotInventory.contains(cellKey)) {
@@ -566,8 +577,8 @@ public class TerminalDataManager {
 
                 // Check advanced search first if active
                 if (useAdvancedSearch && advancedMatcher != null) {
-                    showInInventory = advancedMatcher.matchesStorageBus(bus, SearchFilterMode.INVENTORY);
-                    showInPartition = advancedMatcher.matchesStorageBus(bus, SearchFilterMode.PARTITION);
+                    showInInventory = advancedMatcher.matchesStorageBusFilter(bus, SearchFilterMode.INVENTORY);
+                    showInPartition = advancedMatcher.matchesStorageBusFilter(bus, SearchFilterMode.PARTITION);
                 } else {
                     showInInventory = storageBusMatchesSearchFilter(bus, true);
                     showInPartition = storageBusMatchesSearchFilter(bus, false);

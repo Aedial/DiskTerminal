@@ -64,7 +64,7 @@ cellterminal.search.error.unexpected_end=Unexpected end of expression
 cellterminal.search.error.missing_paren=Missing closing parenthesis ')'
 cellterminal.search.error.unexpected_paren=Unexpected closing parenthesis ')'
 cellterminal.search.error.unexpected_operator=Unexpected operator '%s'
-cellterminal.search.error.unknown_identifier=Unknown identifier: '%s'. Valid: $name, $content, $part, $container, $renamed, $priority, $partition, $items
+cellterminal.search.error.unknown_identifier=Unknown identifier: '%s'. Valid: $name, $content, $part, $container, $renamed, $priority, $partition, $items, $dir
 cellterminal.search.error.expected_number=Expected number for '%s', got: '%s'
 
 # Upgrade tooltips
@@ -281,6 +281,7 @@ gui.cellterminal.search_help.id_renamed=Same as $container, but only renamed one
 gui.cellterminal.search_help.id_priority=Storage priority
 gui.cellterminal.search_help.id_partition=Used partition slots count
 gui.cellterminal.search_help.id_items=Stored item types count
+gui.cellterminal.search_help.id_dir=Subnet direction (inbound/outbound only, ignored outside Subnet Overview)
 gui.cellterminal.search_help.operators=Operators:
 gui.cellterminal.search_help.op_compare=Comparison
 gui.cellterminal.search_help.op_logic=AND / OR
@@ -295,6 +296,7 @@ gui.cellterminal.search_help.examples_desc4=Show all cells/buses with content/pa
 gui.cellterminal.search_help.examples_desc5=Show all containers with name containing "drive" (such as "ME Drive")
 gui.cellterminal.search_help.examples_desc6=Show all renamed containers
 gui.cellterminal.search_help.examples_desc7=Show all cells/buses with content containing *iron* and partition containing *gold*
+gui.cellterminal.search_help.examples_desc8=Show only outbound subnet connections
 gui.cellterminal.search_help.field_double_click=§bDouble-click the search box to expand it.
 
 # Cell partition button tooltips

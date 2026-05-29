@@ -320,7 +320,7 @@ public final class NetworkToolFilterUtils {
 
         // If using advanced search with a valid matcher, use it
         if (useAdvancedSearch && advancedMatcher != null) {
-            return advancedMatcher.matchesCell(cell, storage, searchMode);
+            return advancedMatcher.matchesCellFilter(cell, storage, searchMode);
         }
 
         // Otherwise, use simple text search
@@ -359,7 +359,7 @@ public final class NetworkToolFilterUtils {
 
         // If using advanced search with a valid matcher, use it
         if (useAdvancedSearch && advancedMatcher != null) {
-            return advancedMatcher.matchesStorageBus(bus, searchMode);
+            return advancedMatcher.matchesStorageBusFilter(bus, searchMode);
         }
 
         // Otherwise, use simple text search

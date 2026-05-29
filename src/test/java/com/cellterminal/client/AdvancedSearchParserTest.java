@@ -5,6 +5,8 @@ import java.util.List;
 import org.junit.Test;
 import org.junit.Assert;
 
+import net.minecraft.nbt.NBTTagCompound;
+
 
 /**
  * Unit tests for AdvancedSearchParser tokenization and parsing logic.
@@ -13,6 +15,16 @@ import org.junit.Assert;
  * Actual matching behavior requires Minecraft runtime and is tested manually.
  */
 public class AdvancedSearchParserTest {
+
+    private static SubnetInfo.ConnectionPoint createConnection(boolean outbound) {
+        NBTTagCompound nbt = new NBTTagCompound();
+        nbt.setLong("pos", 0L);
+        nbt.setInteger("dim", 0);
+        nbt.setInteger("side", 0);
+        nbt.setBoolean("outbound", outbound);
+
+        return new SubnetInfo.ConnectionPoint(nbt);
+    }
 
     // ==================== Query Detection Tests ====================
 
@@ -92,6 +104,13 @@ public class AdvancedSearchParserTest {
     public void testParse_validItems_success() {
         AdvancedSearchParser.ParseResult result = AdvancedSearchParser.parse("?$items>=10");
         Assert.assertTrue("Expected success for '$items>=10'", result.isSuccess());
+        Assert.assertNotNull(result.getMatcher());
+    }
+
+    @Test
+    public void testParse_validDirection_success() {
+        AdvancedSearchParser.ParseResult result = AdvancedSearchParser.parse("?$dir=outbound");
+        Assert.assertTrue("Expected success for '$dir=outbound'", result.isSuccess());
         Assert.assertNotNull(result.getMatcher());
     }
 
@@ -323,6 +342,46 @@ public class AdvancedSearchParserTest {
     public void testParse_mixedCaseIdentifier_success() {
         AdvancedSearchParser.ParseResult result = AdvancedSearchParser.parse("?$Priority>0");
         Assert.assertTrue("Expected success for mixed case identifier", result.isSuccess());
+    }
+
+    @Test
+    public void testDirectionMatcher_matchesSubnetConnectionsOnly() {
+        AdvancedSearchParser.ParseResult result = AdvancedSearchParser.parse("?$dir=outbound");
+        Assert.assertTrue("Expected success for '$dir=outbound'", result.isSuccess());
+
+        AdvancedSearchParser.SearchMatcher matcher = result.getMatcher();
+        Assert.assertNotNull(matcher);
+        Assert.assertFalse("Cell tabs should treat $dir as inapplicable", matcher.appliesToCell(SearchFilterMode.MIXED));
+        Assert.assertFalse("Storage bus tabs should treat $dir as inapplicable",
+            matcher.appliesToStorageBus(SearchFilterMode.MIXED));
+        Assert.assertTrue("Subnet view should apply $dir",
+            matcher.appliesToSubnetConnection(false, SearchFilterMode.MIXED));
+        Assert.assertTrue("Cell tabs should ignore $dir", matcher.matchesCellFilter(null, null, SearchFilterMode.MIXED));
+        Assert.assertTrue("Storage bus tabs should ignore $dir",
+            matcher.matchesStorageBusFilter(null, SearchFilterMode.MIXED));
+        Assert.assertTrue("Outbound connections should match $dir=outbound",
+            matcher.matchesSubnetConnectionFilter(null, createConnection(true), false, SearchFilterMode.MIXED));
+        Assert.assertFalse("Inbound connections should not match $dir=outbound",
+            matcher.matchesSubnetConnectionFilter(null, createConnection(false), false, SearchFilterMode.MIXED));
+        Assert.assertFalse("Subnet headers without a connection direction should not match $dir",
+            matcher.matchesSubnetConnectionFilter(null, null, false, SearchFilterMode.MIXED));
+    }
+
+    @Test
+    public void testDirectionClauseIgnoredInOrExpressionOutsideSubnetView() {
+        AdvancedSearchParser.ParseResult result = AdvancedSearchParser.parse("?$dir=outbound|$priority>0");
+        Assert.assertTrue("Expected success for '$dir=outbound|$priority>0'", result.isSuccess());
+
+        AdvancedSearchParser.SearchMatcher matcher = result.getMatcher();
+        Assert.assertNotNull(matcher);
+        Assert.assertTrue("Cell tabs should still evaluate the applicable $priority branch",
+            matcher.appliesToCell(SearchFilterMode.MIXED));
+        Assert.assertFalse("The ignored $dir branch must not force OR expressions to match on cell tabs",
+            matcher.matchesCellFilter(null, null, SearchFilterMode.MIXED));
+        Assert.assertTrue("Outbound subnet connections should still match through $dir",
+            matcher.matchesSubnetConnectionFilter(null, createConnection(true), false, SearchFilterMode.MIXED));
+        Assert.assertFalse("Inbound subnet connections should not match when no applicable branch succeeds",
+            matcher.matchesSubnetConnectionFilter(null, createConnection(false), false, SearchFilterMode.MIXED));
     }
 
     // ==================== Complex Query Tests ====================
