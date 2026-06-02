@@ -70,8 +70,13 @@ cellterminal.search.error.expected_number=Expected number for '%s', got: '%s'
 # Upgrade tooltips
 gui.cellterminal.upgrade.click_extract=Click to pick up
 gui.cellterminal.upgrade.shift_click_inventory=Shift+Click to send to inventory
-gui.cellterminal.upgrade.tooltip_hint_click=Drop it on an entry to apply the upgrade
-gui.cellterminal.upgrade.tooltip_hint_shift_click=Shift-Click to apply the upgrade to the first available entry
+gui.cellterminal.upgrade.tooltip_hint_click=Click the upgrade on an entry to apply the upgrade
+gui.cellterminal.upgrade.tooltip_hint_shift_click=Shift-Click the upgrade to send it to the first available entry
+gui.cellterminal.upgrade.tooltip_hint_available_entries=Available entries to apply upgrades:
+gui.cellterminal.upgrade.tooltip_hint_entry_drive= - ME Drive/ME Chest header (or similar)
+gui.cellterminal.upgrade.tooltip_hint_entry_cells= - Storage Cell slots (filled with a cell)
+gui.cellterminal.upgrade.tooltip_hint_entry_cell_lines= - Storage Cell lines
+gui.cellterminal.upgrade.tooltip_hint_entry_storage_bus= - Storage Buses header/lines (or similar)
 
 # Persistent settings
 config.cellterminal.gui=GUI Settings

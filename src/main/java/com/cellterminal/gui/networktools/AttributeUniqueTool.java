@@ -16,7 +16,6 @@ import com.cells.api.IItemCompactingCell;
 
 import com.cellterminal.client.CellInfo;
 import com.cellterminal.client.StorageType;
-import com.cellterminal.gui.networktools.INetworkTool.FilteredCell;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketNetworkToolAction;
 

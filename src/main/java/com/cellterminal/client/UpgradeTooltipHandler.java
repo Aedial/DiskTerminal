@@ -1,5 +1,6 @@
 package com.cellterminal.client;
 
+import java.util.Arrays;
 import java.util.List;
 
 import net.minecraft.client.Minecraft;
@@ -12,7 +13,9 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import appeng.api.implementations.items.IUpgradeModule;
 
+import com.cellterminal.config.CellTerminalClientConfig;
 import com.cellterminal.gui.GuiCellTerminalBase;
+import com.cellterminal.gui.GuiConstants;
 
 
 /**
@@ -41,5 +44,36 @@ public class UpgradeTooltipHandler {
         tooltip.add("");
         tooltip.add("§b" + I18n.format("gui.cellterminal.upgrade.tooltip_hint_click"));
         tooltip.add("§b" + I18n.format("gui.cellterminal.upgrade.tooltip_hint_shift_click"));
+
+        List<String> availableEntries;
+
+        int tab = CellTerminalClientConfig.getInstance().getSelectedTab();
+        if (tab == GuiConstants.TAB_TERMINAL) {
+            availableEntries = Arrays.asList(
+                "§a" + I18n.format("gui.cellterminal.upgrade.tooltip_hint_entry_drive"),
+                "§a" + I18n.format("gui.cellterminal.upgrade.tooltip_hint_entry_cell_lines")
+            );
+        } else if (tab == GuiConstants.TAB_INVENTORY || tab == GuiConstants.TAB_PARTITION) {
+            availableEntries = Arrays.asList(
+                "§a" + I18n.format("gui.cellterminal.upgrade.tooltip_hint_entry_drive"),
+                "§a" + I18n.format("gui.cellterminal.upgrade.tooltip_hint_entry_cells")
+            );
+        } else if (tab == GuiConstants.TAB_TEMP_AREA) {
+            availableEntries = Arrays.asList(
+                "§a" + I18n.format("gui.cellterminal.upgrade.tooltip_hint_entry_cells")
+            );
+        } else if (tab == GuiConstants.TAB_STORAGE_BUS_INVENTORY || tab == GuiConstants.TAB_STORAGE_BUS_PARTITION) {
+            availableEntries = Arrays.asList(
+                "§a" + I18n.format("gui.cellterminal.upgrade.tooltip_hint_entry_storage_bus")
+            );
+        } else {
+            availableEntries = Arrays.asList();
+        }
+
+        if (!availableEntries.isEmpty()) {
+            tooltip.add("");
+            tooltip.add("§a" + I18n.format("gui.cellterminal.upgrade.tooltip_hint_available_entries"));
+            tooltip.addAll(availableEntries);
+        }
     }
 }
