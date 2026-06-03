@@ -8,6 +8,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.6.5-beta] - 2026-06-01
+### Added
+- Add support for latest HEI's bookmarks in quick partitioning.
+
+
 ## [1.6.4-beta] - 2026-05-26
 ### Added
 - Add `$dir` advanced search support in Subnet Overview to filter inbound or outbound subnet connections.

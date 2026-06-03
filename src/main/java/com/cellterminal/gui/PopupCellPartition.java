@@ -25,6 +25,7 @@ import appeng.api.storage.data.IAEFluidStack;
 import mezz.jei.api.gui.IGhostIngredientHandler;
 
 import com.cellterminal.client.CellInfo;
+import com.cellterminal.gui.handler.JeiIngredientHelper;
 import com.cellterminal.gui.overlay.MessageHelper;
 import com.cellterminal.gui.widget.AbstractWidget;
 import com.cellterminal.integration.MekanismEnergisticsIntegration;
@@ -213,6 +214,9 @@ public class PopupCellPartition extends Gui {
      * @return The converted ItemStack, or ItemStack.EMPTY if conversion failed or was rejected
      */
     private ItemStack convertJeiIngredientToItemStack(Object ingredient) {
+        ingredient = JeiIngredientHelper.unwrapBookmarkItem(ingredient);
+        if (ingredient == null) return ItemStack.EMPTY;
+
         // Direct ItemStack - most common case
         if (ingredient instanceof ItemStack) {
             ItemStack itemStack = (ItemStack) ingredient;

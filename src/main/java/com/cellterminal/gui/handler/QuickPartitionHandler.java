@@ -217,13 +217,13 @@ public class QuickPartitionHandler {
 
         // Check ingredient list
         IIngredientListOverlay ingredientList = jeiRuntime.getIngredientListOverlay();
-        Object ingredient = ingredientList.getIngredientUnderMouse();
+        Object ingredient = JeiIngredientHelper.unwrapBookmarkItem(ingredientList.getIngredientUnderMouse());
 
         if (ingredient != null) return convertJeiIngredientWithType(ingredient);
 
         // Check bookmarks
         IBookmarkOverlay bookmarks = jeiRuntime.getBookmarkOverlay();
-        ingredient = bookmarks.getIngredientUnderMouse();
+        ingredient = JeiIngredientHelper.unwrapBookmarkItem(bookmarks.getIngredientUnderMouse());
 
         if (ingredient != null) return convertJeiIngredientWithType(ingredient);
 

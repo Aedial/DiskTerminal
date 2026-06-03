@@ -28,6 +28,9 @@ public class JeiGhostHandler {
      * Convert any JEI ingredient to an ItemStack for use with AE2 cells.
      */
     public static ItemStack convertJeiIngredientToItemStack(Object ingredient, StorageType cellType) {
+        ingredient = JeiIngredientHelper.unwrapBookmarkItem(ingredient);
+        if (ingredient == null) return ItemStack.EMPTY;
+
         if (ingredient instanceof ItemStack) {
             ItemStack itemStack = (ItemStack) ingredient;
 
@@ -144,6 +147,9 @@ public class JeiGhostHandler {
      * Uses storage bus-specific error messages.
      */
     public static ItemStack convertJeiIngredientForStorageBus(Object ingredient, StorageType busType) {
+        ingredient = JeiIngredientHelper.unwrapBookmarkItem(ingredient);
+        if (ingredient == null) return ItemStack.EMPTY;
+
         if (ingredient instanceof ItemStack) {
             ItemStack itemStack = (ItemStack) ingredient;
 
