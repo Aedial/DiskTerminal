@@ -70,8 +70,13 @@ cellterminal.search.error.expected_number='%s'应为数字，而实际为：'%s'
 # Upgrade tooltips
 gui.cellterminal.upgrade.click_extract=点击以拿取
 gui.cellterminal.upgrade.shift_click_inventory=Shift+点击以发送到物品栏
-gui.cellterminal.upgrade.tooltip_hint_click=将其拖放到条目上以应用升级
-gui.cellterminal.upgrade.tooltip_hint_shift_click=Shift+点击以将升级应用至首个可用条目
+gui.cellterminal.upgrade.tooltip_hint_click=将升级拖放到条目上并点击以应用
+gui.cellterminal.upgrade.tooltip_hint_shift_click=Shift+点击升级，以将其发送至首个可用条目
+gui.cellterminal.upgrade.tooltip_hint_available_entries=可应用升级的条目：
+gui.cellterminal.upgrade.tooltip_hint_entry_drive= - ME驱动器/ME箱子（或类似设备）的顶部区域
+gui.cellterminal.upgrade.tooltip_hint_entry_cells= - 存储元件槽位（已放入元件）
+gui.cellterminal.upgrade.tooltip_hint_entry_cell_lines= - 存储元件行
+gui.cellterminal.upgrade.tooltip_hint_entry_storage_bus= - 存储总线（或类似设备）的顶部区域/行
 
 # Persistent settings
 config.cellterminal.gui=GUI设置
