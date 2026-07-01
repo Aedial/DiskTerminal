@@ -1,5 +1,8 @@
 package com.cellterminal.container.handler;
 
+import java.util.Arrays;
+import java.util.List;
+
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
@@ -16,6 +19,7 @@ import appeng.api.config.Upgrades;
 import appeng.api.implementations.items.IUpgradeModule;
 import appeng.api.implementations.tiles.IChestOrDrive;
 import appeng.api.storage.ICellHandler;
+import appeng.api.storage.ICellInventory;
 import appeng.api.storage.ICellInventoryHandler;
 import appeng.api.storage.ICellWorkbenchItem;
 import appeng.api.storage.IStorageChannel;
@@ -38,6 +42,11 @@ import com.cellterminal.network.PacketTempCellPartitionAction;
  * Handles cell-related actions: partition modifications, ejection, pickup, insertion, upgrades.
  */
 public class CellActionHandler {
+
+    // List of cell classes that are allowed to use workbench config as a true partition filter
+    private static final List<String> NULL_PARTITION_ALLOW_LIST = Arrays.asList(
+        "co.neeve.nae2.common.items.cells.vc.Void"
+    );
 
     /**
      * Handle partition modification for a cell.
@@ -238,15 +247,18 @@ public class CellActionHandler {
         ICellInventoryHandler<IAEItemStack> itemHandler = cellHandler.getCellInventory(cellStack, null, itemChannel);
 
         if (itemHandler != null) {
-            if (itemHandler.getCellInv() != null) {
-                result.configInv = itemHandler.getCellInv().getConfigInventory();
+            ICellInventory<IAEItemStack> cellInv = itemHandler.getCellInv();
+
+            if (cellInv != null) {
+                if (!shouldExposeCellInventoryPartition(cellStack, cellInv)) return result;
+
+                result.configInv = cellInv.getConfigInventory();
                 result.itemHandler = itemHandler;
 
                 return result;
             }
 
-            // Fallback for cells with null getCellInv() (e.g., VoidCells)
-            if (cellStack.getItem() instanceof ICellWorkbenchItem) {
+            if (supportsWorkbenchConfigFallback(cellStack)) {
                 result.configInv = ((ICellWorkbenchItem) cellStack.getItem()).getConfigInventory(cellStack);
                 result.itemHandler = itemHandler;
 
@@ -258,16 +270,19 @@ public class CellActionHandler {
         ICellInventoryHandler<IAEFluidStack> fluidHandler = cellHandler.getCellInventory(cellStack, null, fluidChannel);
 
         if (fluidHandler != null) {
-            if (fluidHandler.getCellInv() != null) {
-                result.configInv = fluidHandler.getCellInv().getConfigInventory();
+            ICellInventory<IAEFluidStack> cellInv = fluidHandler.getCellInv();
+
+            if (cellInv != null) {
+                if (!shouldExposeCellInventoryPartition(cellStack, cellInv)) return result;
+
+                result.configInv = cellInv.getConfigInventory();
                 result.fluidHandler = fluidHandler;
                 result.isFluidCell = true;
 
                 return result;
             }
 
-            // Fallback for cells with null getCellInv() (e.g., VoidCells)
-            if (cellStack.getItem() instanceof ICellWorkbenchItem) {
+            if (supportsWorkbenchConfigFallback(cellStack)) {
                 result.configInv = ((ICellWorkbenchItem) cellStack.getItem()).getConfigInventory(cellStack);
                 result.fluidHandler = fluidHandler;
                 result.isFluidCell = true;
@@ -288,6 +303,52 @@ public class CellActionHandler {
         if (result.gasData != null) result.configInv = (IItemHandler) result.gasData[0];
 
         return result;
+    }
+
+    /**
+     * Check if a cell supports workbench config as a true partition filter.
+     * Some cells (e.g. NAE2 void cells) return null from getCellInv()
+     * but still use the config inventory as a real partition filter.
+     * Allowing every cell with null getCellInv() to use workbench config would break
+     * the implicit contract of some cells, so we only allow a specific subset.
+     *
+     * @param cellStack The cell ItemStack to check
+     * @return true if the cell supports workbench config as a partition filter
+     */
+    static boolean supportsWorkbenchConfigFallback(ItemStack cellStack) {
+        if (cellStack.isEmpty() || !(cellStack.getItem() instanceof ICellWorkbenchItem)) return false;
+
+        String className = cellStack.getItem().getClass().getName();
+        for (String allowedClass : NULL_PARTITION_ALLOW_LIST) {
+            if (className.startsWith(allowedClass)) return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Check whether a cell's ICellInventory config should be exposed as an editable partition.
+     * Creative-style cells use config/filter state as the source of infinite contents, so
+     * exposing that state through DiskTerminal would bypass their own edit restrictions.
+     */
+    public static boolean shouldExposeCellInventoryPartition(ItemStack cellStack, ICellInventory<?> cellInv) {
+        if (cellStack.isEmpty() || cellInv == null) return false;
+
+        if (cellStack.getItem() instanceof ICellWorkbenchItem
+                && !((ICellWorkbenchItem) cellStack.getItem()).isEditable(cellStack)) {
+            return false;
+        }
+
+        return !isCreativeCellPartitionSource(cellStack, cellInv);
+    }
+
+    private static boolean isCreativeCellPartitionSource(ItemStack cellStack, ICellInventory<?> cellInv) {
+        return isCreativeCellClassName(cellStack.getItem().getClass().getName())
+            || isCreativeCellClassName(cellInv.getClass().getName());
+    }
+
+    private static boolean isCreativeCellClassName(String className) {
+        return className.contains("Creative") && className.contains("Cell");
     }
 
     /**

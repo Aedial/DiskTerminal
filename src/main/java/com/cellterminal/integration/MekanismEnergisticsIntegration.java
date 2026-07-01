@@ -30,6 +30,7 @@ import com.cellterminal.CellTerminal;
 import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.client.StorageType;
 import com.cellterminal.config.CellTerminalServerConfig;
+import com.cellterminal.container.handler.CellActionHandler;
 import com.cellterminal.network.PacketStorageBusPartitionAction;
 import com.cellterminal.util.BigStackTracker;
 
@@ -108,20 +109,22 @@ public class MekanismEnergisticsIntegration {
             cellData.setLong("storedItemCount", cellInv.getStoredItemCount());
 
             // Get partition (config inventory) - Gas cells use dummy gas items
-            IItemHandler configInv = cellInv.getConfigInventory();
-            if (configInv != null) {
-                NBTTagList partitionList = new NBTTagList();
-                for (int i = 0; i < configInv.getSlots(); i++) {
-                    ItemStack partItem = configInv.getStackInSlot(i);
-                    NBTTagCompound partNbt = new NBTTagCompound();
-                    partNbt.setInteger("slot", i);
+            if (CellActionHandler.shouldExposeCellInventoryPartition(cellStack, cellInv)) {
+                IItemHandler configInv = cellInv.getConfigInventory();
+                if (configInv != null) {
+                    NBTTagList partitionList = new NBTTagList();
+                    for (int i = 0; i < configInv.getSlots(); i++) {
+                        ItemStack partItem = configInv.getStackInSlot(i);
+                        NBTTagCompound partNbt = new NBTTagCompound();
+                        partNbt.setInteger("slot", i);
 
-                    if (!partItem.isEmpty()) partItem.writeToNBT(partNbt);
+                        if (!partItem.isEmpty()) partItem.writeToNBT(partNbt);
 
-                    partitionList.appendTag(partNbt);
+                        partitionList.appendTag(partNbt);
+                    }
+
+                    cellData.setTag("partition", partitionList);
                 }
-
-                cellData.setTag("partition", partitionList);
             }
 
             // Get stored gas (contents preview) - convert to ItemStack representation (DummyGas)
@@ -198,7 +201,10 @@ public class MekanismEnergisticsIntegration {
 
             if (gasCellHandler == null || gasCellHandler.getCellInv() == null) return null;
 
-            IItemHandler configInv = gasCellHandler.getCellInv().getConfigInventory();
+            ICellInventory<com.mekeng.github.common.me.data.IAEGasStack> cellInv = gasCellHandler.getCellInv();
+            if (!CellActionHandler.shouldExposeCellInventoryPartition(cellStack, cellInv)) return null;
+
+            IItemHandler configInv = cellInv.getConfigInventory();
             if (configInv == null) return null;
 
             return new Object[] { configInv, gasChannel, gasCellHandler };

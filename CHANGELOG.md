@@ -8,6 +8,14 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.6.6-beta] - 2026-07-01
+### Added
+- Add direct support for Void Cell partitioning.
+
+### Fixed
+- Fix CELLS's Creative Cells exposing their filter inventory as partition, which allowed to add items to it without Creative mode. All Creative Cells now have their filter inventory stripped from the partition view, and are now treated as "no partition" cells, which is the intended behavior.
+
+
 ## [1.6.5-beta] - 2026-06-01
 ### Added
 - Add support for latest HEI's bookmarks in quick partitioning.

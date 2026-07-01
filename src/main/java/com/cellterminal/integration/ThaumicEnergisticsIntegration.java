@@ -23,6 +23,7 @@ import com.cellterminal.CellTerminal;
 import com.cellterminal.client.StorageBusInfo;
 import com.cellterminal.client.StorageType;
 import com.cellterminal.config.CellTerminalServerConfig;
+import com.cellterminal.container.handler.CellActionHandler;
 import com.cellterminal.util.BigStackTracker;
 
 
@@ -97,20 +98,22 @@ public class ThaumicEnergisticsIntegration {
             cellData.setLong("storedItemCount", cellInv.getStoredItemCount());
 
             // Get partition (config inventory) - Essentia cells use dummy aspect items
-            IItemHandler configInv = cellInv.getConfigInventory();
-            if (configInv != null) {
-                NBTTagList partitionList = new NBTTagList();
-                for (int i = 0; i < configInv.getSlots(); i++) {
-                    ItemStack partItem = configInv.getStackInSlot(i);
-                    NBTTagCompound partNbt = new NBTTagCompound();
-                    partNbt.setInteger("slot", i);
+            if (CellActionHandler.shouldExposeCellInventoryPartition(cellStack, cellInv)) {
+                IItemHandler configInv = cellInv.getConfigInventory();
+                if (configInv != null) {
+                    NBTTagList partitionList = new NBTTagList();
+                    for (int i = 0; i < configInv.getSlots(); i++) {
+                        ItemStack partItem = configInv.getStackInSlot(i);
+                        NBTTagCompound partNbt = new NBTTagCompound();
+                        partNbt.setInteger("slot", i);
 
-                    if (!partItem.isEmpty()) partItem.writeToNBT(partNbt);
+                        if (!partItem.isEmpty()) partItem.writeToNBT(partNbt);
 
-                    partitionList.appendTag(partNbt);
+                        partitionList.appendTag(partNbt);
+                    }
+
+                    cellData.setTag("partition", partitionList);
                 }
-
-                cellData.setTag("partition", partitionList);
             }
 
             // Get stored essentia (contents preview) - convert to ItemStack representation (DummyAspect)
@@ -167,7 +170,10 @@ public class ThaumicEnergisticsIntegration {
 
             if (essentiaCellHandler == null || essentiaCellHandler.getCellInv() == null) return null;
 
-            IItemHandler configInv = essentiaCellHandler.getCellInv().getConfigInventory();
+            ICellInventory<thaumicenergistics.api.storage.IAEEssentiaStack> cellInv = essentiaCellHandler.getCellInv();
+            if (!CellActionHandler.shouldExposeCellInventoryPartition(cellStack, cellInv)) return null;
+
+            IItemHandler configInv = cellInv.getConfigInventory();
             if (configInv == null) return null;
 
             return new Object[] { configInv, essentiaChannel, essentiaCellHandler };

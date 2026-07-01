@@ -129,26 +129,21 @@ public class CellDataHandler {
 
         ICellInventory<IAEItemStack> cellInv = handler.getCellInv();
 
-        // If cellInv is null (e.g., VoidCells), fall back to ICellWorkbenchItem for config/upgrades
         if (cellInv == null) {
-            if (!(cellStack.getItem() instanceof ICellWorkbenchItem)) return false;
+            if (!CellActionHandler.supportsWorkbenchConfigFallback(cellStack)) return false;
 
             ICellWorkbenchItem workbenchItem = (ICellWorkbenchItem) cellStack.getItem();
-            IItemHandler configInv = workbenchItem.getConfigInventory(cellStack);
-            IItemHandler upgradesInv = workbenchItem.getUpgradesInventory(cellStack);
-
-            // Only populate if we have at least config or upgrades
-            if (configInv == null && upgradesInv == null) return false;
-
-            populateConfigInventory(cellData, configInv);
-            populateCellUpgrades(cellData, upgradesInv);
-
-            return true;
+            StorageType.ITEM.writeToNBT(cellData);
+            return populateWorkbenchCellData(cellData, workbenchItem, cellStack);
         }
 
         StorageType.ITEM.writeToNBT(cellData);
         populateCellStats(cellData, cellInv);
-        populateConfigInventory(cellData, cellInv.getConfigInventory());
+
+        if (CellActionHandler.shouldExposeCellInventoryPartition(cellStack, cellInv)) {
+            populateConfigInventory(cellData, cellInv.getConfigInventory());
+        }
+
         populateItemContents(cellData, cellInv, channel, slotLimit);
         populateCellUpgrades(cellData, cellInv.getUpgradesInventory());
 
@@ -163,27 +158,21 @@ public class CellDataHandler {
 
         ICellInventory<IAEFluidStack> cellInv = handler.getCellInv();
 
-        // If cellInv is null (e.g., VoidCells), fall back to ICellWorkbenchItem for config/upgrades
         if (cellInv == null) {
-            if (!(cellStack.getItem() instanceof ICellWorkbenchItem)) return false;
+            if (!CellActionHandler.supportsWorkbenchConfigFallback(cellStack)) return false;
 
             ICellWorkbenchItem workbenchItem = (ICellWorkbenchItem) cellStack.getItem();
-            IItemHandler configInv = workbenchItem.getConfigInventory(cellStack);
-            IItemHandler upgradesInv = workbenchItem.getUpgradesInventory(cellStack);
-
-            // Only populate if we have at least config or upgrades
-            if (configInv == null && upgradesInv == null) return false;
-
             StorageType.FLUID.writeToNBT(cellData);
-            populateConfigInventory(cellData, configInv);
-            populateCellUpgrades(cellData, upgradesInv);
-
-            return true;
+            return populateWorkbenchCellData(cellData, workbenchItem, cellStack);
         }
 
         StorageType.FLUID.writeToNBT(cellData);
         populateCellStats(cellData, cellInv);
-        populateConfigInventory(cellData, cellInv.getConfigInventory());
+
+        if (CellActionHandler.shouldExposeCellInventoryPartition(cellStack, cellInv)) {
+            populateConfigInventory(cellData, cellInv.getConfigInventory());
+        }
+
         populateFluidContents(cellData, cellInv, channel, slotLimit);
         populateCellUpgrades(cellData, cellInv.getUpgradesInventory());
 
@@ -216,6 +205,25 @@ public class CellDataHandler {
         cellData.setLong("usedTypes", cellInv.getStoredItemTypes());
         cellData.setLong("totalTypes", cellInv.getTotalItemTypes());
         cellData.setLong("storedItemCount", cellInv.getStoredItemCount());
+    }
+
+    private static boolean populateWorkbenchCellData(NBTTagCompound cellData, ICellWorkbenchItem workbenchItem,
+                                                      ItemStack cellStack) {
+        IItemHandler configInv = workbenchItem.getConfigInventory(cellStack);
+        IItemHandler upgradesInv = workbenchItem.getUpgradesInventory(cellStack);
+
+        if (configInv == null && upgradesInv == null) return false;
+
+        if (configInv != null) {
+            // The supported workbench-only path is limited to NAE2 void cells, where
+            // config inventory size is the real partition capacity.
+            cellData.setLong("totalTypes", configInv.getSlots());
+        }
+
+        populateConfigInventory(cellData, configInv);
+        populateCellUpgrades(cellData, upgradesInv);
+
+        return true;
     }
 
     private static void populateConfigInventory(NBTTagCompound cellData, IItemHandler configInv) {
