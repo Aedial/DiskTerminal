@@ -8,6 +8,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [1.6.7] - 2026-07-15
+### Added
+- Fix Subnet Proxy's PARTITION_FROM_CONTENT button doing nothing.
+
+
 ## [1.6.6-beta] - 2026-07-01
 ### Added
 - Add direct support for Void Cell partitioning.

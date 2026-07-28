@@ -41,6 +41,7 @@ import appeng.tile.misc.TileInterface;
 import appeng.util.helpers.ItemHandlerUtil;
 
 import com.cells.api.ISubnetProxy;
+import com.cells.api.ResourcePreviewEntry;
 import com.cellterminal.integration.CellsIntegration;
 import com.cellterminal.integration.subnet.SubnetScannerRegistry;
 import com.cellterminal.network.PacketSubnetPartitionAction;
@@ -302,7 +303,13 @@ public class SubnetDataHandler {
             return StorageBusDataHandler.executeSubnetFluidPartitionAction(
                 (PartFluidStorageBus) busPart, action, partitionSlot, itemStack);
         } else if (busPart instanceof ISubnetProxy) {
-            return handleExternalSubnetProxyPartition((ISubnetProxy) busPart, action, partitionSlot, itemStack);
+            return handleExternalSubnetProxyPartition(
+                (ISubnetProxy) busPart,
+                tracker.targetGrid,
+                action,
+                partitionSlot,
+                itemStack
+            );
         }
 
         return false;
@@ -349,12 +356,19 @@ public class SubnetDataHandler {
     }
 
     private static boolean handleExternalSubnetProxyPartition(ISubnetProxy proxy,
+                                                              IGrid subnetGrid,
                                                               PacketSubnetPartitionAction.Action action,
                                                               int partitionSlot,
                                                               ItemStack itemStack) {
+        List<ResourcePreviewEntry> previewEntries = null;
+
+        if (action == PacketSubnetPartitionAction.Action.SET_ALL_FROM_CONTENTS) {
+            previewEntries = collectExternalSubnetProxyPreviewEntries(proxy, subnetGrid);
+        }
+
         boolean modified = StorageBusDataHandler.executeExternalPartitionAction(
             proxy,
-            null,
+            previewEntries,
             toStorageBusPartitionAction(action),
             partitionSlot,
             itemStack
@@ -377,6 +391,8 @@ public class SubnetDataHandler {
                 return PacketStorageBusPartitionAction.Action.REMOVE_ITEM;
             case TOGGLE_ITEM:
                 return PacketStorageBusPartitionAction.Action.TOGGLE_ITEM;
+            case SET_ALL_FROM_CONTENTS:
+                return PacketStorageBusPartitionAction.Action.SET_ALL_FROM_CONTENTS;
             case SET_ALL_FROM_SUBNET_INVENTORY:
                 return PacketStorageBusPartitionAction.Action.SET_ALL_FROM_CONTENTS;
             case CLEAR_ALL:
@@ -388,7 +404,7 @@ public class SubnetDataHandler {
     private static boolean fillExternalSubnetProxyFromSubnetInventory(ISubnetProxy proxy, IGrid targetGrid) {
         boolean modified = StorageBusDataHandler.executeExternalPartitionAction(
             proxy,
-            CellsIntegration.collectGridPreviewEntries(targetGrid, Integer.MAX_VALUE),
+            collectExternalSubnetProxyPreviewEntries(proxy, targetGrid),
             PacketStorageBusPartitionAction.Action.SET_ALL_FROM_CONTENTS,
             -1,
             ItemStack.EMPTY
@@ -400,6 +416,18 @@ public class SubnetDataHandler {
         if (hostTile != null) hostTile.markDirty();
 
         return true;
+    }
+
+    private static List<ResourcePreviewEntry> collectExternalSubnetProxyPreviewEntries(ISubnetProxy proxy,
+                                                                                        IGrid subnetGrid) {
+        List<ResourcePreviewEntry> previewEntries = CellsIntegration.collectGridPreviewEntries(subnetGrid, Integer.MAX_VALUE);
+        if (!previewEntries.isEmpty()) return previewEntries;
+
+        Object targetGrid = proxy.getTargetGrid();
+        if (!(targetGrid instanceof IGrid)) return new ArrayList<>();
+        if (targetGrid == subnetGrid) return previewEntries;
+
+        return CellsIntegration.collectGridPreviewEntries((IGrid) targetGrid, Integer.MAX_VALUE);
     }
 
     /**
