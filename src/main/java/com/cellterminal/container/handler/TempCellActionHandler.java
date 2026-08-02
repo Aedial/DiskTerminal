@@ -296,7 +296,7 @@ public class TempCellActionHandler {
         InsertResult result = findAndInsertIntoNetwork(container, cellStack);
 
         if (!result.success) {
-            PlayerMessageHelper.error(player, "cellterminal.temp_area.no_slot");
+            PlayerMessageHelper.error(player, "gui.cellterminal.temp_area.no_slot");
 
             return;
         }
@@ -304,7 +304,7 @@ public class TempCellActionHandler {
         // Remove from temp area
         tempInv.setStackInSlot(tempSlotIndex, ItemStack.EMPTY);
         markDirty(container);
-        PlayerMessageHelper.success(player, "cellterminal.temp_area.sent", container.getGridName());
+        PlayerMessageHelper.success(player, "gui.cellterminal.temp_area.sent", container.getGridName());
     }
 
     /**
