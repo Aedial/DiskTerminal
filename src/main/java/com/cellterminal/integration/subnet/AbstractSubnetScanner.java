@@ -21,8 +21,6 @@ import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
 import appeng.api.util.AEPartLocation;
 import appeng.api.util.DimensionalCoord;
-import appeng.helpers.ICustomNameObject;
-import appeng.helpers.IInterfaceHost;
 import appeng.parts.misc.PartInterface;
 import appeng.tile.misc.TileInterface;
 
@@ -228,8 +226,7 @@ public abstract class AbstractSubnetScanner implements ISubnetScanner {
         NBTTagCompound nbt = new NBTTagCompound();
         nbt.setLong("id", tracker.id);
 
-        // Find primary interface host for this subnet (supports both TileInterface and PartInterface)
-        IInterfaceHost interfaceHost = SubnetDataHandler.findPrimaryInterfaceHost(subnetGrid);
+        // Find the primary grid node for the subnet coordinates
         IGridNode primaryNode = findPrimaryNode(subnetGrid);
         Object[] location = getNodeLocation(primaryNode);
         BlockPos primaryPos = (BlockPos) location[0];
@@ -242,29 +239,6 @@ public abstract class AbstractSubnetScanner implements ISubnetScanner {
         nbt.setInteger("posX", primaryPos.getX());
         nbt.setInteger("posY", primaryPos.getY());
         nbt.setInteger("posZ", primaryPos.getZ());
-
-        // Read custom name from primary interface (AE2's ICustomNameObject)
-        if (interfaceHost instanceof ICustomNameObject) {
-            ICustomNameObject nameable = (ICustomNameObject) interfaceHost;
-            if (nameable.hasCustomInventoryName()) {
-                String customName = nameable.getCustomInventoryName();
-                if (customName != null && !customName.isEmpty()) nbt.setString("customName", customName);
-            }
-        }
-
-        // Read favorite state from interface host's tile data (Forge's getTileData)
-        if (interfaceHost != null) {
-            TileEntity tile = interfaceHost.getTileEntity();
-            if (tile != null) {
-                NBTTagCompound tileData = tile.getTileData();
-                // Use side-specific key for PartInterface (multiple interfaces on same cable)
-                String favoriteKey = (interfaceHost instanceof PartInterface)
-                    ? "cellterminal.favorite." + ((PartInterface) interfaceHost).getSide().ordinal()
-                    : "cellterminal.favorite";
-
-                if (tileData.getBoolean(favoriteKey)) nbt.setBoolean("favorite", true);
-            }
-        }
 
         // Security and access
         boolean hasSecurity = checkHasSecurity(subnetGrid);

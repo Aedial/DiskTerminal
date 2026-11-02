@@ -66,7 +66,7 @@ public class CellsSubnetScanner extends AbstractSubnetScanner {
             // the inverse of DiskTerminal's AE2 outbound label semantics.
             boolean outbound = !proxy.isOutboundConnection();
             if (outbound) {
-                tracker.addConnection(proxy, hostTile);
+                tracker.addConnection(proxy, hostTile, proxy.getPrimaryFacing());
             } else {
                 tracker.addInboundConnection(proxy, hostTile, proxy.getPrimaryFacing());
             }
@@ -157,6 +157,8 @@ public class CellsSubnetScanner extends AbstractSubnetScanner {
             remoteIcon.writeToNBT(iconNbt);
             nbt.setTag("remoteIcon", iconNbt);
         }
+
+        SubnetConnectionMetadata.writeToNBT(proxy, hostTile, facing, nbt);
 
         return nbt;
     }

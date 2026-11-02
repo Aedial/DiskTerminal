@@ -13,7 +13,7 @@ import com.cellterminal.container.handler.SubnetDataHandler;
 
 
 /**
- * Packet sent from client to server to perform an action on a subnet.
+ * Packet sent from client to server to perform an action on a subnet connection.
  * Actions include renaming and toggling favorite status.
  */
 public class PacketSubnetAction implements IMessage {
@@ -35,8 +35,8 @@ public class PacketSubnetAction implements IMessage {
     /**
      * Create a rename action packet.
      */
-    public static PacketSubnetAction rename(long subnetId, String newName) {
-        NBTTagCompound data = new NBTTagCompound();
+    public static PacketSubnetAction rename(long subnetId, int dim, long pos, int side, String newName) {
+        NBTTagCompound data = createConnectionData(dim, pos, side);
         data.setString("name", newName);
 
         return new PacketSubnetAction(subnetId, SubnetDataHandler.SubnetAction.RENAME, data);
@@ -45,11 +45,20 @@ public class PacketSubnetAction implements IMessage {
     /**
      * Create a toggle favorite action packet.
      */
-    public static PacketSubnetAction toggleFavorite(long subnetId, boolean favorite) {
-        NBTTagCompound data = new NBTTagCompound();
+    public static PacketSubnetAction toggleFavorite(long subnetId, int dim, long pos, int side, boolean favorite) {
+        NBTTagCompound data = createConnectionData(dim, pos, side);
         data.setBoolean("favorite", favorite);
 
         return new PacketSubnetAction(subnetId, SubnetDataHandler.SubnetAction.TOGGLE_FAVORITE, data);
+    }
+
+    private static NBTTagCompound createConnectionData(int dim, long pos, int side) {
+        NBTTagCompound data = new NBTTagCompound();
+        data.setInteger("dim", dim);
+        data.setLong("pos", pos);
+        data.setInteger("side", side);
+
+        return data;
     }
 
     @Override

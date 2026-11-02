@@ -751,9 +751,14 @@ public class AdvancedSearchParser {
             public boolean matchesSubnetConnection(SubnetInfo subnet, ConnectionPoint connection,
                                                   boolean usesSubnetInventory, SearchFilterMode mode) {
                 if (subnet == null) return false;
-                if (onlyRenamed && !subnet.hasCustomName()) return false;
+                if (connection == null) {
+                    return !onlyRenamed
+                        && compareString(subnet.getDisplayName().toLowerCase(Locale.ROOT), operator, searchValue);
+                }
 
-                return compareString(subnet.getDisplayName().toLowerCase(Locale.ROOT), operator, searchValue);
+                if (onlyRenamed && !connection.hasCustomName()) return false;
+
+                return compareString(connection.getDisplayName().toLowerCase(Locale.ROOT), operator, searchValue);
             }
         };
     }

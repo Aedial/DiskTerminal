@@ -34,10 +34,10 @@ import appeng.api.networking.IGridNode;
 import appeng.api.networking.security.IActionHost;
 import appeng.api.parts.IPart;
 import appeng.api.storage.ICellWorkbenchItem;
+import appeng.api.util.DimensionalCoord;
 import appeng.container.AEBaseContainer;
 import appeng.container.slot.SlotRestrictedInput;
 import appeng.helpers.ICustomNameObject;
-import appeng.helpers.IInterfaceHost;
 import appeng.helpers.IPriorityHost;
 import appeng.helpers.WirelessTerminalGuiObject;
 import appeng.items.contents.NetworkToolViewer;
@@ -1355,6 +1355,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         if (SubnetDataHandler.handleSubnetAction(this.subnetById, subnetId, action, data, player)) {
             // Trigger refresh to update client with new data
             requestSubnetRefresh();
+            if (action == SubnetDataHandler.SubnetAction.RENAME) requestStorageBusRefresh();
         }
     }
 
@@ -1428,8 +1429,8 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
      * Get the display name of the current network (main network or subnet).
      * <p>
      * For main network: Returns the localized "Main Network" key.
-     * For subnet: Returns the primary interface's custom name if set, otherwise
-     * position-based name.
+     * For subnet: Returns a position-based name from a grid node.
+     * Connection names belong to their individual tiles and parts.
      * 
      * @return The display name of the current network as an ITextComponent
      */
@@ -1437,7 +1438,7 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
         // Main network always uses the localized key
         if (currentNetworkId == 0) return new TextComponentTranslation("cellterminal.subnet.main_network");
 
-        // For subnet, get the subnet's display name from the primary interface
+        // For the subnet, get its coordinate-based display name
         IGrid effectiveGrid = getEffectiveGrid();
         if (effectiveGrid == null) return new TextComponentString("Unknown Network");
 
@@ -1445,31 +1446,25 @@ public abstract class ContainerCellTerminalBase extends AEBaseContainer {
     }
 
     /**
-     * Get the display name for a subnet.
-     * Returns the primary interface's custom name if set, otherwise position-based name.
+     * Get the display name for a subnet from a grid node's position.
      */
     private ITextComponent getSubnetName(IGrid grid) {
-        // Find the primary interface host (same logic as SubnetDataHandler)
-        IInterfaceHost interfaceHost = SubnetDataHandler.findPrimaryInterfaceHost(grid);
+        // Find a grid node with coordinates for the subnet name
+        for (IGridNode node : grid.getNodes()) {
+            if (node.getGridBlock() == null) continue;
 
-        if (interfaceHost instanceof ICustomNameObject) {
-            ICustomNameObject nameable = (ICustomNameObject) interfaceHost;
-            if (nameable.hasCustomInventoryName()) return new TextComponentString(nameable.getCustomInventoryName());
+            DimensionalCoord location = node.getGridBlock().getLocation();
+            if (location == null) continue;
+
+            // Generate the position-based name from the node's location
+            BlockPos pos = location.getPos();
+
+            // Return a localized position string
+            String nameKey = "gui.cellterminal.subnet.default_name";
+            return new TextComponentTranslation(nameKey, pos.getX(), pos.getY(), pos.getZ());
         }
 
-        // No custom name - generate position-based name from the interface's location
-        if (interfaceHost != null) {
-            TileEntity tile = interfaceHost.getTileEntity();
-
-            if (tile != null) {
-                BlockPos pos = tile.getPos();
-
-                // Return a localized position string
-                return new TextComponentTranslation("gui.cellterminal.subnet.default_name", pos.getX(), pos.getY(), pos.getZ());
-            }
-        }
-
-        // Fallback - should not normally happen
+        // Fall back when the grid has no located nodes
         return new TextComponentString("Unknown Network");
     }
 

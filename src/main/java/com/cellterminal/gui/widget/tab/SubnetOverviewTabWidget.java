@@ -71,7 +71,7 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
 
     // Subnet data
     // subnetById is the canonical state map (kept across delta updates).
-    // subnetList is rebuilt from subnetById whenever the data changes (sorted display order).
+    // subnetList is rebuilt from subnetById whenever the data changes
     private final Map<Long, SubnetInfo> subnetById = new LinkedHashMap<>();
     private final List<SubnetInfo> subnetList = new ArrayList<>();
     private final List<Object> subnetLines = new ArrayList<>();
@@ -83,24 +83,23 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
     private SubnetOverviewContext subnetContext;
 
     /**
-     * Comparator for sorting subnets: main network first, then favorites, then by dimension and distance.
+     * Comparator for sorting connections by favorite, dimension, and distance.
      */
-    private static final Comparator<SubnetInfo> SUBNET_COMPARATOR = (a, b) -> {
-        // Main network always first
-        if (a.isMainNetwork()) return -1;
-        if (b.isMainNetwork()) return 1;
+    private static final Comparator<SubnetConnectionEntry> CONNECTION_COMPARATOR = (a, b) -> {
+        SubnetInfo.ConnectionPoint left = a.getConnection();
+        SubnetInfo.ConnectionPoint right = b.getConnection();
 
-        // Favorites next
-        if (a.isFavorite() != b.isFavorite()) return a.isFavorite() ? -1 : 1;
+        // Favorites next, after the main network header
+        if (left.isFavorite() != right.isFavorite()) return left.isFavorite() ? -1 : 1;
 
         // Then by dimension
-        if (a.getDimension() != b.getDimension()) {
-            return Integer.compare(a.getDimension(), b.getDimension());
+        if (left.getDimension() != right.getDimension()) {
+            return Integer.compare(left.getDimension(), right.getDimension());
         }
 
         // Then by distance from origin
-        double distA = a.getPrimaryPos().distanceSq(0, 0, 0);
-        double distB = b.getPrimaryPos().distanceSq(0, 0, 0);
+        double distA = left.getPos().distanceSq(0, 0, 0);
+        double distB = right.getPos().distanceSq(0, 0, 0);
 
         return Double.compare(distA, distB);
     };
@@ -158,17 +157,16 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
                 return null;
             });
 
-        // Rebuild display list: main network first, then sorted subnets.
+        // Rebuild the subnet data list, connections sort when their rows rebuild
         this.subnetList.clear();
         this.subnetList.add(SubnetInfo.createMainNetwork());
         this.subnetList.addAll(this.subnetById.values());
-        this.subnetList.sort(SUBNET_COMPARATOR);
 
         buildSubnetLines();
     }
 
     /**
-     * Build the flattened subnet lines list from the sorted subnet list.
+     * Build the flattened subnet lines list from the subnet data.
      * <p>
      * Each connection gets its own header ({@link SubnetConnectionEntry}),
      * followed by content rows and partition rows, just like
@@ -187,8 +185,9 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
         SlotLimit slotLimit = CellTerminalClientConfig.getInstance().getSubnetSlotLimit();
         boolean hasSearch = useAdvancedSearch || !simpleSearch.isEmpty();
 
+        List<SubnetConnectionEntry> entries = new ArrayList<>();
         for (SubnetInfo subnet : this.subnetList) {
-            // Main network gets a single header with no connections
+            // Main network always comes first, with a single header and no connections
             if (subnet.isMainNetwork()) {
                 if (hasSearch && !matchesSubnetHeader(subnet, searchMode, advancedMatcher, useAdvancedSearch)) {
                     continue;
@@ -208,13 +207,18 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
                     continue;
                 }
 
-                this.subnetLines.add(new SubnetConnectionEntry(subnet, conn, connIdx));
-
-                // Content + partition rows (like TempArea's CellContentRow with isPartitionRow flag)
-                List<SubnetConnectionRow> rows =
-                    SubnetInfo.buildConnectionContentRows(subnet, conn, connIdx, SLOTS_PER_ROW, slotLimit);
-                this.subnetLines.addAll(rows);
+                entries.add(new SubnetConnectionEntry(subnet, conn, connIdx));
             }
+        }
+
+        entries.sort(CONNECTION_COMPARATOR);
+        for (SubnetConnectionEntry entry : entries) {
+            this.subnetLines.add(entry);
+
+            // Content + partition rows (like TempArea's CellContentRow with isPartitionRow flag)
+            List<SubnetConnectionRow> rows = SubnetInfo.buildConnectionContentRows(
+                entry.getSubnet(), entry.getConnection(), entry.getConnectionIndex(), SLOTS_PER_ROW, slotLimit);
+            this.subnetLines.addAll(rows);
         }
 
         this.lastSearchQuery = CellTerminalClientConfig.getInstance().getSearchFilter();
@@ -414,8 +418,8 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
         SubnetHeader header = new SubnetHeader(y, fontRenderer, itemRender, true);
 
         header.setNameSupplier(subnet::getDisplayName);
-        header.setHasCustomNameSupplier(subnet::hasCustomName);
-        header.setIsFavoriteSupplier(subnet::isFavorite);
+        header.setHasCustomNameSupplier(() -> false);
+        header.setIsFavoriteSupplier(() -> true);
         header.setCanLoadSupplier(() -> true);
 
         // Load button: switch to main network
@@ -436,9 +440,9 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
         SubnetInfo.ConnectionPoint conn = entry.getConnection();
         SubnetHeader header = new SubnetHeader(y, fontRenderer, itemRender);
 
-        header.setNameSupplier(subnet::getDisplayName);
-        header.setHasCustomNameSupplier(subnet::hasCustomName);
-        header.setIsFavoriteSupplier(subnet::isFavorite);
+        header.setNameSupplier(conn::getDisplayName);
+        header.setHasCustomNameSupplier(conn::hasCustomName);
+        header.setIsFavoriteSupplier(conn::isFavorite);
         header.setCanLoadSupplier(() -> subnet.isAccessible() && subnet.hasPower());
 
         // Direction arrow (→ for outbound, ← for inbound)
@@ -451,13 +455,12 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
         header.setLocationSupplier(() -> I18n.format("cellterminal.subnet.pos",
             conn.getPos().getX(), conn.getPos().getY(), conn.getPos().getZ(), conn.getDimension()));
 
-        // Star click: toggle favorite for the whole subnet, re-sort and rebuild
+        // Star click: toggle favorite for the connection, re-sort and rebuild
         header.setOnStarClick(() -> {
-            boolean newFavorite = !subnet.isFavorite();
-            subnet.setFavorite(newFavorite);
-            CellTerminalNetwork.INSTANCE.sendToServer(
-                PacketSubnetAction.toggleFavorite(subnet.getId(), newFavorite));
-            this.subnetList.sort(SUBNET_COMPARATOR);
+            boolean newFavorite = !conn.isFavorite();
+            conn.setFavorite(newFavorite);
+            CellTerminalNetwork.INSTANCE.sendToServer(PacketSubnetAction.toggleFavorite(
+                subnet.getId(), conn.getDimension(), conn.getPos().toLong(), conn.getSide().ordinal(), newFavorite));
             buildSubnetLines();
             if (guiContext != null) guiContext.rebuildAndUpdateScrollbar();
         });
@@ -468,7 +471,7 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
         });
 
         // Rename info: InlineRenameManager handles right-click on name
-        header.setRenameInfo(subnet, GuiConstants.HEADER_NAME_X - 2, 0,
+        header.setRenameInfo(entry, GuiConstants.HEADER_NAME_X - 2, 0,
             GuiConstants.CONTENT_RIGHT_EDGE - fontRenderer.getStringWidth(
                 I18n.format("cellterminal.subnet.load")) - 12);
 
@@ -666,20 +669,20 @@ public class SubnetOverviewTabWidget extends AbstractTabWidget {
     private void highlightConnectionInWorld(SubnetInfo subnet, SubnetInfo.ConnectionPoint conn) {
         if (subnet == null || subnet.isMainNetwork()) return;
 
-        if (subnet.getDimension() != Minecraft.getMinecraft().player.dimension) {
+        if (conn.getDimension() != Minecraft.getMinecraft().player.dimension) {
             MessageHelper.error("cellterminal.error.different_dimension");
             return;
         }
 
         CellTerminalNetwork.INSTANCE.sendToServer(
-            new PacketHighlightBlock(conn.getPos(), subnet.getDimension())
+            new PacketHighlightBlock(conn.getPos(), conn.getDimension())
         );
 
         MessageHelper.success("gui.cellterminal.highlighted",
             conn.getPos().getX(),
             conn.getPos().getY(),
             conn.getPos().getZ(),
-            subnet.getDisplayName());
+            conn.getDisplayName());
     }
 
     // ========================================================================

@@ -3,7 +3,7 @@ package com.cellterminal.gui.rename;
 
 /**
  * Interface for objects that can be renamed inline in the Cell Terminal GUI.
- * Implemented by SubnetInfo, StorageInfo, CellInfo, and StorageBusInfo.
+ * Implemented by SubnetConnectionEntry, StorageInfo, CellInfo, and StorageBusInfo.
  * <p>
  * Provides a unified way to check rename eligibility, get/set custom names,
  * and identify the target for server-side rename packets.

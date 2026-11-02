@@ -209,7 +209,7 @@ public class AE2SubnetScanner extends AbstractSubnetScanner {
             SubnetTracker tracker = getOrCreateTracker(subnetsByGrid, remoteGrid);
 
             // Add this connection point (outbound: Storage Bus on main -> Interface on subnet)
-            tracker.addConnection(bus, hostTile);
+            tracker.addConnection(bus, hostTile, facing);
         }
     }
 
@@ -245,7 +245,7 @@ public class AE2SubnetScanner extends AbstractSubnetScanner {
             SubnetTracker tracker = getOrCreateTracker(subnetsByGrid, remoteGrid);
 
             // Add this connection point
-            tracker.addConnection(bus, hostTile);
+            tracker.addConnection(bus, hostTile, facing);
         }
     }
 
@@ -464,6 +464,8 @@ public class AE2SubnetScanner extends AbstractSubnetScanner {
             // For inbound, filter comes from the remote storage bus
             addInboundFilter(nbt, hostTile, connectionSide, subnetGrid);
         }
+
+        SubnetConnectionMetadata.writeToNBT(part, hostTile, connectionSide, nbt);
 
         return nbt;
     }

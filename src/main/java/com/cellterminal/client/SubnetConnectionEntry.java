@@ -1,11 +1,14 @@
 package com.cellterminal.client;
 
+import com.cellterminal.gui.rename.Renameable;
+import com.cellterminal.gui.rename.RenameTargetType;
+
 
 /**
  * Represents a single connection point as a header-level entry in the subnet overview.
  * <p>
  * Each connection between the main network and a subnet gets its own header row,
- * showing the direction arrow (→/←), icon, subnet name, connection position, and Load button.
+ * showing the direction arrow (→/←), icon, connection name, position, and Load button.
  * <p>
  * The flattened display list for subnets is:
  * <pre>
@@ -19,7 +22,7 @@ package com.cellterminal.client;
  * @see SubnetInfo.ConnectionPoint
  * @see SubnetConnectionRow
  */
-public class SubnetConnectionEntry {
+public class SubnetConnectionEntry implements Renameable {
 
     private final SubnetInfo subnet;
     private final SubnetInfo.ConnectionPoint connection;
@@ -45,6 +48,43 @@ public class SubnetConnectionEntry {
     }
 
     public int getConnectionIndex() {
+        return connectionIndex;
+    }
+
+    // ---- Renameable implementation ----
+
+    @Override
+    public boolean isRenameable() {
+        return true;
+    }
+
+    @Override
+    public String getCustomName() {
+        return connection.getCustomName();
+    }
+
+    @Override
+    public boolean hasCustomName() {
+        return connection.hasCustomName();
+    }
+
+    @Override
+    public void setCustomName(String name) {
+        connection.setCustomName(name);
+    }
+
+    @Override
+    public RenameTargetType getRenameTargetType() {
+        return RenameTargetType.SUBNET;
+    }
+
+    @Override
+    public long getRenameId() {
+        return subnet.getId();
+    }
+
+    @Override
+    public int getRenameSecondaryId() {
         return connectionIndex;
     }
 }

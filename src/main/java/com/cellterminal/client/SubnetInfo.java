@@ -11,9 +11,6 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.common.util.Constants;
 
-import com.cellterminal.gui.rename.Renameable;
-import com.cellterminal.gui.rename.RenameTargetType;
-
 
 /**
  * Client-side data holder for subnet connection information received from server.
@@ -28,8 +25,6 @@ import com.cellterminal.gui.rename.RenameTargetType;
  * "posX"            int                   4   (for client-side name generation)
  * "posY"            int                   4   (")
  * "posZ"            int                   4   (")
- * "customName"      String                ~N  (optional; user-set subnet name)
- * "favorite"        boolean               1   (optional; only if true)
  * "hasSecurity"     boolean               1
  * "accessible"      boolean               1
  * "hasPower"        boolean               1
@@ -40,6 +35,8 @@ import com.cellterminal.gui.rename.RenameTargetType;
  *        "pos"          long (BlockPos)       8
  *        "dim"          int                   4
  *        "side"         int (EnumFacing)      4
+ *        "customName"   String                ~N  (optional; user-set connection name)
+ *        "favorite"     boolean               1   (optional; only if true)
  *        "outbound"     boolean               1
  *        "usesSubnetInventory" boolean         1   (optional; content comes from subnet inventory)
  *        "localIcon"    NBTTagCompound        ~I  (optional; block icon on main net)
@@ -48,10 +45,10 @@ import com.cellterminal.gui.rename.RenameTargetType;
  *        "filter"       NBTTagList            ~P  (optional; partition/filter items)
  *        "maxPartitionSlots" int              4   (optional; default 63)
  * ─────────────────────────────────────────────────
- * Total ≈ 36 + N + S_inv * T_inv + S_conn * C
+ * Total ≈ 36 + S_inv * T_inv + S_conn * C
  *   where S_inv  = average size of one inventory entry (~50-200 bytes),
  *         T_inv  = number of unique item types in subnet ME storage,
- *         S_conn = average size of one connection entry (~50-300 bytes),
+ *         S_conn = average connection size, including its name (~50-300 bytes + N),
  *         C      = number of connection points to this subnet,
  *         N      = custom name length (0 if absent)
  * </pre>
@@ -67,14 +64,14 @@ import com.cellterminal.gui.rename.RenameTargetType;
  *   (remote side → local side)
  * <p>
  * Both directions can exist simultaneously for bidirectional item flow.
- * Multiple connections to the same subnet are grouped together and sorted by position.
+ * Connections share subnet inventory data and sort by favorite, dimension, and position.
  * <p>
  * Note: A subnet does NOT require a controller - any cable segment with up to 8 channels
  * can function as a subnet if powered via Energy Acceptor or Quartz Fiber.
  * <p>
  * Note: P2P Tunnels do NOT create subnets - they teleport channels within the same grid.
  */
-public class SubnetInfo implements Renameable {
+public class SubnetInfo {
 
     /**
      * Represents a single connection point between main network and subnet.
@@ -89,6 +86,8 @@ public class SubnetInfo implements Renameable {
         private final ItemStack localIcon;    // Icon of the block on main network
         private final ItemStack remoteIcon;   // Icon of the block on subnet
         private final boolean usesSubnetInventory;
+        private String customName;           // User-defined name
+        private boolean isFavorite;
 
         // Content items (items flowing through the connection). Empty list if no content key in data.
         private final List<ItemStack> content;
@@ -104,6 +103,8 @@ public class SubnetInfo implements Renameable {
             this.dimension = nbt.getInteger("dim");
             this.side = EnumFacing.byIndex(nbt.getInteger("side"));
             this.isOutbound = nbt.getBoolean("outbound");
+            this.customName = nbt.hasKey("customName") ? nbt.getString("customName") : null;
+            this.isFavorite = nbt.getBoolean("favorite");
             this.localIcon = nbt.hasKey("localIcon") ? new ItemStack(nbt.getCompoundTag("localIcon")) : ItemStack.EMPTY;
             this.remoteIcon = nbt.hasKey("remoteIcon") ? new ItemStack(nbt.getCompoundTag("remoteIcon")) : ItemStack.EMPTY;
 
@@ -131,6 +132,51 @@ public class SubnetInfo implements Renameable {
                 }
             }
             this.maxPartitionSlots = nbt.hasKey("maxPartitionSlots") ? nbt.getInteger("maxPartitionSlots") : 63;
+        }
+
+        /**
+         * Get the display name for this connection.
+         * Returns custom name if set, otherwise the default name.
+         */
+        public String getDisplayName() {
+            if (customName != null && !customName.isEmpty()) return customName;
+
+            return I18n.format("gui.cellterminal.subnet.default_name", pos.getX(), pos.getY(), pos.getZ());
+        }
+
+        public String getCustomName() {
+            return customName;
+        }
+
+        public void setCustomName(String name) {
+            this.customName = name;
+        }
+
+        public boolean hasCustomName() {
+            return customName != null && !customName.isEmpty();
+        }
+
+        public boolean isFavorite() {
+            return isFavorite;
+        }
+
+        public void setFavorite(boolean favorite) {
+            this.isFavorite = favorite;
+        }
+
+        /**
+         * Create NBT data for this connection (for saving custom name and favorite).
+         */
+        public NBTTagCompound writeActionNBT() {
+            NBTTagCompound nbt = new NBTTagCompound();
+            nbt.setInteger("dim", dimension);
+            nbt.setLong("pos", pos.toLong());
+            nbt.setInteger("side", side.ordinal());
+
+            if (customName != null) nbt.setString("customName", customName);
+            nbt.setBoolean("favorite", isFavorite);
+
+            return nbt;
         }
 
         public BlockPos getPos() {
@@ -233,8 +279,6 @@ public class SubnetInfo implements Renameable {
     private final int dimension;              // Primary dimension (from primary node, used for sorting)
     private final BlockPos primaryPos;        // Primary position for sorting/highlighting (first interface position)
     private final String defaultName;         // Auto-generated name (e.g., "Subnet @ X, Y, Z")
-    private String customName;                // User-defined name
-    private boolean isFavorite;
     private final boolean hasSecurity;        // Whether the subnet has a security station
     private final boolean isAccessible;       // Whether current player can access the subnet
     private final boolean hasPower;           // Whether the subnet has power
@@ -254,20 +298,18 @@ public class SubnetInfo implements Renameable {
      * This is always displayed at the top of the subnet list.
      */
     public static SubnetInfo createMainNetwork() {
-        return new SubnetInfo(0, BlockPos.ORIGIN, I18n.format("cellterminal.subnet.main_network"), true, true, true, true);
+        return new SubnetInfo(0, BlockPos.ORIGIN, I18n.format("cellterminal.subnet.main_network"), true, true, true);
     }
 
     /**
      * Private constructor for factory methods.
      */
-    private SubnetInfo(long id, BlockPos primaryPos, String defaultName, boolean isFavorite,
+    private SubnetInfo(long id, BlockPos primaryPos, String defaultName,
                        boolean hasSecurity, boolean isAccessible, boolean hasPower) {
         this.id = id;
         this.dimension = 0;
         this.primaryPos = primaryPos;
         this.defaultName = defaultName;
-        this.customName = null;
-        this.isFavorite = isFavorite;
         this.hasSecurity = hasSecurity;
         this.isAccessible = isAccessible;
         this.hasPower = hasPower;
@@ -285,8 +327,6 @@ public class SubnetInfo implements Renameable {
         int posZ = nbt.hasKey("posZ") ? nbt.getInteger("posZ") : primaryPos.getZ();
         this.defaultName = I18n.format("gui.cellterminal.subnet.default_name", posX, posY, posZ);
 
-        this.customName = nbt.hasKey("customName") ? nbt.getString("customName") : null;
-        this.isFavorite = nbt.getBoolean("favorite");
         this.hasSecurity = nbt.getBoolean("hasSecurity");
         this.isAccessible = nbt.getBoolean("accessible");
         this.hasPower = nbt.getBoolean("hasPower");
@@ -337,37 +377,14 @@ public class SubnetInfo implements Renameable {
     }
 
     /**
-     * Get the display name for this subnet.
-     * Returns custom name if set, otherwise the default name.
+     * Get the default coordinate-based name for this subnet.
      */
     public String getDisplayName() {
-        if (customName != null && !customName.isEmpty()) return customName;
-
         return defaultName;
     }
 
     public String getDefaultName() {
         return defaultName;
-    }
-
-    public String getCustomName() {
-        return customName;
-    }
-
-    public void setCustomName(String name) {
-        this.customName = name;
-    }
-
-    public boolean hasCustomName() {
-        return customName != null && !customName.isEmpty();
-    }
-
-    public boolean isFavorite() {
-        return isFavorite;
-    }
-
-    public void setFavorite(boolean favorite) {
-        this.isFavorite = favorite;
     }
 
     /**
@@ -487,18 +504,6 @@ public class SubnetInfo implements Renameable {
     }
 
     /**
-     * Create NBT data for this subnet info (for saving custom name and favorite).
-     */
-    public NBTTagCompound writeActionNBT() {
-        NBTTagCompound nbt = new NBTTagCompound();
-        nbt.setLong("id", id);
-        if (customName != null) nbt.setString("customName", customName);
-        nbt.setBoolean("favorite", isFavorite);
-
-        return nbt;
-    }
-
-    /**
      * Build content and partition rows for a single connection, following the same layout
      * as Temp Area: content rows first, then partition rows.
      * <p>
@@ -566,22 +571,5 @@ public class SubnetInfo implements Renameable {
         }
 
         return -1;
-    }
-
-    // ---- Renameable implementation ----
-
-    @Override
-    public boolean isRenameable() {
-        return !isMainNetwork;
-    }
-
-    @Override
-    public RenameTargetType getRenameTargetType() {
-        return RenameTargetType.SUBNET;
-    }
-
-    @Override
-    public long getRenameId() {
-        return id;
     }
 }

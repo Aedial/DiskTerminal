@@ -5,6 +5,8 @@ import net.minecraft.client.gui.Gui;
 
 import org.lwjgl.input.Keyboard;
 
+import com.cellterminal.client.SubnetConnectionEntry;
+import com.cellterminal.client.SubnetInfo.ConnectionPoint;
 import com.cellterminal.gui.GuiConstants;
 import com.cellterminal.network.CellTerminalNetwork;
 import com.cellterminal.network.PacketRenameAction;
@@ -118,8 +120,10 @@ public class InlineRenameManager {
                     PacketRenameAction.renameStorageBus(target.getRenameId(), newName));
                 break;
             case SUBNET:
-                CellTerminalNetwork.INSTANCE.sendToServer(
-                    PacketSubnetAction.rename(target.getRenameId(), newName));
+                ConnectionPoint connection = ((SubnetConnectionEntry) target).getConnection();
+                CellTerminalNetwork.INSTANCE.sendToServer(PacketSubnetAction.rename(
+                    target.getRenameId(), connection.getDimension(), connection.getPos().toLong(),
+                    connection.getSide().ordinal(), newName));
                 break;
             default:
                 break;
@@ -276,6 +280,15 @@ public class InlineRenameManager {
     private static boolean isSameTarget(Renameable a, Renameable b) {
         if (a == b) return true;
         if (a == null || b == null) return false;
+
+        if (a instanceof SubnetConnectionEntry && b instanceof SubnetConnectionEntry) {
+            ConnectionPoint left = ((SubnetConnectionEntry) a).getConnection();
+            ConnectionPoint right = ((SubnetConnectionEntry) b).getConnection();
+
+            return a.getRenameId() == b.getRenameId()
+                && left.getDimension() == right.getDimension()
+                && left.getPos().equals(right.getPos()) && left.getSide() == right.getSide();
+        }
 
         return a.getRenameTargetType() == b.getRenameTargetType()
             && a.getRenameId() == b.getRenameId()

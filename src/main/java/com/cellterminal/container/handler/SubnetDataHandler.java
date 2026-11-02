@@ -12,6 +12,7 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 
+import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.capability.IFluidHandler;
@@ -32,8 +33,6 @@ import appeng.api.storage.data.IItemList;
 import appeng.api.util.AEPartLocation;
 import appeng.api.util.DimensionalCoord;
 import appeng.fluids.util.IAEFluidTank;
-import appeng.helpers.ICustomNameObject;
-import appeng.helpers.IInterfaceHost;
 import appeng.parts.misc.PartInterface;
 import appeng.fluids.parts.PartFluidStorageBus;
 import appeng.parts.misc.PartStorageBus;
@@ -43,6 +42,7 @@ import appeng.util.helpers.ItemHandlerUtil;
 import com.cells.api.ISubnetProxy;
 import com.cells.api.ResourcePreviewEntry;
 import com.cellterminal.integration.CellsIntegration;
+import com.cellterminal.integration.subnet.SubnetConnectionMetadata;
 import com.cellterminal.integration.subnet.SubnetScannerRegistry;
 import com.cellterminal.network.PacketSubnetPartitionAction;
 import com.cellterminal.network.PacketStorageBusPartitionAction;
@@ -82,11 +82,11 @@ public class SubnetDataHandler {
         /**
          * Add an outbound connection (Storage Bus on main -> Interface on subnet).
          */
-        public void addConnection(Object part, TileEntity hostTile) {
+        public void addConnection(Object part, TileEntity hostTile, EnumFacing side) {
             connectionParts.add(part);
             hostTiles.add(hostTile);  // Must stay parallel with connectionParts
             isOutbound.add(true);
-            connectionSides.add(null);  // Side is derived from the part
+            connectionSides.add(side);  // Scanners supply the connection facing
         }
 
         /**
@@ -158,113 +158,64 @@ public class SubnetDataHandler {
     public static boolean handleSubnetAction(Map<Long, SubnetTracker> trackerMap, long subnetId,
                                               SubnetAction action, NBTTagCompound data, EntityPlayer player) {
         SubnetTracker tracker = trackerMap.get(subnetId);
-        if (tracker == null) return false;
+        if (tracker == null || data == null) return false;
+
+        int index = findConnectionIndex(tracker, data);
+        if (index < 0) return false;
+
+        Object host = tracker.connectionParts.get(index);
+        TileEntity tile = tracker.hostTiles.get(index);
+        EnumFacing side = tracker.connectionSides.get(index);
 
         switch (action) {
             case RENAME:
-                // Store custom name in the primary interface's NBT
-                return handleRename(tracker, data.getString("name"));
+                // Write the custom name to the selected connection's tile or part
+                SubnetConnectionMetadata.rename(host, tile, side, data.getString("name"));
+                return true;
 
             case TOGGLE_FAVORITE:
-                // Store favorite state (player-specific or interface NBT)
-                return handleToggleFavorite(tracker, data.getBoolean("favorite"));
+                // Persist the favorite state on the selected connection's host tile
+                SubnetConnectionMetadata.setFavorite(host, tile, side, data.getBoolean("favorite"));
+                return true;
 
             default:
                 return false;
         }
     }
 
-    private static boolean handleRename(SubnetTracker tracker, String newName) {
-        IInterfaceHost interfaceHost = findPrimaryInterfaceHost(tracker.targetGrid);
-        if (interfaceHost == null) return false;
-
-        // Both TileInterface and PartInterface implement ICustomNameObject
-        if (!(interfaceHost instanceof ICustomNameObject)) return false;
-
-        ICustomNameObject nameable = (ICustomNameObject) interfaceHost;
-
-        // Use AE2's built-in custom name mechanism (ICustomNameObject)
-        // Empty string clears the name, non-empty sets it
-        if (newName == null || newName.trim().isEmpty()) {
-            nameable.setCustomName(null);
-        } else {
-            nameable.setCustomName(newName.trim());
-        }
-
-        // Mark host tile dirty so it saves
-        TileEntity tile = interfaceHost.getTileEntity();
-        if (tile != null) tile.markDirty();
-
-        return true;
-    }
-
-    private static boolean handleToggleFavorite(SubnetTracker tracker, boolean favorite) {
-        IInterfaceHost interfaceHost = findPrimaryInterfaceHost(tracker.targetGrid);
-        if (interfaceHost == null) return false;
-
-        // Get the tile entity that holds the interface (for both TileInterface and PartInterface)
-        TileEntity tile = interfaceHost.getTileEntity();
-        if (tile == null) return false;
-
-        // Use Forge's getTileData() to store custom data in the tile's NBT
-        // This is automatically persisted when the world saves
-        // For PartInterface, this stores in the cable bus tile's data with a unique key
-        String favoriteKey = getFavoriteKey(interfaceHost);
-        NBTTagCompound tileData = tile.getTileData();
-
-        if (favorite) {
-            tileData.setBoolean(favoriteKey, true);
-        } else {
-            // Remove the key when not favorited to keep NBT clean
-            tileData.removeTag(favoriteKey);
-        }
-
-        // Mark tile dirty so it saves
-        tile.markDirty();
-
-        return true;
-    }
-
     /**
-     * Get the favorite key for an interface host.
-     * For TileInterface, uses "cellterminal.favorite".
-     * For PartInterface, includes the side to disambiguate multiple interfaces on the same cable.
+     * Find the tracked connection by dimension, position, and side.
+     * Its tile or part holds the name and favorite metadata.
+     *
+     * @return The connection index, or -1 if the endpoint no longer matches the tracker
      */
-    private static String getFavoriteKey(IInterfaceHost interfaceHost) {
-        if (interfaceHost instanceof PartInterface) {
-            PartInterface part = (PartInterface) interfaceHost;
+    private static int findConnectionIndex(SubnetTracker tracker, NBTTagCompound data) {
+        if (!data.hasKey("dim", Constants.NBT.TAG_INT) || !data.hasKey("pos", Constants.NBT.TAG_LONG)
+                || !data.hasKey("side", Constants.NBT.TAG_INT)) return -1;
 
-            return "cellterminal.favorite." + part.getSide().ordinal();
-        }
+        int dimension = data.getInteger("dim");
+        long pos = data.getLong("pos");
+        int side = data.getInteger("side");
 
-        return "cellterminal.favorite";
-    }
+        for (int index = 0; index < tracker.connectionParts.size(); index++) {
+            TileEntity tile = tracker.hostTiles.get(index);
+            EnumFacing facing = tracker.connectionSides.get(index);
+            if (tile == null || tile.isInvalid() || tile.getWorld() == null || facing == null) continue;
+            if (tile.getWorld().provider.getDimension() != dimension || tile.getPos().toLong() != pos
+                    || facing.ordinal() != side) continue;
+            if (!tile.getWorld().isBlockLoaded(tile.getPos())
+                    || tile.getWorld().getTileEntity(tile.getPos()) != tile) continue;
 
-    /**
-     * Find the primary interface host (TileInterface or PartInterface) in a subnet's grid.
-     * This is the interface where we store subnet metadata (name, favorite).
-     * 
-     * @param grid The subnet's grid
-     * @return The primary IInterfaceHost, or null if not found
-     */
-    public static IInterfaceHost findPrimaryInterfaceHost(IGrid grid) {
-        if (grid == null) return null;
-
-        // First, try to find a TileInterface (block form - preferred)
-        for (IGridNode node : grid.getMachines(TileInterface.class)) {
-            if (node.getMachine() instanceof TileInterface) {
-                return (IInterfaceHost) node.getMachine();
+            Object host = tracker.connectionParts.get(index);
+            if (host instanceof IPart) {
+                IPartHost partHost = AEApi.instance().partHelper().getPartHost(tile.getWorld(), tile.getPos());
+                if (partHost == null || partHost.getPart(AEPartLocation.fromFacing(facing)) != host) continue;
             }
+
+            return index;
         }
 
-        // Fall back to PartInterface (cable-attached form)
-        for (IGridNode node : grid.getMachines(PartInterface.class)) {
-            if (node.getMachine() instanceof PartInterface) {
-                return (IInterfaceHost) node.getMachine();
-            }
-        }
-
-        return null;
+        return -1;
     }
 
     /**
